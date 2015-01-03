@@ -64,7 +64,7 @@ class Drivetrain(object):
         gearbox_index = int(np.floor(goal_index / self.cables_per_gearbox))
         cable_index = goal_index - gearbox_index * self.cables_per_gearbox
         # Activate the goal
-        self.gearboxes[gearbox_index].hub_cable_goals[cable_index] = 1.
+        self.gearboxes[gearbox_index].cable_goals[cable_index] = 1.
 
     def step_down(self):
         """ Find the primitive actions driven by a set of goals """

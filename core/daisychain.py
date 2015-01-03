@@ -84,7 +84,8 @@ class DaisyChain(object):
                 np.abs(self.post.T - self.expected_cable_activities),
                 surprise_weights) 
         # Reshape chain activities into a single column
-        return chain_activities.ravel()[:,np.newaxis]
+        return (chain_activities.ravel()[:,np.newaxis], 
+                self.reaction[:self.num_cables])
    
     def step_down(self, chain_goals):
         """ Propogate goals down through the transition model """

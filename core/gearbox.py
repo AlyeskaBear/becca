@@ -48,7 +48,7 @@ class Gearbox(object):
         self.bundle_activities = np.zeros((self.max_bundles, 1))
         self.raw_cable_activities = np.zeros((self.max_cables, 1))
         self.previous_cable_activities = np.zeros((self.max_cables, 1))
-        self.hub_cable_goals = np.zeros((self.max_cables, 1))
+        self.cable_goals = np.zeros((self.max_cables, 1))
         self.fill_fraction_threshold = 0.
         self.step_multiplier = int(2 ** self.level)
         self.step_counter = 1000000
@@ -101,9 +101,9 @@ class Gearbox(object):
             self.bundle_activities = np.concatenate((self.bundle_activities, 
                                                      cog_bundle_activities))
         # Goal fulfillment and decay
-        self.hub_cable_goals -= self.cable_activities
-        self.hub_cable_goals *= self.ACTIVITY_DECAY_RATE
-        self.hub_cable_goals = np.maximum(self.hub_cable_goals, 0.)
+        self.cable_goals -= self.cable_activities
+        self.cable_goals *= self.ACTIVITY_DECAY_RATE
+        self.cable_goals = np.maximum(self.cable_goals, 0.)
         return self.bundle_activities
 
     def step_down(self, bundle_goals):
@@ -116,8 +116,9 @@ class Gearbox(object):
             self.step_counter = 0
 
         bundle_goals = tools.pad(bundle_goals, (self.max_bundles, 1))
-        cable_goals = np.zeros((self.max_cables, 1))
+        new_cable_goals = np.zeros((self.max_cables, 1))
         self.surprise = np.zeros((self.max_cables, 1))
+        self.reaction = np.zeros((self.max_cables, 1))
         # Process the downward pass of each of the cogs in the level
         cog_index = 0
         for cog in self.cogs:
@@ -129,17 +130,20 @@ class Gearbox(object):
             cable_goals_by_cog = cog.step_down(cog_bundle_goals)
             cog_cable_indices = self.ziptie.get_index_projection(
                     cog_index).astype(bool)
-            cable_goals[cog_cable_indices] = np.maximum(
-                    cable_goals_by_cog, cable_goals[cog_cable_indices]) 
-            #self.reaction[cog_cable_indices] = np.maximum(
-            #        tools.pad(cog.reaction, (cog_cable_indices[0].size, 0)),
-            #        self.reaction[cog_cable_indices]) 
+            new_cable_goals[cog_cable_indices] = np.maximum(
+                    cable_goals_by_cog, new_cable_goals[cog_cable_indices]) 
+            self.reaction[cog_cable_indices] = np.maximum(
+                    tools.pad(cog.reaction, (cog_cable_indices[0].size, 0)),
+                    self.reaction[cog_cable_indices]) 
             self.surprise[cog_cable_indices] = np.maximum(
                     cog.surprise, self.surprise[cog_cable_indices]) 
             cog_index += 1
-        #self.hub_cable_goals = tools.bounded_sum([self.hub_cable_goals, 
-        #                                          cable_goals])
-        return self.hub_cable_goals 
+        #self.cable_goals = tools.bounded_sum([self.cable_goals, 
+        #                                      new_cable_goals])
+        self.cable_goals = tools.bounded_sum([self.cable_goals, 
+                                              new_cable_goals, 
+                                              self.reaction])
+        return self.cable_goals 
 
     def get_index_projection(self, bundle_index):
         """ Represent one of the bundles in terms of its cables """
@@ -162,8 +166,9 @@ class Gearbox(object):
         for cog in self.cogs:
             # Check whether all cogs have created all their bundles
                 total += cog.num_bundles()
-        if np.random.random_sample() < 0.01:
-            print total, 'bundles in', self.name, ', max of', self.max_bundles
+        # debug
+        #if np.random.random_sample() < 0.01:
+        #    print total, 'bundles in', self.name, ', max of', self.max_bundles
         return total
 
     def visualize(self):

@@ -25,7 +25,7 @@ from worlds.image_1D import World as World_image_1D
 from worlds.image_2D import World as World_image_2D
 
 def main():
-    N_RUNS = 7
+    N_RUNS = 11
     benchmark_lifespan = 1e4
     overall_performance = []
     # Run all the worlds in the benchmark and tabulate their performance
@@ -55,27 +55,8 @@ def main():
         print "Overall benchmark score, ", i , "th run: ", mean_performance 
     print "All overall benchmark scores: ", overall_performance 
     
-    # Automatically throw away the 2 highest and 2 lowest values 
-    # if you choose N_RUNS to be 7 or more.
-    if N_RUNS >= 7:
-        for i in range(2):
-            highest_val = -10 ** 6
-            lowest_val = 10 ** 6
-            
-            for indx in range(len(overall_performance)):
-                if overall_performance[indx] > highest_val:
-                    highest_val = overall_performance[indx]
-                if overall_performance[indx] < lowest_val:
-                    lowest_val = overall_performance[indx]
-            overall_performance.remove(highest_val)
-            overall_performance.remove(lowest_val)
-
-    # Find the average of what's left
-    sum_so_far = 0.
-    for indx in range(len(overall_performance)):
-        sum_so_far += overall_performance[indx]
-    typical_performance = sum_so_far / len(overall_performance)
-    print "Typical performance score: ", typical_performance 
+    #  Find the median benchmark score
+    print "Typical performance score: ", np.median(np.array(overall_performance))
     
     # Block the program, displaying all plots.
     # When the plot windows are closed, the program closes.

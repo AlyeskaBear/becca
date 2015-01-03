@@ -28,7 +28,8 @@ class Agent(object):
         sensors and actions arrays that the agent and the world use to
         communicate with each other. 
         """
-        self.BACKUP_PERIOD = 1e4
+        self.BACKUP_INTERVAL = 1e4
+        self.DISPLAY_INTERVAL = 1e3
         self.FORGETTING_RATE = 1e-3
         self.show = show
         self.name = agent_name
@@ -102,13 +103,14 @@ class Agent(object):
             random_action_index = np.random.randint(self.action.size)
             self.action[random_action_index] = 1. 
 
-        if (self.timestep % self.BACKUP_PERIOD) == 0:
+        if (self.timestep % self.BACKUP_INTERVAL) == 0:
                 self._save()    
         # Log reward
         self.cumulative_reward += unscaled_reward
         self.time_since_reward_log += 1
         # debug
-        if np.random.random_sample() < 0.001:
+        if np.mod(self.timestep, self.DISPLAY_INTERVAL) == 0.:
+            #if np.random.random_sample() < 0.001:
             self.visualize()
         return self.action
 
@@ -125,11 +127,11 @@ class Agent(object):
         self.reward_steps.append(self.timestep)
         self._show_reward_history()
 
-        self.drivetrain.visualize()
-        self.spindle.visualize()
+        #self.drivetrain.visualize()
+        #self.spindle.visualize()
         #self.hub.visualize()
         #self.mainspring.visualize()
-        self.arborkey.visualize()
+        #self.arborkey.visualize()
  
     def report_performance(self):
         performance = np.mean(self.reward_history)

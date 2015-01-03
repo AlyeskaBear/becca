@@ -14,7 +14,7 @@ import pstats
 
 # Worlds from the benchmark
 #from worlds.base_world import World
-from worlds.grid_1D import World
+#from worlds.grid_1D import World
 #from worlds.grid_1D_delay import World
 #from worlds.grid_1D_ms import World
 #from worlds.grid_1D_noise import World
@@ -24,6 +24,7 @@ from worlds.grid_1D import World
 #from worlds.image_2D import World
 # If you want to run a world of your own, add the appropriate line here
 #from worlds.hello import World
+from becca_world_chase_ball.chase import World
 
 from core.agent import Agent 
 

@@ -28,7 +28,7 @@ class World(BaseWorld):
         self.REWARD_MAGNITUDE = 100.
         self.ENERGY_COST = 0.01 * self.REWARD_MAGNITUDE
         self.JUMP_FRACTION = 0.1
-        self.display_state = True  
+        self.display_state = False
         self.name = 'grid_1D_noise'
         self.name_long = 'noisy one dimensional grid world'
         print "Entering", self.name_long
