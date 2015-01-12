@@ -66,6 +66,7 @@ class Arborkey(object):
             self.goal_candidates.pop(worst_goal_index)
             self.expected_reward.pop(worst_goal_index)
             self.time_since_observed.pop(worst_goal_index)
+        #print 'car', candidate_reward, 'gc', goal_candidate, 'cur', current_reward, 'bgi', best_goal_index, 'hv', highest_value, 'g', goal
         return goal
 
     def add_cables(self, num_new_cables):

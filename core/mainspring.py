@@ -29,6 +29,9 @@ class Mainspring(object):
         # Keep a history of reward and active cables to account for 
         # delayed reward.
         self.TRACE_LENGTH = 11
+        self.TRACE_MAGNITUDE = 0.
+        for tau in np.arange(self.TRACE_LENGTH):
+            self.TRACE_MAGNITUDE += 1. / (1. + tau)
         # How many recently attended cables to hold in short term memory
         self.NUM_ATTENDED = 25
         self.num_cables = initial_size
@@ -47,6 +50,8 @@ class Mainspring(object):
         self.reward = np.ones(transition_shape) * self.INITIAL_REWARD
 
     def step(self, new_index, new_activity, raw_reward):
+        """ 
+        Update the reward estimate """
         self.reward_history.append(raw_reward)
         self.reward_history.pop(0)
         # Collapse the reward history into a single value for this time step
@@ -57,6 +62,7 @@ class Mainspring(object):
             # they are away from the cause and effect that occurred
             # TRACE_LENGTH time steps ago.
             reward_trace += self.reward_history[tau] / float(tau + 1)
+        reward_trace /= self.TRACE_MAGNITUDE
 
         # Update long term memory based on the newest attended cable and
         # short term memory from self.TRACE_LENGTH time steps ago.

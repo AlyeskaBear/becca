@@ -18,11 +18,15 @@ class Hub(object):
     def __init__(self, initial_size):
         self.num_cables = initial_size
         # Set constants that adjust the behavior of the hub
-        self.INITIAL_REWARD = .5
         self.REWARD_LEARNING_RATE = .1
         # Keep a history of reward and active features to account for 
         # delayed reward.
         self.TRACE_LENGTH = 10
+        # Calculate initial reward in order to encourage exploration
+        self.INITIAL_REWARD = .1
+        self.TRACE_MAGNITUDE = 0.
+        for tau in np.arange(self.TRACE_LENGTH):
+            self.TRACE_MAGNITUDE += 1. / (1. + tau)
 
         # Initialize variables for later use
         self.reward_history = list(np.zeros(self.TRACE_LENGTH))
@@ -51,6 +55,7 @@ class Hub(object):
             # they are away from the cause and effect that occurred
             # TRACE_LENGTH time steps ago.
             reward_trace += self.reward_history[tau] / float(tau + 1)
+        reward_trace /= self.TRACE_MAGNITUDE
 
         # Update the expected reward
         state = self.activity_history[0]
@@ -63,18 +68,23 @@ class Hub(object):
                             self.REWARD_LEARNING_RATE)
         
         # Choose a goal at every timestep
-        goal = np.zeros((self.num_cables, 1))
+        #goal = np.zeros((self.num_cables, 1))
         state_weight = cable_activities ** 2
         weighted_reward = state_weight * self.reward
         expected_reward = np.sum(weighted_reward, axis=0) / np.sum(state_weight)
         best_reward = np.max(expected_reward)
         potential_winners = np.where(expected_reward == best_reward)[0] 
+        #print 'sw', state_weight.ravel()
+        #print 'er', expected_reward.ravel()
+        #print 'br', best_reward
+        #print 'pw', potential_winners.ravel()
         # Break any ties by lottery
         if potential_winners.size > 0:
             goal_cable = potential_winners[np.random.randint(
                     potential_winners.size)]
         else:
-            goal_cable = np.random.randint(goal.size)
+            #goal_cable = np.random.randint(goal.size)
+            goal_cable = np.random.randint(self.num_cables)
 
         return goal_cable, best_reward
        

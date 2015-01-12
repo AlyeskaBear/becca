@@ -60,11 +60,18 @@ class Agent(object):
         self.timestep = 0
         self.graphing = True
 
-    def step(self, sensors, unscaled_reward):
+    #def step(self, sensors, unscaled_reward):
+    def step(self, sensors, reward):
+        '''
         # Adapt the reward so that it falls between -1 and 1 
         self.reward_max = np.maximum(np.abs(unscaled_reward), self.reward_max)
-        self.raw_reward = unscaled_reward / (self.reward_max + tools.EPSILON)
+        # Never assume that the best reward available is less than 1.
+        self.reward_max = np.maximum(self.reward_max, 1.)
+        self.reward = unscaled_reward / (self.reward_max + tools.EPSILON)
         self.reward_max *= (1. - self.FORGETTING_RATE)
+        '''
+        # Limit the reward to +/- 1
+        self.reward = np.minimum(np.maximum(reward, -1.), 1.)
         self.timestep += 1
         if sensors.ndim == 1:
             sensors = sensors[:,np.newaxis]
@@ -80,7 +87,7 @@ class Agent(object):
             self.drivetrain.gearbox_added = False
         # Feed the feature_activities to the hub for calculating goals
         hub_goal, hub_reward = self.hub.step(feature_activities, 
-                                             self.raw_reward) 
+                                             self.reward) 
         # Evaluate the goal using the mainspring
         mainspring_reward = self.mainspring.evaluate(hub_goal) 
         # Choose a single feature to attend 
@@ -88,10 +95,10 @@ class Agent(object):
                 feature_activities)
         # Incorporate the intended feature into short- and long-term memory
         self.mainspring.step(attended_index, attended_activity, 
-                             self.raw_reward)
+                             self.reward)
         # Pass the hub goal on to the arborkey for further evaluation
         goal_cable = self.arborkey.step(hub_goal, mainspring_reward, 
-                                        self.raw_reward)
+                                        self.reward)
         self.hub.update(feature_activities, goal_cable)
         if goal_cable is not None:
             self.drivetrain.assign_goal(goal_cable)
@@ -106,7 +113,8 @@ class Agent(object):
         if (self.timestep % self.BACKUP_INTERVAL) == 0:
                 self._save()    
         # Log reward
-        self.cumulative_reward += unscaled_reward
+        #self.cumulative_reward += unscaled_reward
+        self.cumulative_reward += self.reward
         self.time_since_reward_log += 1
         # debug
         if np.mod(self.timestep, self.DISPLAY_INTERVAL) == 0.:

@@ -132,9 +132,11 @@ class Gearbox(object):
                     cog_index).astype(bool)
             new_cable_goals[cog_cable_indices] = np.maximum(
                     cable_goals_by_cog, new_cable_goals[cog_cable_indices]) 
+            #self.reaction[cog_cable_indices] = np.maximum(
+            #        tools.pad(cog.reaction, (cog_cable_indices[0].size, 0)),
+            #        self.reaction[cog_cable_indices]) 
             self.reaction[cog_cable_indices] = np.maximum(
-                    tools.pad(cog.reaction, (cog_cable_indices[0].size, 0)),
-                    self.reaction[cog_cable_indices]) 
+                    cog.reaction, self.reaction[cog_cable_indices]) 
             self.surprise[cog_cable_indices] = np.maximum(
                     cog.surprise, self.surprise[cog_cable_indices]) 
             cog_index += 1
