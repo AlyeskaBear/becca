@@ -39,9 +39,12 @@ class Arborkey(object):
         self.time_since_acted += 1.
         goal = None
         # Update the list of goal candidates 
-        self.goal_candidates.append(goal_candidate)
-        self.expected_reward.append(candidate_reward)
-        self.time_since_observed.append(0.)
+        if goal_candidate is not None:
+            self.goal_candidates.append(goal_candidate)
+            self.expected_reward.append(candidate_reward)
+            self.time_since_observed.append(0.)
+        if len(self.expected_reward) == 0:
+            return None
         # Estimate the value of each candidate
         decayed_reward = np.array(self.expected_reward) / ( 1. + 
                 self.REWARD_DECAY_RATE * np.array(self.time_since_observed))
@@ -67,7 +70,8 @@ class Arborkey(object):
             self.expected_reward.pop(worst_goal_index)
             self.time_since_observed.pop(worst_goal_index)
         #print 'car', candidate_reward, 'gc', goal_candidate, 'cur', current_reward, 'bgi', best_goal_index, 'hv', highest_value, 'g', goal
-        return goal
+        return goal_candidate
+        #return goal
 
     def add_cables(self, num_new_cables):
         """ Add new cables to the hub when new gearboxes are created """ 

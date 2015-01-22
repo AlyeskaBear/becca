@@ -30,7 +30,7 @@ class Drivetrain(object):
         self.cables_per_gearbox = self.gearboxes[0].max_cables
         self.bundles_per_gearbox = self.gearboxes[0].max_bundles
         self.gearbox_added = False
-        self.surprise_history = []
+        #self.surprise_history = []
         self.recent_surprise_history = [0.] * 100
 
     def step_up(self, action, sensors):
@@ -50,8 +50,10 @@ class Drivetrain(object):
         for (gearbox_index, gearbox) in enumerate(self.gearboxes):
             start_index = self.cables_per_gearbox * gearbox_index
             end_index = self.cables_per_gearbox * (gearbox_index + 1)
-            feature_activities[start_index: end_index] = \
-                    gearbox.cable_activities.copy()
+            if gearbox_index == 0:
+                feature_activities[start_index: end_index] = (
+                        gearbox.cable_activities.copy())
+        
         return feature_activities
 
     def assign_goal(self, goal_index): 
@@ -69,20 +71,20 @@ class Drivetrain(object):
     def step_down(self):
         """ Find the primitive actions driven by a set of goals """
         # Propogate the deliberation_goal_votes down through the gearboxes
-        agent_surprise = 0.0
+        #agent_surprise = 0.0
         cable_goals = np.zeros((self.bundles_per_gearbox, 1))
        
         for gearbox in reversed(self.gearboxes):
             cable_goals = gearbox.step_down(cable_goals)
-            if np.nonzero(gearbox.surprise)[0].size > 0:
-                agent_surprise = np.sum(gearbox.surprise)
+            #if np.nonzero(gearbox.surprise)[0].size > 0:
+            #    agent_surprise = np.sum(gearbox.surprise)
         # Tabulate and record the surprise registered in each gearbox
-        self.recent_surprise_history.pop(0)
-        self.recent_surprise_history.append(agent_surprise)
-        self.typical_surprise = np.median(np.array(
-                self.recent_surprise_history))
-        mod_surprise = agent_surprise - self.typical_surprise
-        self.surprise_history.append(mod_surprise)
+        #self.recent_surprise_history.pop(0)
+        #self.recent_surprise_history.append(agent_surprise)
+        #self.typical_surprise = np.median(np.array(
+        #        self.recent_surprise_history))
+        #mod_surprise = agent_surprise - self.typical_surprise
+        #self.surprise_history.append(mod_surprise)
         # Report the action that resulted for the current time step.
         # Strip the actions off the cable_goals to make 
         # the current set of actions.

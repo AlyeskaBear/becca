@@ -30,7 +30,7 @@ class Agent(object):
         """
         self.BACKUP_INTERVAL = 1e4
         self.DISPLAY_INTERVAL = 1e3
-        self.FORGETTING_RATE = 1e-3
+        self.FORGETTING_RATE = 1e-7
         self.show = show
         self.name = agent_name
         self.log_dir = os.path.normpath(os.path.join(mod_path, '..', 'log'))
@@ -42,8 +42,7 @@ class Agent(object):
         self.num_actions = num_actions
 
         # Initialize agent infrastructure.
-        # Choose min_cables to account for all sensors, actions, 
-        # and two reward sensors, at a minimum.
+        # Choose min_cables to account for all sensors, actions, at a minimum.
         min_cables = self.num_actions + self.num_sensors
         self.drivetrain = drivetrain.Drivetrain(min_cables)
         num_cables = self.drivetrain.cables_per_gearbox
@@ -56,22 +55,17 @@ class Agent(object):
         self.time_since_reward_log = 0 
         self.reward_history = []
         self.reward_steps = []
-        self.reward_max = -tools.BIG
+        self.reward_max = 1.
         self.timestep = 0
         self.graphing = True
 
-    #def step(self, sensors, unscaled_reward):
     def step(self, sensors, reward):
-        '''
         # Adapt the reward so that it falls between -1 and 1 
-        self.reward_max = np.maximum(np.abs(unscaled_reward), self.reward_max)
-        # Never assume that the best reward available is less than 1.
-        self.reward_max = np.maximum(self.reward_max, 1.)
-        self.reward = unscaled_reward / (self.reward_max + tools.EPSILON)
         self.reward_max *= (1. - self.FORGETTING_RATE)
-        '''
-        # Limit the reward to +/- 1
-        self.reward = np.minimum(np.maximum(reward, -1.), 1.)
+        self.reward_max = np.maximum(np.abs(reward), self.reward_max)
+        self.reward = reward / self.reward_max
+        #self.reward = np.minimum(np.maximum(reward, 0.), 1.)
+
         self.timestep += 1
         if sensors.ndim == 1:
             sensors = sensors[:,np.newaxis]
@@ -94,12 +88,15 @@ class Agent(object):
         (attended_index, attended_activity) = self.spindle.step(
                 feature_activities)
         # Incorporate the intended feature into short- and long-term memory
-        self.mainspring.step(attended_index, attended_activity, 
+        self.mainspring.step(attended_index, 
+                             attended_activity, 
                              self.reward)
         # Pass the hub goal on to the arborkey for further evaluation
-        goal_cable = self.arborkey.step(hub_goal, mainspring_reward, 
+        goal_cable = self.arborkey.step(hub_goal, 
+                                        mainspring_reward, 
                                         self.reward)
-        self.hub.update(feature_activities, goal_cable)
+        self.hub.update(feature_activities, goal_cable, self.reward)
+        self.mainspring.update(goal_cable)
         if goal_cable is not None:
             self.drivetrain.assign_goal(goal_cable)
         self.action = self.drivetrain.step_down()
@@ -159,8 +156,9 @@ class Agent(object):
             fig.show()
             fig.canvas.draw()
             if filename is None:
-                filename = os.path.join(self.log_dir, 'reward_history.png')
-            plt.savefig(filename, format='png')
+                filename = ''.join(['reward_history_', self.name ,'.png'])
+                pathname = os.path.join(self.log_dir, filename)
+            plt.savefig(pathname, format='png')
             if hold_plot:
                 plt.show()
     

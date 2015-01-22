@@ -57,11 +57,13 @@ class Gearbox(object):
         # Constants for adaptively rescaling the cable activities
         self.max_vals = np.zeros((self.max_cables, 1)) 
         self.min_vals = np.zeros((self.max_cables, 1))
-        self.RANGE_DECAY_RATE = 10 ** -3
+        self.RANGE_DECAY_RATE = 1e-3
         
     def step_up(self, new_cable_activities):
         """ Find bundle_activities that result from new_cable_activities """
         # Condition the cable activities to fall between 0 and 1
+        #print 'max', self.max_vals
+        #print 'min', self.min_vals
         if new_cable_activities.size < self.max_cables:
             new_cable_activities = tools.pad(new_cable_activities, 
                                              (self.max_cables, 1))
@@ -79,6 +81,10 @@ class Gearbox(object):
                    (self.max_vals - self.min_vals + tools.EPSILON))
         self.min_vals += spread * self.RANGE_DECAY_RATE
         self.max_vals -= spread * self.RANGE_DECAY_RATE
+        
+        # debug
+        self.cable_activities = new_cable_activities
+
         cluster_training_activities = np.maximum(
                 self.previous_cable_activities, self.cable_activities)
         self.previous_cable_activities = self.cable_activities.copy() 
@@ -117,8 +123,8 @@ class Gearbox(object):
 
         bundle_goals = tools.pad(bundle_goals, (self.max_bundles, 1))
         new_cable_goals = np.zeros((self.max_cables, 1))
-        self.surprise = np.zeros((self.max_cables, 1))
-        self.reaction = np.zeros((self.max_cables, 1))
+        #self.surprise = np.zeros((self.max_cables, 1))
+        #self.reaction = np.zeros((self.max_cables, 1))
         # Process the downward pass of each of the cogs in the level
         cog_index = 0
         for cog in self.cogs:
@@ -133,18 +139,15 @@ class Gearbox(object):
             new_cable_goals[cog_cable_indices] = np.maximum(
                     cable_goals_by_cog, new_cable_goals[cog_cable_indices]) 
             #self.reaction[cog_cable_indices] = np.maximum(
-            #        tools.pad(cog.reaction, (cog_cable_indices[0].size, 0)),
-            #        self.reaction[cog_cable_indices]) 
-            self.reaction[cog_cable_indices] = np.maximum(
-                    cog.reaction, self.reaction[cog_cable_indices]) 
-            self.surprise[cog_cable_indices] = np.maximum(
-                    cog.surprise, self.surprise[cog_cable_indices]) 
+            #        cog.reaction, self.reaction[cog_cable_indices]) 
+            #self.surprise[cog_cable_indices] = np.maximum(
+            #        cog.surprise, self.surprise[cog_cable_indices]) 
             cog_index += 1
-        #self.cable_goals = tools.bounded_sum([self.cable_goals, 
-        #                                      new_cable_goals])
         self.cable_goals = tools.bounded_sum([self.cable_goals, 
-                                              new_cable_goals, 
-                                              self.reaction])
+                                              new_cable_goals])
+        #self.cable_goals = tools.bounded_sum([self.cable_goals, 
+        #                                      new_cable_goals, 
+        #                                      self.reaction])
         return self.cable_goals 
 
     def get_index_projection(self, bundle_index):

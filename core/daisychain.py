@@ -34,7 +34,7 @@ class DaisyChain(object):
         daisychain_shape = (max_num_cables, max_num_cables)        
         self.count = np.zeros(daisychain_shape)
         self.expected_cable_activities = np.zeros(daisychain_shape)
-        self.post_uncertainty = np.zeros(daisychain_shape)
+        #self.post_uncertainty = np.zeros(daisychain_shape)
         state_shape = (max_num_cables,1)
         self.cable_activities = np.zeros(state_shape)
         self.pre = np.zeros(state_shape)
@@ -42,7 +42,7 @@ class DaisyChain(object):
         self.post = np.zeros(state_shape)
         self.num_cables = 0
         #self.deliberation_vote = np.zeros((max_num_cables, 1))
-        self.surprise = np.ones((max_num_cables, 1))
+        #self.surprise = np.ones((max_num_cables, 1))
 
     def step_up(self, cable_activities):        
         """ Train the daisychain using the current cable_activities """
@@ -71,21 +71,22 @@ class DaisyChain(object):
                                  self.expected_cable_activities)
         self.expected_cable_activities += update_rate_post * (
                 self.pre * self.post.T - self.expected_cable_activities)
-        self.post_uncertainty += (post_difference - 
-                                  self.post_uncertainty) * update_rate_post 
+        #self.post_uncertainty += (post_difference - 
+        #                          self.post_uncertainty) * update_rate_post 
         # Reaction is the expected post, turned into a deliberation_vote
-        self.reaction = tools.weighted_average(self.expected_cable_activities, 
-                                               self.pre)
+        #self.reaction = tools.weighted_average(self.expected_cable_activities, 
+        #                                       self.pre)
         # Surprise is the difference between the expected post and
         # the actual one
-        surprise_weights = (self.pre / (self.post_uncertainty + tools.EPSILON)
-                            + tools.EPSILON)
-        self.surprise = tools.weighted_average(
-                np.abs(self.post.T - self.expected_cable_activities),
-                surprise_weights) 
+        #surprise_weights = (self.pre / (self.post_uncertainty + tools.EPSILON)
+        #                    + tools.EPSILON)
+        #self.surprise = tools.weighted_average(
+        #        np.abs(self.post.T - self.expected_cable_activities),
+        #        surprise_weights) 
         # Reshape chain activities into a single column
-        return (chain_activities.ravel()[:,np.newaxis], 
-                self.reaction[:self.num_cables])
+        #return (chain_activities.ravel()[:,np.newaxis], 
+        #        self.reaction[:self.num_cables])
+        return chain_activities.ravel()[:,np.newaxis]
    
     def step_down(self, chain_goals):
         """ Propogate goals down through the transition model """
@@ -93,11 +94,12 @@ class DaisyChain(object):
         chain_goals = np.reshape(chain_goals, (self.post.size, -1))
         # Weight chain goals by the current cable activities   
         upstream_goals = tools.bounded_sum(self.post * chain_goals.T)
-        cable_goals = tools.bounded_sum([upstream_goals, self.reaction])
+        cable_goals = upstream_goals
+        #cable_goals = tools.bounded_sum([upstream_goals, self.reaction])
         return cable_goals[:self.num_cables]
 
-    def get_surprise(self):
-        return self.surprise[:self.num_cables]
+    #def get_surprise(self):
+    #    return self.surprise[:self.num_cables]
 
     def get_index_projection(self, map_projection):
         """ Find the projection from chain activities to cable signals """
@@ -112,7 +114,7 @@ class DaisyChain(object):
         """ Show the internal state of the daisychain in a pictorial format """
         tools.visualize_array(self.expected_cable_activities, 
                                   label=self.name + '_exp_cable_act')
-        tools.visualize_array(self.post_uncertainty, 
-                                  label=self.name + '_post_uncert')
+        #tools.visualize_array(self.post_uncertainty, 
+        #                          label=self.name + '_post_uncert')
         tools.visualize_array(np.log(self.count + 1.), 
                                   label=self.name + '_count')

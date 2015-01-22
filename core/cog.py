@@ -49,9 +49,11 @@ class Cog(object):
             cable_activities = cable_activities[:self.max_cables, :]
             print '-----  Number of max cables exceeded in', self.name, \
                     '  -----'
-        chain_activities, self.reaction = self.daisychain.step_up(
+        #chain_activities, self.reaction = self.daisychain.step_up(
+        #        cable_activities)
+        chain_activities = self.daisychain.step_up(
                 cable_activities)
-        self.surprise = self.daisychain.get_surprise()
+        #self.surprise = self.daisychain.get_surprise()
         if enough_cables is True:
             bundle_activities = self.ziptie.step_up(chain_activities)
         else:
