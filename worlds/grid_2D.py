@@ -15,15 +15,13 @@ class World(BaseWorld):
     In this world, the agent steps North, South, East, or West in 
     a 5 x 5 grid-world. Position (4,4) is rewarded and (2,2) 
     is punished. There is also a lesser penalty for each 
-    horizontal or vertical step taken. Horizonal and vertical 
-    positions are reported separately as basic features, 
-    rather than raw sensory inputs.
+    horizontal or vertical step taken. 
     Optimal performance is a reward of about 90 per time step.
     """
     def __init__(self, lifespan=None):
         BaseWorld.__init__(self, lifespan)
         self.VISUALIZE_PERIOD = 10 ** 4
-        self.REWARD_MAGNITUDE = 100.
+        self.REWARD_MAGNITUDE = 1.
         self.ENERGY_COST = 0.05 * self.REWARD_MAGNITUDE
         self.JUMP_FRACTION = 0.1
         self.display_state = False
@@ -60,10 +58,10 @@ class World(BaseWorld):
         sensors = self.assign_sensors()
         reward = 0
         for obstacle in self.obstacles:
-            if tuple(self.world_state.flatten()) == obstacle:
+            if tuple(self.world_state) == obstacle:
                 reward = - self.REWARD_MAGNITUDE
         for target in self.targets:
-            if tuple(self.world_state.flatten()) == target:
+            if tuple(self.world_state) == target:
                 reward = self.REWARD_MAGNITUDE
         reward -= self.ENERGY_COST * energy
         return sensors, reward
@@ -71,8 +69,8 @@ class World(BaseWorld):
     def assign_sensors(self):
         """ Construct the sensor array from the state information """
         sensors = np.zeros(self.num_sensors)
-        sensors[self.world_state[1] + 
-                self.world_state[0] * self.world_size] = 1
+        sensors[self.world_state[0] + 
+                self.world_state[1] * self.world_size] = 1
         return sensors
 
     def visualize(self, agent):
@@ -85,5 +83,4 @@ class World(BaseWorld):
             return
         
         print("world age is %s timesteps " % self.timestep)
-        agent.visualize()
-        projections = agent.get_index_projections(to_screen=True)
+        projections = agent.get_index_projections(to_screen=False)

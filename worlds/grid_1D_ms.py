@@ -19,7 +19,7 @@ class World(BaseWorld):
     def __init__(self, lifespan=None):
         BaseWorld.__init__(self, lifespan)
         self.VISUALIZE_PERIOD = 10 ** 4
-        self.REWARD_MAGNITUDE = 100.
+        self.REWARD_MAGNITUDE = 1.
         self.ENERGY_COST = 0.01 * self.REWARD_MAGNITUDE
         self.JUMP_FRACTION = 0.10
         self.display_state = False

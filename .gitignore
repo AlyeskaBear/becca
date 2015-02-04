@@ -1,5 +1,7 @@
 *.pyc
 *.pickle
+*.png
+*.avi
 log/*
 images/lib/*
 becca_*

@@ -46,7 +46,9 @@ class Agent(object):
         min_cables = self.num_actions + self.num_sensors
         self.drivetrain = drivetrain.Drivetrain(min_cables)
         num_cables = self.drivetrain.cables_per_gearbox
-        self.hub = hub.Hub(num_cables)
+        self.hub = hub.Hub(num_cables, num_actions=self.num_actions, 
+                           num_sensors=self.num_sensors,
+                           name='_'.join([self.name, 'hub']))
         self.spindle = spindle.Spindle(num_cables)
         self.mainspring = mainspring.Mainspring(num_cables)
         self.arborkey = arborkey.Arborkey()
@@ -58,14 +60,16 @@ class Agent(object):
         self.reward_max = 1.
         self.timestep = 0
         self.graphing = True
+        self.frames_directory = os.path.join('core', 'hierarchy_frames')
+        self.frame_counter = 10000
 
     def step(self, sensors, reward):
         # Adapt the reward so that it falls between -1 and 1 
-        self.reward_max *= (1. - self.FORGETTING_RATE)
-        self.reward_max = np.maximum(np.abs(reward), self.reward_max)
-        self.reward = reward / self.reward_max
-        #self.reward = np.minimum(np.maximum(reward, 0.), 1.)
-
+        #self.reward_max *= 1. - self.FORGETTING_RATE
+        #if np.abs(reward) > self.reward_max:
+        #    self.reward_max = np.abs(reward)
+        #self.reward = reward / self.reward_max
+        self.reward = reward
         self.timestep += 1
         if sensors.ndim == 1:
             sensors = sensors[:,np.newaxis]
@@ -80,25 +84,25 @@ class Agent(object):
             self.arborkey.add_cables(self.drivetrain.cables_per_gearbox)
             self.drivetrain.gearbox_added = False
         # Feed the feature_activities to the hub for calculating goals
-        hub_goal, hub_reward = self.hub.step(feature_activities, 
-                                             self.reward) 
+        self.hub_goal, hub_reward = self.hub.step(feature_activities, 
+                                                  self.reward) 
         # Evaluate the goal using the mainspring
-        mainspring_reward = self.mainspring.evaluate(hub_goal) 
+        mainspring_reward = self.mainspring.evaluate(self.hub_goal) 
         # Choose a single feature to attend 
-        (attended_index, attended_activity) = self.spindle.step(
+        (self.attended_index, attended_activity) = self.spindle.step(
                 feature_activities)
         # Incorporate the intended feature into short- and long-term memory
-        self.mainspring.step(attended_index, 
+        self.mainspring.step(self.attended_index, 
                              attended_activity, 
                              self.reward)
         # Pass the hub goal on to the arborkey for further evaluation
-        goal_cable = self.arborkey.step(hub_goal, 
-                                        mainspring_reward, 
-                                        self.reward)
-        self.hub.update(feature_activities, goal_cable, self.reward)
-        self.mainspring.update(goal_cable)
-        if goal_cable is not None:
-            self.drivetrain.assign_goal(goal_cable)
+        self.arborkey_goal = self.arborkey.step(self.hub_goal, 
+                                                mainspring_reward, 
+                                                self.reward)
+        self.hub.update(feature_activities, self.arborkey_goal, self.reward)
+        self.mainspring.update(self.arborkey_goal)
+        if self.arborkey_goal is not None:
+            self.drivetrain.assign_goal(self.arborkey_goal)
         self.action = self.drivetrain.step_down()
         # debug: Choose a single random action 
         random_action = False
@@ -132,9 +136,10 @@ class Agent(object):
         self.reward_steps.append(self.timestep)
         self._show_reward_history()
 
+        tools.visualize_hierarchy(self, show=False)
         #self.drivetrain.visualize()
         #self.spindle.visualize()
-        #self.hub.visualize()
+        tools.visualize_hub(self.hub, show=False)
         #self.mainspring.visualize()
         #self.arborkey.visualize()
  
@@ -196,7 +201,7 @@ class Agent(object):
             # those in the already initialized agent. If it matches, 
             # accept the agent. If it doesn't,
             # print a message, and keep the just-initialized agent.
-            if((loaded_agent.num_sensors == self.num_sensors) and 
+            if ((loaded_agent.num_sensors == self.num_sensors) and 
                (loaded_agent.num_actions == self.num_actions)):
                 print(''.join(('Agent restored at timestep ', 
                                str(loaded_agent.timestep),

@@ -136,7 +136,7 @@ class ZipTie(object):
             self.num_bundles += 1
             if self.num_bundles == self.max_num_bundles:
                 self.bundles_full = True
-            print self.name, 'ci', cable_index, 'added as a bundle nucleus'
+            #print self.name, 'ci', cable_index, 'added as a bundle nucleus'
             self.nucleation_energy[cable_index, 0] = 0.
             self.agglomeration_energy[:, cable_index] = 0.
         return 
@@ -161,6 +161,11 @@ class ZipTie(object):
         full_bundles[np.where(cables_per_bundle >= 
                               self.max_cables_per_bundle)] = 1.
         self.agglomeration_energy *= 1 - full_bundles
+
+        # Don't accumulate agglomeration energy between cables already 
+        # in the smae bundle 
+        self.agglomeration_energy *= 1 - self.bundle_map
+
         new_candidates = np.where(self.agglomeration_energy >= 
                                   self.AGGLOMERATION_THRESHOLD)
         num_candidates =  new_candidates[0].size 
@@ -171,8 +176,8 @@ class ZipTie(object):
             self.bundle_map[candidate_bundle, candidate_cable] = 1.
             self.nucleation_energy[candidate_cable, 0] = 0.
             self.agglomeration_energy[:, candidate_cable] = 0.
-            print self.name, 'cable', candidate_cable, 'added to bundle', \
-                    candidate_bundle
+            #print self.name, 'cable', candidate_cable, 'added to bundle', \
+            #        candidate_bundle
         return
         
     def step_down(self, bundle_goals):
@@ -202,10 +207,11 @@ class ZipTie(object):
         return cable_fraction
 
     def visualize(self, save_eps=False):
-        print self.name, '0', np.nonzero(self.bundle_map)[0]
-        print self.name, '1', np.nonzero(self.bundle_map)[1]
-        print self.max_num_bundles, 'bundles maximum'
+        #print self.name, '0', np.nonzero(self.bundle_map)[0]
+        #print self.name, '1', np.nonzero(self.bundle_map)[1]
+        #print self.max_num_bundles, 'bundles maximum'
         #tools.visualize_array(self.bundle_map, 
         #                          label=self.name + '_bundle_map')
         #tools.visualize_array(self.agglomeration_energy, 
         #                          label=self.name + '_agg_energy')
+        pass

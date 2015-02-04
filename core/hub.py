@@ -15,32 +15,35 @@ class Hub(object):
     3) selects a goal and
     4) declares that goal in the appropriate gearbox.
     """
-    def __init__(self, initial_size):
+    def __init__(self, initial_size, num_actions=0, num_sensors=0, name='hub'):
+        self.name = name
         self.num_cables = initial_size
         # Set constants that adjust the behavior of the hub
         self.REWARD_LEARNING_RATE = 1e-2
         # Keep a history of reward and active features to account for 
         # delayed reward.
-        self.TRACE_LENGTH = 10
+        self.TRACE_LENGTH = 25
         self.FORGETTING_RATE = 1e-6
-        self.ROSY_GLASSES = 1e-7
-        self.COUNT_FACTOR = .3
+        # As time passes, grow more optimistic about the effect of 
+        # trying goals.
+        self.ROSY_GLASSES = .001#0.#.1
+        self.COUNT_FACTOR = 3.#.3
         # Calculate initial reward in order to encourage exploration
-        self.INITIAL_REWARD = .5
+        self.INITIAL_REWARD = .2
+        self.TIME_FACTOR = 10.  
         self.trace_magnitude = 0.
-        self.TRACE_TIME_FACTOR = 1. 
         for tau in np.arange(self.TRACE_LENGTH):
-            self.trace_magnitude += 1. / (
-                    1. + self.TRACE_TIME_FACTOR * float(tau))
+            self.trace_magnitude += 1. / (1. + self.TIME_FACTOR * float(tau))
 
         # Initialize variables for later use
         self.reward_history = list(np.zeros(self.TRACE_LENGTH))
-        self.old_reward = 0.
         feature_shape = (self.num_cables, 1)
         self.activity_history = [np.zeros(feature_shape)] * (
                 self.TRACE_LENGTH + 1)
         self.action_history = [np.zeros(feature_shape)] * (
                 self.TRACE_LENGTH + 1)
+        self.mask = np.zeros(feature_shape)
+        self.mask[:num_actions + num_sensors] = 1.
         # reward is a property of every transition. 
         # In this 2D array representation, each row
         # represents a feature, and each column represents 
@@ -50,6 +53,7 @@ class Hub(object):
         self.reward = np.ones(transition_shape) * self.INITIAL_REWARD
         # This counts the number of times each transition has been encountered 
         self.count = np.zeros(transition_shape)
+        self.frame_counter = 10000
 
     def step(self, cable_activities, raw_reward):
         """ Advance the hub one step """
@@ -61,10 +65,10 @@ class Hub(object):
             # they are away from the cause and effect that occurred
             # TRACE_LENGTH time steps ago.
             reward_trace += self.reward_history[tau] / (
-                    1. + self.TRACE_TIME_FACTOR * float(tau))
-        #print 'rh', np.array(self.reward_history).ravel(), 'rr', raw_reward, 'rt', reward_trace, 'tm', self.trace_magnitude, 'rtt', reward_trace/self.trace_magnitude
+                    1. + self.TIME_FACTOR * float(tau))
         reward_trace /= self.trace_magnitude
 
+        self.mask = np.sign(np.maximum(self.mask, cable_activities))
         state = self.activity_history[0]
         action = self.action_history[0]
 
@@ -77,26 +81,30 @@ class Hub(object):
         # To avoid unnecessary computation, check whether there has been an 
         # action take before bothering to update the reward.
         if np.where(action != 0.)[0].size:
+            age_factor = 1. / (1. + self.TIME_FACTOR * self.count)
             # Calculate the rate at which to update the reward estimate
-            rate = ((1. - self.REWARD_LEARNING_RATE) / 
-                    (self.COUNT_FACTOR * self.count + 
-                     tools.EPSILON) + self.REWARD_LEARNING_RATE)
-            rate = np.minimum(0.5, rate)
+            rate = ((1. - self.REWARD_LEARNING_RATE) * age_factor + 
+                    self.REWARD_LEARNING_RATE)
+            optimism = ((self.mask * (1. - self.reward) * self.mask.T *
+                         self.ROSY_GLASSES * age_factor) / 
+                        (self.num_cables ** 2))
+            # Use the square of the state (feature activities) in order
+            # de-emphasize partially excited states. Focus the adaptation
+            # on cases where the state is most activated.
             self.reward += ((reward_trace - self.reward) * 
-                            (state * action.T) * rate) + self.ROSY_GLASSES
+                            (state * state * action.T) * 
+                            rate) + optimism
         # Choose a goal at every timestep
         #goal = np.zeros((self.num_cables, 1))
         state_weight = cable_activities 
         weighted_reward = state_weight * self.reward
-        #expected_reward = np.sum(weighted_reward, axis=0) / np.sum(state_weight)
+        #expected_reward = (np.sum(weighted_reward, axis=0) / 
+        #                   np.sum(state_weight))
         expected_reward = (np.max(weighted_reward, axis=0) + 
                            np.min(weighted_reward, axis=0))
+        expected_reward[np.where(self.mask.ravel() < 1.)] -= 2.
         best_reward = np.max(expected_reward)
         potential_winners = np.where(expected_reward == best_reward)[0] 
-        #print 'sw', state_weight.ravel()
-        #print 'er', expected_reward.ravel()
-        #print 'br', best_reward
-        #print 'pw', potential_winners.ravel()
         # Break any ties by lottery
         if potential_winners.size > 0:
             goal_cable = potential_winners[np.random.randint(
@@ -106,7 +114,8 @@ class Hub(object):
 
         # Only recommend a goal if it is expected to bring a greater 
         # reward than what is currently being experienced.
-        if best_reward > raw_reward:
+        #return goal_cable, best_reward
+        if best_reward > raw_reward * self.trace_magnitude:
             return goal_cable, best_reward
         else:
             return None, 0.
@@ -121,9 +130,8 @@ class Hub(object):
         self.reward_history.pop(0)
         self.activity_history.append(np.copy(cable_activities))
         self.activity_history.pop(0)
-        self.action_history.append(goal)
+        self.action_history.append(np.copy(goal))
         self.action_history.pop(0)
-        #self.visualize()
         return
 
     def add_cables(self, num_new_cables):
@@ -133,25 +141,12 @@ class Hub(object):
         transition_shape = (self.num_cables, self.num_cables) 
         self.reward = tools.pad(self.reward, transition_shape,
                                 val=self.INITIAL_REWARD)
+        #self.reward = tools.pad(self.reward, transition_shape, val=0.)
         self.count = tools.pad(self.count, transition_shape)
 
+        self.mask = tools.pad(self.mask, features_shape)
         for index in range(len(self.activity_history)):
             self.activity_history[index] = tools.pad(
                     self.activity_history[index], features_shape)
             self.action_history[index] = tools.pad(
                     self.action_history[index], features_shape)
-
-    def visualize(self):
-        """ Give a visual update of the internal workings of the hub """
-        # Plot reward value
-        plt.figure(311)
-        plt.subplot(1,2,1)
-        plt.gray()
-        plt.imshow(self.reward.astype(np.float), interpolation='nearest')
-        plt.title('reward')
-        plt.subplot(1,2,2)
-        plt.gray()
-        plt.imshow(self.count.astype(np.float), interpolation='nearest')
-        plt.title(''.join(['count, max = ', str(int(np.max(self.count)))]))
-        plt.show()
-            

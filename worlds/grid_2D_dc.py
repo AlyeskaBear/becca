@@ -27,6 +27,7 @@ class World(Grid_2D_World):
         self.display_state = False
             
     def assign_sensors(self):
+        # Sensors 0-4 represent the 5 rows of the 
         sensors = np.zeros(self.num_sensors)
         sensors[self.world_state[0]] = 1
         sensors[self.world_state[1] + self.world_size] = 1

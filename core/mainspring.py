@@ -24,14 +24,16 @@ class Mainspring(object):
     """
     def __init__(self, initial_size):
         self.UPDATE_RATE = 1e-2
-        self.REWARD_LEARNING_RATE = 1e-1
-        self.INITIAL_REWARD = .1
+        self.REWARD_LEARNING_RATE = .3
+        self.INITIAL_REWARD = .5
         # Keep a history of reward and active cables to account for 
         # delayed reward.
-        self.TRACE_LENGTH = 11
+        self.TRACE_LENGTH = 25
+        self.TRACE_TIME_FACTOR = 1./4. 
         self.trace_magnitude = 0.
         for tau in np.arange(self.TRACE_LENGTH):
-            self.trace_magnitude += 1. / (1. + tau)
+            self.trace_magnitude += 1. / (
+                    1. + self.TRACE_TIME_FACTOR * float(tau))
         # How many recently attended cables to hold in short term memory
         self.NUM_ATTENDED = 25
         self.num_cables = initial_size
@@ -40,10 +42,13 @@ class Mainspring(object):
 
         self.reward_history = list(np.zeros(self.TRACE_LENGTH))
         cable_shape = (self.num_cables, 1)
-        self.stm_indices = [[0.] * self.NUM_ATTENDED] * self.TRACE_LENGTH
-        self.stm_activities = [[0.] * self.NUM_ATTENDED] * self.TRACE_LENGTH
-        self.time_since_attended = [[1.]* self.NUM_ATTENDED] * self.TRACE_LENGTH
-        self.goal_history = [None] * self.TRACE_LENGTH
+        self.stm_indices = [[0.] * self.NUM_ATTENDED] * (
+                self.TRACE_LENGTH + 1)
+        self.stm_activities = [[0.] * self.NUM_ATTENDED] * (
+                self.TRACE_LENGTH + 1)
+        self.time_since_attended = [[1.]* self.NUM_ATTENDED] * (
+                self.TRACE_LENGTH + 1)
+        self.goal_history = [None] * (self.TRACE_LENGTH + 1)
         self.value = np.zeros(transition_shape)
         self.reward = np.ones(transition_shape) * self.INITIAL_REWARD
 
@@ -58,7 +63,8 @@ class Mainspring(object):
             # to the oldest, decaying future values the further
             # they are away from the cause and effect that occurred
             # TRACE_LENGTH time steps ago.
-            reward_trace += self.reward_history[tau] / float(tau + 1)
+            reward_trace += self.reward_history[tau] / (
+                    1. + self.TRACE_TIME_FACTOR * float(tau))
         reward_trace /= self.trace_magnitude
 
         # Update long term memory based on the newest attended cable and
@@ -68,7 +74,7 @@ class Mainspring(object):
         # Calculate the decayed activity of the cables
         decayed_activities = self.get_decayed_activities(0)
         trace_indices = self.stm_indices[0]
-        current_trace_indices = self.stm_indices[-1]
+        #current_trace_indices = self.stm_indices[-1]
         goal_index = self.goal_history.pop(0)
         for i in np.arange(self.NUM_ATTENDED):
             # Find the difference between the expected and observed values
@@ -85,7 +91,7 @@ class Mainspring(object):
                                                       goal_index]
             #TODO: modify rate by time since goal was suggested.
             # discount by 1/t
-            rate = (self.REWARD_LEARNING_RATE * decayed_activities[i] ** 2)
+            rate = self.REWARD_LEARNING_RATE * decayed_activities[i]
             self.reward[trace_indices[i], goal_index] += delta_reward * rate
         # Update the traces. Remove the oldest element and create a new one.
         self.stm_indices.pop(0)

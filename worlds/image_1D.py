@@ -23,7 +23,7 @@ class World(BaseWorld):
     def __init__(self, lifespan=None):
         BaseWorld.__init__(self, lifespan)
         self.VISUALIZE_PERIOD = 10 ** 4
-        self.REWARD_MAGNITUDE = 100.
+        self.REWARD_MAGNITUDE = 1.
         self.JUMP_FRACTION = 1. / 10.
         self.STEP_COST = 0.1 * self.REWARD_MAGNITUDE
         self.print_feature_set = True
@@ -95,7 +95,7 @@ class World(BaseWorld):
                                                              self.fov_span)
         unsplit_sensors = center_surround_pixels.ravel()        
         self.sensors = np.concatenate((np.maximum(unsplit_sensors, 0), 
-                                  np.abs(np.minimum(unsplit_sensors, 0)) ))
+                                       np.abs(np.minimum(unsplit_sensors, 0))))
         
         # Calculate the reward
         self.reward = 0
@@ -116,9 +116,6 @@ class World(BaseWorld):
         # Periodically show the state history and inputs as perceived by BECCA
         self.column_history.append(self.column_position)
         if (self.timestep % self.VISUALIZE_PERIOD) == 0:
-            # Periodically show the agent's internal state and reward history
-            agent.visualize() 
-
             print ''.join(["world is ", str(self.timestep), " timesteps old"])
             fig = plt.figure(11)
             plt.clf()

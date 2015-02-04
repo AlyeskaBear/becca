@@ -32,7 +32,7 @@ class Gearbox(object):
         self.max_bundles = self.max_cogs * self.max_bundles_per_cog
         self.name = name
         self.level = level
-        ziptie_name = ''.join(('ziptie_', self.name))
+        ziptie_name = ''.join([self.name, '_ziptie'])
         self.ziptie = ZipTie(self.max_cables, self.max_cogs, 
                              max_cables_per_bundle=self.max_cables_per_cog,
                              name=ziptie_name, in_gearbox=True)
@@ -42,7 +42,8 @@ class Gearbox(object):
             self.cogs.append(Cog(self.max_cables_per_cog, 
                                  self.max_bundles_per_cog,
                                  max_chains_per_bundle=self.max_cables_per_cog,
-                                 name='cog'+str(cog_index), 
+                                 name='_'.join(['cog', str(cog_index),
+                                               self.name]), 
                                  level=self.level))
         self.cable_activities = np.zeros((self.max_cables, 1))
         self.bundle_activities = np.zeros((self.max_bundles, 1))
@@ -82,7 +83,7 @@ class Gearbox(object):
         self.min_vals += spread * self.RANGE_DECAY_RATE
         self.max_vals -= spread * self.RANGE_DECAY_RATE
         
-        # debug
+        # debug: don't adapt cable activities 
         self.cable_activities = new_cable_activities
 
         cluster_training_activities = np.maximum(

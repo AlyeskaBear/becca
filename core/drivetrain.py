@@ -50,23 +50,39 @@ class Drivetrain(object):
         for (gearbox_index, gearbox) in enumerate(self.gearboxes):
             start_index = self.cables_per_gearbox * gearbox_index
             end_index = self.cables_per_gearbox * (gearbox_index + 1)
-            if gearbox_index == 0:
+            # debug: only populate the first gearbox
+            one_gearbox = False
+            if one_gearbox:
+                if gearbox_index == 0:
+                    feature_activities[start_index: end_index] = (
+                            gearbox.cable_activities.copy())
+            else:
                 feature_activities[start_index: end_index] = (
                         gearbox.cable_activities.copy())
-        
         return feature_activities
 
     def assign_goal(self, goal_index): 
         """
         Assign goal to the appropriate gearbox
         
-        When a goal cable is selected by the hub, it doesn't know which
-        gearbox it belongs to. This method sorts that out. 
+        When a goal cable is selected by the hub or arborkey, 
+        they doesn't know which gearbox it belongs to. 
+        This method sorts that out. 
         """
-        gearbox_index = int(np.floor(goal_index / self.cables_per_gearbox))
-        cable_index = goal_index - gearbox_index * self.cables_per_gearbox
+        (gearbox_index, cable_index) = self.map_index(goal_index)
         # Activate the goal
-        self.gearboxes[gearbox_index].cable_goals[cable_index] = 1.
+        if gearbox_index is not None:
+            if cable_index is not None:
+                self.gearboxes[gearbox_index].cable_goals[cable_index] = 1.
+
+    def map_index(self, index):
+        """ Find the gearbox and cable index that match a hub index """
+        if index is None:
+            return None, None
+        # else
+        gearbox_index = int(np.floor(index / self.cables_per_gearbox))
+        cable_index = index - gearbox_index * self.cables_per_gearbox
+        return gearbox_index, cable_index
 
     def step_down(self):
         """ Find the primitive actions driven by a set of goals """

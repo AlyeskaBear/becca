@@ -26,7 +26,7 @@ class World(BaseWorld):
     def __init__(self, lifespan=None):
         BaseWorld.__init__(self, lifespan)
         self.VISUALIZE_PERIOD = 10 ** 4
-        self.REWARD_MAGNITUDE = 100.
+        self.REWARD_MAGNITUDE = 1.
         self.ENERGY_COST =  self.REWARD_MAGNITUDE / 100.
         self.JUMP_FRACTION = 0.1
         self.name = 'grid_1D'
