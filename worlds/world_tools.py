@@ -1,5 +1,5 @@
 """
-A few functions that are useful to mutliple worlds
+A few functions that are useful to multiple worlds
 """
 
 import cv2
@@ -79,7 +79,9 @@ def visualize_pixel_array_feature(feature,
                                   block_index=-1, feature_index=-1, 
                                   world_name=None, save_png=False, 
                                   filename='log/feature', array_only=False):
-    """ Show a visual approximation of an array of center-surround features """
+    """ 
+    Show a visual approximation of an array of center-surround features 
+    """
     # Calculate the number of pixels that span the field of view
     n_pixels = feature.shape[0] / 2
     if fov_horz_span is None:
@@ -126,7 +128,9 @@ def print_pixel_array_features(projections, num_pixels_x2, start_index,
                                fov_horz_span, fov_vert_span, 
                                directory='log', world_name='', name='',
                                interp='nearest'):
-    """  Interpret an array of center-surround pixels as an image """
+    """  
+    Interpret an array of center-surround pixels as an image 
+    """
     num_blocks = len(projections)
     for block_index in range(num_blocks):
         for feature_index in range(len(projections[block_index])):
@@ -157,7 +161,9 @@ def print_pixel_array_features(projections, num_pixels_x2, start_index,
 
 def make_movie(stills_directory, movie_filename='', frames_per_still=1,
                stills_per_frame=1):
-    """ Make a movie out of a sequence of still frames """
+    """ 
+    Make a movie out of a sequence of still frames 
+    """
     if not movie_filename:
         movie_filename = ''.join((stills_directory, '.avi'))
     stills_filenames = []
@@ -197,7 +203,9 @@ def make_movie(stills_directory, movie_filename='', frames_per_still=1,
             images = []
 
 def resample2D(array, num_rows, num_cols):
-    """ Resample a 2D array to get one that has num_rows and num_cols """
+    """ 
+    Resample a 2D array to get one that has num_rows and num_cols 
+    """
     rows = (np.linspace(0., .9999999, num_rows) * 
             array.shape[0]).astype(np.int) 
     cols = (np.linspace(0., .9999999, num_cols) * 
@@ -211,46 +219,42 @@ def resample2D(array, num_rows, num_cols):
     return resampled_array
 
 def duration_string(time_in_sec):
-    """ Convert time in seconds to a human readable date string """
+    """ 
+    Convert time in seconds to a human readable date string 
+    """
     sec_per_min = 60
     min_per_hr = 60
     hr_per_day = 24
     day_per_mon = 30
     mon_per_yr = 12
     # Calculate seconds
-    #print 'tis', time_in_sec
     sec = time_in_sec - sec_per_min * int(time_in_sec / sec_per_min)
     time_in_min = (time_in_sec - sec) / sec_per_min
     duration = ''.join(('%0.2f' % (sec), 's'))
-    #print 's', duration
     if time_in_min == 0:
         return duration
     # Calculate minutes
     min = time_in_min - min_per_hr * int(time_in_min / min_per_hr)
     time_in_hr = (time_in_min - min) / min_per_hr
     duration = ''.join((str(int(min)), 'm ', duration))
-    #print 'm', duration
     if time_in_hr == 0:
         return duration
     # Calculate hours
     hr = time_in_hr - hr_per_day * int(time_in_hr / hr_per_day)
     time_in_day = (time_in_hr - hr) / hr_per_day
     duration = ''.join((str(int(hr)), 'h ', duration))
-    #print 'h', duration
     if time_in_day == 0:
         return duration
     # Calculate days
     day = time_in_day - day_per_mon * int(time_in_day / day_per_mon)
     time_in_mon = (time_in_day - day) / day_per_mon
     duration = ''.join((str(int(day)), 'd ', duration))
-    #print 'd', duration
     if time_in_mon == 0:
         return duration
     # Calculate months
     mon = time_in_mon - mon_per_yr * int(time_in_mon / mon_per_yr)
     time_in_yr = (time_in_mon - mon) / mon_per_yr
     duration = ''.join((str(int(mon)), 'l ', duration))
-    #print 'd', duration
     if time_in_yr == 0:
         return duration
     else:

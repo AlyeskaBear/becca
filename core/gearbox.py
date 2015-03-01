@@ -1,4 +1,6 @@
-""" the Gearbox class """
+""" 
+the Gearbox class 
+"""
 import numpy as np
 from cog import Cog
 import tools
@@ -24,7 +26,9 @@ class Gearbox(object):
     to convert cable activities into bundle activities and back again.
     """
     def __init__(self, min_cables, name='anonymous', level=0):
-        """ Initialize the level, defining the dimensions of its cogs """
+        """ 
+        Initialize the level, defining the dimensions of its cogs 
+        """
         self.max_cables = int(2 ** np.ceil(np.log2(min_cables)))
         self.max_cables_per_cog = 16
         self.max_bundles_per_cog = 8
@@ -43,7 +47,7 @@ class Gearbox(object):
                                  self.max_bundles_per_cog,
                                  max_chains_per_bundle=self.max_cables_per_cog,
                                  name='_'.join(['cog', str(cog_index),
-                                               self.name]), 
+                                                self.name]), 
                                  level=self.level))
         self.cable_activities = np.zeros((self.max_cables, 1))
         self.bundle_activities = np.zeros((self.max_bundles, 1))
@@ -56,32 +60,32 @@ class Gearbox(object):
         # The rate at which cable activities decay (float, 0 < x < 1)
         self.ACTIVITY_DECAY_RATE = 1.
         # Constants for adaptively rescaling the cable activities
-        self.max_vals = np.zeros((self.max_cables, 1)) 
-        self.min_vals = np.zeros((self.max_cables, 1))
-        self.RANGE_DECAY_RATE = 1e-3
+        #self.max_vals = np.zeros((self.max_cables, 1)) 
+        #self.min_vals = np.zeros((self.max_cables, 1))
+        #self.RANGE_DECAY_RATE = 1e-10
         
     def step_up(self, new_cable_activities):
-        """ Find bundle_activities that result from new_cable_activities """
-        # Condition the cable activities to fall between 0 and 1
-        #print 'max', self.max_vals
-        #print 'min', self.min_vals
+        """ 
+        Find bundle_activities that result from new_cable_activities 
+        """
         if new_cable_activities.size < self.max_cables:
             new_cable_activities = tools.pad(new_cable_activities, 
                                              (self.max_cables, 1))
         # Update cable_activities
-        self.raw_cable_activities *= 1. - (self.ACTIVITY_DECAY_RATE /
-                                           float(self.step_multiplier))
-        self.raw_cable_activities += new_cable_activities
+        #self.raw_cable_activities *= 1. - (self.ACTIVITY_DECAY_RATE /
+        #                                   float(self.step_multiplier))
+        #self.raw_cable_activities += new_cable_activities
         self.step_counter += 1
-        if self.step_counter < self.step_multiplier:
-            return self.bundle_activities
-        self.min_vals = np.minimum(self.raw_cable_activities, self.min_vals)
-        self.max_vals = np.maximum(self.raw_cable_activities, self.max_vals)
-        spread = self.max_vals - self.min_vals
-        self.cable_activities = ((self.raw_cable_activities - self.min_vals) / 
-                   (self.max_vals - self.min_vals + tools.EPSILON))
-        self.min_vals += spread * self.RANGE_DECAY_RATE
-        self.max_vals -= spread * self.RANGE_DECAY_RATE
+        #if self.step_counter < self.step_multiplier:
+        #    return self.bundle_activities
+        # Condition the cable activities to fall between 0 and 1
+        #self.min_vals = np.minimum(self.raw_cable_activities, self.min_vals)
+        #self.max_vals = np.maximum(self.raw_cable_activities, self.max_vals)
+        #spread = self.max_vals - self.min_vals
+        #self.cable_activities = ((self.raw_cable_activities - self.min_vals) / 
+        #           (self.max_vals - self.min_vals + tools.EPSILON))
+        #self.min_vals += spread * self.RANGE_DECAY_RATE
+        #self.max_vals -= spread * self.RANGE_DECAY_RATE
         
         # debug: don't adapt cable activities 
         self.cable_activities = new_cable_activities
@@ -111,21 +115,31 @@ class Gearbox(object):
         self.cable_goals -= self.cable_activities
         self.cable_goals *= self.ACTIVITY_DECAY_RATE
         self.cable_goals = np.maximum(self.cable_goals, 0.)
+
+        # debug: no bundle activities
+        #self.bundle_activities = np.zeros(self.bundle_activities.shape)
+        
         return self.bundle_activities
 
     def step_down(self, bundle_goals):
-        """ Find cable_activity_goals, given a set of bundle_goals """
-        if self.step_counter < self.step_multiplier:
-            if 'self.hub_bundle_goals' not in locals():
-                self.hub_bundle_goals = np.zeros((self.max_cables, 1))
-            return self.hub_bundle_goals
-        else:
-            self.step_counter = 0
+        """ 
+        Find cable_activity_goals, given a set of bundle_goals 
+        """
+        # debug
+        #if self.step_counter < self.step_multiplier:
+        #    if 'self.hub_bundle_goals' not in locals():
+        #        self.hub_bundle_goals = np.zeros((self.max_cables, 1))
+        #    return self.hub_bundle_goals
+        #else:
+        #    self.step_counter = 0
+        if 'self.hub_bundle_goals' not in locals():
+            self.hub_bundle_goals = np.zeros((self.max_cables, 1))
 
         bundle_goals = tools.pad(bundle_goals, (self.max_bundles, 1))
+        # debug: don't propogate any goals downward
+        #bundle_goals = np.zeros(bundle_goals.shape)
+
         new_cable_goals = np.zeros((self.max_cables, 1))
-        #self.surprise = np.zeros((self.max_cables, 1))
-        #self.reaction = np.zeros((self.max_cables, 1))
         # Process the downward pass of each of the cogs in the level
         cog_index = 0
         for cog in self.cogs:
@@ -139,20 +153,15 @@ class Gearbox(object):
                     cog_index).astype(bool)
             new_cable_goals[cog_cable_indices] = np.maximum(
                     cable_goals_by_cog, new_cable_goals[cog_cable_indices]) 
-            #self.reaction[cog_cable_indices] = np.maximum(
-            #        cog.reaction, self.reaction[cog_cable_indices]) 
-            #self.surprise[cog_cable_indices] = np.maximum(
-            #        cog.surprise, self.surprise[cog_cable_indices]) 
             cog_index += 1
         self.cable_goals = tools.bounded_sum([self.cable_goals, 
                                               new_cable_goals])
-        #self.cable_goals = tools.bounded_sum([self.cable_goals, 
-        #                                      new_cable_goals, 
-        #                                      self.reaction])
         return self.cable_goals 
 
     def get_index_projection(self, bundle_index):
-        """ Represent one of the bundles in terms of its cables """
+        """ 
+        Represent one of the bundles in terms of its cables 
+        """
         # Find which cog it belongs to and which output it corresponds to
         cog_index = int(bundle_index / self.max_bundles_per_cog)
         cog_bundle_index = bundle_index - cog_index * self.max_bundles_per_cog
@@ -168,13 +177,12 @@ class Gearbox(object):
         return projection
 
     def bundles_created(self):
+        """
+        How many bundles have been created in the gearbox in total?
+        """
         total = 0.
         for cog in self.cogs:
-            # Check whether all cogs have created all their bundles
                 total += cog.num_bundles()
-        # debug
-        #if np.random.random_sample() < 0.01:
-        #    print total, 'bundles in', self.name, ', max of', self.max_bundles
         return total
 
     def visualize(self):

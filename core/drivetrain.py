@@ -1,4 +1,6 @@
-""" the Drivetrain class """
+""" 
+the Drivetrain class 
+"""
 import numpy as np
 import gearbox
 
@@ -34,7 +36,9 @@ class Drivetrain(object):
         self.recent_surprise_history = [0.] * 100
 
     def step_up(self, action, sensors):
-        """ Find feature_activities that result from new cable_activities """
+        """ 
+        Find feature_activities that result from new cable_activities 
+        """
         self.num_actions = action.size
         cable_activities = np.vstack((action, sensors))
         for gearbox in self.gearboxes:
@@ -50,15 +54,8 @@ class Drivetrain(object):
         for (gearbox_index, gearbox) in enumerate(self.gearboxes):
             start_index = self.cables_per_gearbox * gearbox_index
             end_index = self.cables_per_gearbox * (gearbox_index + 1)
-            # debug: only populate the first gearbox
-            one_gearbox = False
-            if one_gearbox:
-                if gearbox_index == 0:
-                    feature_activities[start_index: end_index] = (
-                            gearbox.cable_activities.copy())
-            else:
-                feature_activities[start_index: end_index] = (
-                        gearbox.cable_activities.copy())
+            feature_activities[start_index: end_index] = (
+                    gearbox.cable_activities.copy())
         return feature_activities
 
     def assign_goal(self, goal_index): 
@@ -76,7 +73,9 @@ class Drivetrain(object):
                 self.gearboxes[gearbox_index].cable_goals[cable_index] = 1.
 
     def map_index(self, index):
-        """ Find the gearbox and cable index that match a hub index """
+        """ 
+        Find the gearbox and cable index that match a hub index 
+        """
         if index is None:
             return None, None
         # else
@@ -85,7 +84,9 @@ class Drivetrain(object):
         return gearbox_index, cable_index
 
     def step_down(self):
-        """ Find the primitive actions driven by a set of goals """
+        """ 
+        Find the primitive actions driven by a set of goals 
+        """
         # Propogate the deliberation_goal_votes down through the gearboxes
         #agent_surprise = 0.0
         cable_goals = np.zeros((self.bundles_per_gearbox, 1))
@@ -108,7 +109,9 @@ class Drivetrain(object):
         return action 
 
     def add_gearbox(self):
-        """ When the last gearbox creates its first bundle, add a gearbox """
+        """ 
+        When the last gearbox creates its first bundle, add a gearbox 
+        """
         next_gearbox_name = ''.join(('gearbox_', str(self.num_gearboxes)))
         self.gearboxes.append(gearbox.Gearbox(self.cables_per_gearbox,
                                  name=next_gearbox_name, 
@@ -177,8 +180,8 @@ class Drivetrain(object):
         if gearbox_index == -1:
             return bundles
         time_steps = bundles.shape[1] 
-        cable_contributions = np.zeros((self.gearboxes[gearbox_index].max_cables, 
-                                        time_steps * 2))
+        cable_contributions = np.zeros(
+                (self.gearboxes[gearbox_index].max_cables, time_steps * 2))
         for bundle_index in range(bundles.shape[0]):
             for time_index in range(time_steps):
                 if bundles[bundle_index, time_index] > 0:
@@ -188,7 +191,7 @@ class Drivetrain(object):
                             np.maximum(cable_contributions[:, 
                             2*time_index: 2*time_index + 2], new_contribution))
         cable_contributions = self._get_index_projection(gearbox_index - 1, 
-                                                   cable_contributions)
+                                                         cable_contributions)
         return cable_contributions
 
     def visualize(self):

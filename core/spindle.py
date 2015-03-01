@@ -1,5 +1,6 @@
-""" the Spindle class """
-import matplotlib.pyplot as plt
+""" 
+the Spindle class 
+"""
 import numpy as np
 import tools
 
@@ -9,7 +10,7 @@ class Spindle(object):
     
     The spindle represents a pointer, like the hand of a clock,
     that can only point to one thing at a time. 
-    It's defining characteristic is that, despite the 
+    Its defining characteristic is that, despite the 
     presence of a large number of active features
     at any one time, it must choose only one.
     
@@ -39,11 +40,12 @@ class Spindle(object):
     def __init__(self, initial_size):
         self.num_cables = initial_size
         feature_shape = (self.num_cables, 1)
-        self.INITIAL_TIME = 1e10
-        self.time_since_seen = self.INITIAL_TIME * np.ones(feature_shape)
+        self.time_since_seen = tools.BIG * np.ones(feature_shape)
 
     def step(self, cable_activities):
-        """ Pick a feature to attend to """
+        """ 
+        Pick a feature to attend to 
+        """
         self.time_since_seen += 1.
         recency_factor = 1. - 1. / self.time_since_seen
         salience = cable_activities * recency_factor
@@ -54,11 +56,13 @@ class Spindle(object):
         return attended_index, attended_activity
 
     def add_cables(self, num_new_cables):
-        """ Add new cables to the hub when new gearboxes are created """ 
+        """ 
+        Add new cables to the hub when new gearboxes are created 
+        """ 
         self.num_cables += num_new_cables
         features_shape = (self.num_cables, 1)
         self.time_since_seen = tools.pad(self.time_since_seen, features_shape,
-                                val=self.INITIAL_TIME)
+                                         val=tools.BIG)
 
     def visualize(self):
         pass

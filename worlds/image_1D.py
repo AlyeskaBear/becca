@@ -18,9 +18,12 @@ class World(BaseWorld):
 
     In this world, BECCA can direct its gaze left and right 
     along a mural. It is rewarded for directing it near the center. 
-    Optimal performance is a reward of somewhere around 90 per time step.
+    Optimal performance is a reward of somewhere around .9 per time step.
     """
     def __init__(self, lifespan=None):
+        """
+        Set up the world
+        """
         BaseWorld.__init__(self, lifespan)
         self.VISUALIZE_PERIOD = 10 ** 4
         self.REWARD_MAGNITUDE = 1.
@@ -64,6 +67,9 @@ class World(BaseWorld):
         self.sensors = np.zeros(self.num_sensors)
 
     def step(self, action): 
+        """
+        Advance the world by one time step
+        """
         self.timestep += 1
         self.action = action.ravel() 
         # Actions 0-3 move the field of view to a higher-numbered row 
@@ -106,6 +112,9 @@ class World(BaseWorld):
         return self.sensors, self.reward
             
     def visualize(self, agent):
+        """ 
+        Show what's going on in the world
+        """
         if self.animate:
             print ''.join(['column_position: ', str(self.column_position), 
                            '  self.reward: ', str(self.reward), 

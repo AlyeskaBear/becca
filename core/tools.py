@@ -1,7 +1,6 @@
 """ 
 Constants and functions for use across the BECCA core
 """
-import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -12,6 +11,7 @@ EPSILON = sys.float_info.epsilon
 BIG = 10 ** 20
 MAX_INT16 = np.iinfo(np.int16).max
 
+# Colors for plotting
 DARK_GREY = (0.2, 0.2, 0.2)
 LIGHT_GREY = (0.9, 0.9, 0.9)
 RED = (0.9, 0.3, 0.3)
@@ -104,75 +104,83 @@ def pad(a, shape, val=0.):
         rows = shape[0]
         # debug
         if rows < a.shape[0]:
-            print ' '.join(['a.shape[0] is', str(a.shape[0]), ' but trying to',
-                            ' pad to ', str(rows), 'rows.'])
+            print ' '.join(['a.shape[0] is', str(a.shape[0]), 
+                            ' but trying to pad to ', str(rows), 'rows.'])
     if shape[1] <= 0:
         cols = a.shape[1] - shape[1]
     else:
         cols = shape[1]
         # debug
         if cols < a.shape[1]:
-            print ' '.join(['a.shape[1] is', str(a.shape[1]), ' but trying to',
-                            ' pad to ', str(cols), 'cols.'])
+            print ' '.join(['a.shape[1] is', str(a.shape[1]), 
+                            ' but trying to pad to ', str(cols), 'cols.'])
     padded = np.ones((rows,cols)) * val
     padded[:a.shape[0], :a.shape[1]] = a
     return padded
 
 def str_to_int(exp):
-    """ Convert a string to an integer """ 
+    """ 
+    Convert a string to an integer 
+    """ 
     sum = 0
     for character in exp:
         sum += ord(character)
     return sum
 
 def timestr(timestep, s_per_step=.25, precise=True): 
-    """ Convert the number of time steps into an age """
+    """ 
+    Convert the number of time steps into an age 
+    
+    If not precise, just report the most significant unit of time.
+    """
     total_sec = timestep * s_per_step
     sec = int(np.mod(total_sec, 60.))
     time_str = ' '.join([str(sec), 'sec'])
     total_min = int(total_sec / 60)
-    min = int(np.mod(total_min, 60.))
-    if min == 0:
+    if total_min == 0:
         return time_str
+    min = int(np.mod(total_min, 60.))
     if precise:
         time_str = ' '.join([str(min), 'min', time_str])
     else:
         time_str = ' '.join([str(min), 'min'])
     total_hr = int(total_min / 60)
-    hr = int(np.mod(total_hr, 24.))
-    if hr == 0:
+    if total_hr == 0:
         return time_str
+    hr = int(np.mod(total_hr, 24.))
     if precise:
         time_str = ' '.join([str(hr), 'hr', time_str])
     else:
         time_str = ' '.join([str(hr), 'hr'])
     total_day = int(total_hr / 24)
+    if total_day == 0:
+        return time_str
     day = int(np.mod(total_day, 30.))
-    if day == 0:
-        return time_str
     if precise:
-        time_str = ' '.join([str(day), 'days'])
+        time_str = ' '.join([str(day), 'dy', time_str])
     else:
-        time_str = ' '.join([str(day), 'days', time_str])
+        time_str = ' '.join([str(day), 'dy'])
     total_mon = int(total_day / 30)
-    mon = int(np.mod(total_mon, 12.))
-    if mon == 0:
+    if total_mon == 0:
         return time_str
+    mon = int(np.mod(total_mon, 12.))
     if precise:
-        time_str = ' '.join([str(mon), 'mon'])
+        time_str = ' '.join([str(mon), 'mo', time_str])
     else:
-        time_str = ' '.join([str(mon), 'mon', time_str])
+        time_str = ' '.join([str(mon), 'mo'])
     yr = int(total_mon / 12)
     if yr == 0:
         return time_str
     if precise: 
-        time_str = ' '.join([str(yr), 'yr'])
-    else:
         time_str = ' '.join([str(yr), 'yr', time_str])
+    else:
+        time_str = ' '.join([str(yr), 'yr'])
     return time_str
 
 def get_files_with_suffix(dir_name, suffixes):
-    """ Get all of the files with a given suffix in dir recursively """
+    """ 
+    Get all of the files with a given suffix in dir recursively 
+    """
     found_filenames = []
     for localpath, directories, filenames in os.walk(dir_name):
         for filename in filenames:
@@ -184,7 +192,9 @@ def get_files_with_suffix(dir_name, suffixes):
 
 def visualize_array(image_data, shape=None, save_eps=False, 
                     label='data_figure', epsfilename=None, show=True):
-    """ Produce a visual representation of the image_data matrix """    
+    """ 
+    Produce a visual representation of the image_data matrix 
+    """
     if shape is None:
         shape = image_data.shape
     if epsfilename is None:
@@ -205,35 +215,80 @@ def visualize_array(image_data, shape=None, save_eps=False,
     return
 
 def visualize_hub(hub, show=False):
-    """ Give a visual update of the internal workings of the hub """
+    """ 
+    Give a visual update of the internal workings of the hub 
+    """
     # Plot reward value
+    fontsize = 10.
+    dec = 10000.
     fig = plt.figure(311)
     fig.clf()
-    plt.subplot(1,2,1)
+    plt.subplot(2,2,1)
     plt.gray()
+    mag = np.max(np.abs(hub.reward))
+    max = float(int(dec * np.max(hub.reward))) / dec
     plt.imshow(hub.reward.astype(np.float), interpolation='nearest', 
-               vmin=-1., vmax=1.)
-    plt.title('reward')
-    plt.subplot(1,2,2)
+               vmin=-mag, vmax=mag)
+    plt.title(' '.join(['reward, max =', str(max)]), fontsize=fontsize)
+    plt.subplot(2,2,2)
     plt.gray()
-    plt.imshow((np.log(hub.count + 1.)).astype(np.float), 
-                interpolation='nearest')
-    plt.title(''.join(['count, max = ', str(int(np.max(hub.count)))]))
+    plt.imshow(np.log(hub.running_activity + 1.), interpolation='nearest')
+    plt.title(''.join(['running_activity, max = ', 
+              str(int(np.max(hub.running_activity)))]), fontsize=fontsize)
+    plt.subplot(2,2,3)
+    plt.gray()
+    plt.imshow(np.log(hub.count + 1.), interpolation='nearest')
+    plt.title(''.join(['count, max = ', str(int(np.max(hub.count)))]), 
+              fontsize=fontsize)
+    plt.subplot(2,2,4)
+    plt.gray()
+    max = np.max(hub.curiosity)
+    max_text = str(float(int(dec * max)) / dec) 
+    plt.imshow(hub.curiosity.astype(np.float), interpolation='nearest', 
+               vmin=0., vmax=max)
+    plt.title(' '.join(['curiosity, max =', max_text]), fontsize=fontsize)
+
     frames_directory = os.path.join('core', 'hub_frames')
     filename =  ''.join([hub.name, '_reward_', 
                          str(hub.frame_counter), '.png'])
+    full_filename = os.path.join(frames_directory, filename)
+    #dpi = 80 # for a resolution of 720 lines
+    #dpi = 120 # for a resolution of 1080 lines
+    dpi = 480 # for a resolution of 4320 lines
+    plt.savefig(full_filename, format='png', dpi=dpi, 
+                facecolor=fig.get_facecolor(), edgecolor='none') 
+    hub.frame_counter += 1
+    if show:
+        plt.show()
+
+def visualize_mainspring(mainspring, show=False):
+    """ 
+    Give a visual update of the internal workings of the hub 
+    """
+    # Plot reward value
+    fig = plt.figure(311)
+    fig.clf()
+    plt.gray()
+    plt.imshow(mainspring.reward.astype(np.float), interpolation='nearest', 
+               vmin=-1., vmax=1.)
+    plt.title('reward')
+    frames_directory = os.path.join('core', 'mainspring_frames')
+    filename =  ''.join([mainspring.name, '_reward_', 
+                         str(mainspring.frame_counter), '.png'])
     full_filename = os.path.join(frames_directory, filename)
     dpi = 80 # for a resolution of 720 lines
     #dpi = 120 # for a resolution of 1080 lines
     #dpi = 480 # for a resolution of 4320 lines
     plt.savefig(full_filename, format='png', dpi=dpi, 
                 facecolor=fig.get_facecolor(), edgecolor='none') 
-    hub.frame_counter += 1
+    mainspring.frame_counter += 1
     if show:
         plt.show()
             
 def visualize_hierarchy(agent, show=True):
-    """ Show how cables compose bundles across gearboxes """
+    """ 
+    Show how cables compose bundles across gearboxes 
+    """
     fig = plt.figure(num=84)
     fig.clf()
     width = 9.
@@ -326,13 +381,13 @@ def visualize_hierarchy(agent, show=True):
             pre_members = np.where(projection[:,0] > 0.)[0]
             for member in pre_members:
                 x_cable = width * float(member) / float(n_cables)
-                plt.plot(np.array([x_bundle, x_cable - .01]),
+                plt.plot(np.array([x_bundle - .008, x_cable - .008]),
                          np.array([y + delta_y, y]), linewidth = .1,
                          color=COPPER_SHADOW)
             post_members = np.where(projection[:,1] > 0.)[0]
             for member in post_members:
                 x_cable = width * float(member) / float(n_cables)
-                plt.plot(np.array([x_bundle + .03, x_cable + .01]),
+                plt.plot(np.array([x_bundle + .008, x_cable + .008]),
                          np.array([y + delta_y, y]), linewidth = .1,
                          color=COPPER)
         y += delta_y

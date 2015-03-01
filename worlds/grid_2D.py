@@ -16,9 +16,12 @@ class World(BaseWorld):
     a 5 x 5 grid-world. Position (4,4) is rewarded and (2,2) 
     is punished. There is also a lesser penalty for each 
     horizontal or vertical step taken. 
-    Optimal performance is a reward of about 90 per time step.
+    Optimal performance is a reward of about .9 per time step.
     """
     def __init__(self, lifespan=None):
+        """
+        Set up the world
+        """
         BaseWorld.__init__(self, lifespan)
         self.VISUALIZE_PERIOD = 10 ** 4
         self.REWARD_MAGNITUDE = 1.
@@ -38,6 +41,9 @@ class World(BaseWorld):
         self.obstacles = [(1,3), (3,1)]
     
     def step(self, action): 
+        """
+        Advance the world by one time step
+        """
         self.action = np.round(action).ravel().astype(int)
         self.timestep += 1
         self.world_state += (self.action[0:2] - 
@@ -67,14 +73,18 @@ class World(BaseWorld):
         return sensors, reward
 
     def assign_sensors(self):
-        """ Construct the sensor array from the state information """
+        """ 
+        Construct the sensor array from the state information 
+        """
         sensors = np.zeros(self.num_sensors)
         sensors[self.world_state[0] + 
                 self.world_state[1] * self.world_size] = 1
         return sensors
 
     def visualize(self, agent):
-        """ Show the state of the world and the agent """
+        """ 
+        Show the state of the world and the agent 
+        """
         if (self.display_state):
             print ''.join(['state', str(self.world_state), '  action', 
                            str((self.action[0:2] + 2 * self.action[2:4] - 

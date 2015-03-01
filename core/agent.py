@@ -1,4 +1,6 @@
-""" the Agent class """
+""" 
+the Agent class 
+"""
 import cPickle as pickle
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,21 +30,24 @@ class Agent(object):
         sensors and actions arrays that the agent and the world use to
         communicate with each other. 
         """
-        self.BACKUP_INTERVAL = 1e4
-        self.DISPLAY_INTERVAL = 1e3
-        self.FORGETTING_RATE = 1e-7
+        self.num_sensors = num_sensors
+        self.num_actions = num_actions
+        # Force display of progress and block the agent?
         self.show = show
+        # Number of time steps between generating visualization plots
+        self.display_interval = 1e3
+        # Number of time steps between making a backup copy of the agent
+        self.backup_interval = 1e4
         self.name = agent_name
         self.log_dir = os.path.normpath(os.path.join(mod_path, '..', 'log'))
         if not os.path.isdir(self.log_dir):
             os.makedirs(self.log_dir)
         self.pickle_filename = os.path.join(
                 self.log_dir, '.'.join([agent_name, 'pickle']))
-        self.num_sensors = num_sensors
-        self.num_actions = num_actions
 
         # Initialize agent infrastructure.
-        # Choose min_cables to account for all sensors, actions, at a minimum.
+        # Choose min_cables to account for all sensors and actions, 
+        # at a minimum.
         min_cables = self.num_actions + self.num_sensors
         self.drivetrain = drivetrain.Drivetrain(min_cables)
         num_cables = self.drivetrain.cables_per_gearbox
@@ -50,8 +55,11 @@ class Agent(object):
                            num_sensors=self.num_sensors,
                            name='_'.join([self.name, 'hub']))
         self.spindle = spindle.Spindle(num_cables)
-        self.mainspring = mainspring.Mainspring(num_cables)
-        self.arborkey = arborkey.Arborkey()
+        self.mainspring = mainspring.Mainspring(num_cables, self.num_actions,
+                name='_'.join([self.name, 'mainspring']))
+        self.arborkey = arborkey.Arborkey(num_cables)
+        self.arborkey_goal = None
+        self.attended_index = None
         self.action = np.zeros((self.num_actions,1))
         self.cumulative_reward = 0
         self.time_since_reward_log = 0 
@@ -64,12 +72,19 @@ class Agent(object):
         self.frame_counter = 10000
 
     def step(self, sensors, reward):
-        # Adapt the reward so that it falls between -1 and 1 
-        #self.reward_max *= 1. - self.FORGETTING_RATE
-        #if np.abs(reward) > self.reward_max:
-        #    self.reward_max = np.abs(reward)
-        #self.reward = reward / self.reward_max
-        self.reward = reward
+        """
+        Advance by one time step. Take sensor and reward data in, 
+        learn from them, and use them to choose an action.
+        """
+        """
+        Scale the reward by its greatest-ever observed magnitude 
+        so that it falls between -1 and 1.
+        A reward of zero is always zero.
+        """  
+        if np.abs(reward) > self.reward_max:
+            self.reward_max = np.abs(reward)
+        self.reward = reward / self.reward_max
+
         self.timestep += 1
         if sensors.ndim == 1:
             sensors = sensors[:,np.newaxis]
@@ -81,28 +96,39 @@ class Agent(object):
             self.hub.add_cables(self.drivetrain.cables_per_gearbox)
             self.spindle.add_cables(self.drivetrain.cables_per_gearbox)
             self.mainspring.add_cables(self.drivetrain.cables_per_gearbox)
-            self.arborkey.add_cables(self.drivetrain.cables_per_gearbox)
             self.drivetrain.gearbox_added = False
         # Feed the feature_activities to the hub for calculating goals
-        self.hub_goal, hub_reward = self.hub.step(feature_activities, 
-                                                  self.reward) 
-        # Evaluate the goal using the mainspring
-        mainspring_reward = self.mainspring.evaluate(self.hub_goal) 
-        # Choose a single feature to attend 
-        (self.attended_index, attended_activity) = self.spindle.step(
-                feature_activities)
-        # Incorporate the intended feature into short- and long-term memory
-        self.mainspring.step(self.attended_index, 
-                             attended_activity, 
-                             self.reward)
-        # Pass the hub goal on to the arborkey for further evaluation
-        self.arborkey_goal = self.arborkey.step(self.hub_goal, 
-                                                mainspring_reward, 
-                                                self.reward)
-        self.hub.update(feature_activities, self.arborkey_goal, self.reward)
-        self.mainspring.update(self.arborkey_goal)
-        if self.arborkey_goal is not None:
-            self.drivetrain.assign_goal(self.arborkey_goal)
+        self.hub_goal, hub_reward, hub_curiosity, reward_trace = self.hub.step(
+                feature_activities, self.reward) 
+        # debug: toggle attention on and off
+        use_attention = True 
+        if use_attention:
+            # Evaluate the goal using the mainspring
+            mainspring_reward = self.mainspring.evaluate(self.hub_goal) 
+            # Choose a single feature to attend 
+            (self.attended_index, attended_activity) = self.spindle.step(
+                    feature_activities)
+            # Incorporate the intended feature into short- and long-term memory
+            self.mainspring.step(self.attended_index, 
+                                 attended_activity, 
+                                 reward_trace)
+            # Pass the hub goal on to the arborkey for further evaluation
+            self.arborkey_goal = self.arborkey.step(self.hub_goal, 
+                                                    hub_reward,
+                                                    hub_curiosity,
+                                                    mainspring_reward, 
+                                                    self.reward)
+            self.hub.update(feature_activities, self.arborkey_goal, self.reward)
+            self.mainspring.update(self.arborkey_goal)
+            if self.arborkey_goal is not None:
+                self.drivetrain.assign_goal(self.arborkey_goal)
+        else:
+            # debug: circumvent attention (spindle, mainspring, arborkey)
+            self.hub.update(feature_activities, self.hub_goal, self.reward)
+            if self.hub_goal is not None:
+                self.drivetrain.assign_goal(self.hub_goal)
+
+        # Choose an action
         self.action = self.drivetrain.step_down()
         # debug: Choose a single random action 
         random_action = False
@@ -111,23 +137,26 @@ class Agent(object):
             random_action_index = np.random.randint(self.action.size)
             self.action[random_action_index] = 1. 
 
-        if (self.timestep % self.BACKUP_INTERVAL) == 0:
+        if (self.timestep % self.backup_interval) == 0:
                 self._save()    
-        # Log reward
-        #self.cumulative_reward += unscaled_reward
+        # Log the reward
         self.cumulative_reward += self.reward
         self.time_since_reward_log += 1
-        # debug
-        if np.mod(self.timestep, self.DISPLAY_INTERVAL) == 0.:
-            #if np.random.random_sample() < 0.001:
+        if np.mod(self.timestep, self.display_interval) == 0.:
             self.visualize()
         return self.action
 
     def get_index_projections(self, to_screen=False):
+        """
+        For each feature the agent has extracted, find a representation
+        in terms of low level sensors and actions.
+        """
         return self.drivetrain.get_index_projections(to_screen=to_screen)
 
     def visualize(self):
-        """ Show the current state and some history of the agent """
+        """ 
+        Show the current state and some history of the agent 
+        """
         print ' '.join([self.name, 'is', str(self.timestep), 'time steps old'])
         self.reward_history.append(float(self.cumulative_reward) / 
                                    (self.time_since_reward_log + 1))
@@ -136,22 +165,28 @@ class Agent(object):
         self.reward_steps.append(self.timestep)
         self._show_reward_history()
 
-        tools.visualize_hierarchy(self, show=False)
+        # TODO: Some of these still need to be created
+        #tools.visualize_hierarchy(self, show=False)
         #self.drivetrain.visualize()
         #self.spindle.visualize()
         tools.visualize_hub(self.hub, show=False)
+        #tools.visualize_mainspring(self.mainspring, show=False)
         #self.mainspring.visualize()
         #self.arborkey.visualize()
  
     def report_performance(self):
+        """
+        Make a report of how the agent did over its lifetime
+        """
         performance = np.mean(self.reward_history)
         print("Final performance is %f" % performance)
         self._show_reward_history(hold_plot=self.show)
         return performance
     
-    def _show_reward_history(self, hold_plot=False, 
-                            filename=None):
-        """ Show the agent's reward history and save it to a file """
+    def _show_reward_history(self, hold_plot=False, filename=None):
+        """ 
+        Show the agent's reward history and save it to a file 
+        """
         if self.graphing:
             fig = plt.figure(1)
             plt.plot(self.reward_steps, self.reward_history)
@@ -168,7 +203,9 @@ class Agent(object):
                 plt.show()
     
     def _save(self):
-        """ Archive a copy of the agent object for future use """
+        """ 
+        Archive a copy of the agent object for future use 
+        """
         success = False
         make_backup = True
         print "Attempting to save agent..."
@@ -191,16 +228,19 @@ class Agent(object):
         return success
         
     def restore(self):
-        """ Reconstitute the agent from a previously saved agent """
+        """ 
+        Reconstitute the agent from a previously saved agent 
+        """
         restored_agent = self
         try:
             with open(self.pickle_filename, 'rb') as agent_data:
                 loaded_agent = pickle.load(agent_data)
-
-            # Compare the number of channels in the restored agent with 
-            # those in the already initialized agent. If it matches, 
-            # accept the agent. If it doesn't,
-            # print a message, and keep the just-initialized agent.
+            """
+            Compare the number of channels in the restored agent with 
+            those in the already initialized agent. If it matches, 
+            accept the agent. If it doesn't,
+            print a message, and keep the just-initialized agent.
+            """
             if ((loaded_agent.num_sensors == self.num_sensors) and 
                (loaded_agent.num_actions == self.num_actions)):
                 print(''.join(('Agent restored at timestep ', 

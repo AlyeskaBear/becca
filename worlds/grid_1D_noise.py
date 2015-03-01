@@ -18,11 +18,13 @@ class World(BaseWorld):
     along three positions on a line. The second position is rewarded 
     and the first and third positions are punished. Also, any actions 
     are penalized somewhat. It also includes some inputs that are pure noise. 
-    Optimal performance is a reward of between 90 per time step.
+    Optimal performance is a reward of about .70 per time step.
     """
     
     def __init__(self, lifespan=None):
-        """ Set up the world """
+        """
+        Set up the world 
+        """
         BaseWorld.__init__(self, lifespan)
         self.VISUALIZE_PERIOD = 10 ** 4
         self.REWARD_MAGNITUDE = 1.
@@ -43,7 +45,9 @@ class World(BaseWorld):
         self.simple_state = 0       
 
     def step(self, action): 
-        """ Take one time step through the world """
+        """ 
+        Take one time step through the world 
+        """
         self.action = action.copy().ravel()
         self.timestep += 1 
         step_size = self.action[0] - self.action[1]
@@ -72,13 +76,11 @@ class World(BaseWorld):
             reward = self.REWARD_MAGNITUDE
         reward -= energy * self.ENERGY_COST        
         return sensors, reward
-    
-    def set_agent_parameters(self, agent):
-        """ Make some adjustements, as necessary, to the agent """
-        pass
 
     def visualize(self, agent):
-        """ Show what's going on in the world """
+        """ 
+        Show what's going on in the world 
+        """
         if (self.display_state):
             state_image = ['.'] * (self.num_real_sensors + 
                                    self.num_actions + 2)

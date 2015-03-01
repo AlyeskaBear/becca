@@ -16,8 +16,8 @@ class World(BaseWorld):
     In this task, the agent steps forward and backward along 
     a nine-position line. The fourth position is rewarded and 
     the ninth position is punished. There is also a slight 
-    punishment for effort expended in trying to move, 
-    i.e. taking actions. Occasionally the agent will get
+    punishment for effort expended in taking actions. 
+    Occasionally the agent will get
     involuntarily bumped to a random position on the line.
     This is intended to be a simple-as-possible 
     task for troubleshooting BECCA. 
@@ -40,6 +40,9 @@ class World(BaseWorld):
         self.display_state = False
     
     def step(self, action): 
+        """
+        Advance the world one time step
+        """
         self.action = action
         self.timestep += 1 
         # Find the step size as combinations of the action commands
@@ -88,6 +91,9 @@ class World(BaseWorld):
         return sensors, reward
 
     def assign_reward(self, sensors):
+        """
+        Calculate the total reward corresponding to the current state
+        """
         reward = 0.
         reward -= sensors[8] * self.REWARD_MAGNITUDE
         reward += sensors[3] * self.REWARD_MAGNITUDE
@@ -97,7 +103,9 @@ class World(BaseWorld):
         return reward
         
     def visualize(self, agent):
-        """ Show what's going on in the world """
+        """ 
+        Show what's going on in the world 
+        """
         if (self.display_state):
             state_image = ['.'] * (self.num_sensors + self.num_actions + 2)
             state_image[self.simple_state] = 'O'

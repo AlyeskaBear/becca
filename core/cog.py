@@ -1,4 +1,6 @@
-""" the Cog class """
+""" 
+the Cog class 
+"""
 import numpy as np
 from daisychain import DaisyChain
 import tools
@@ -12,7 +14,7 @@ class Cog(object):
     They are simple and do the same task over and over, but by
     virtue of how they are connected to their fellows, they 
     collectively bring about interesting behavior.  
-    In a conflicting mmetaphor, the inputs to a cog
+    In a conflicting metaphor, the inputs to a cog
     are similar to electrical cables: they carry activity 
     signals that vary over time.
 
@@ -25,11 +27,13 @@ class Cog(object):
     bundles, and calculating the activity in bundle. 
     During downward processing, 
     the daisychain and ziptie use the bundle activity goals from 
-    the next level higher to create goals for the cables. 
+    the gearbox above to create goals for the cables. 
     """
     def __init__(self, max_cables, max_bundles, max_chains_per_bundle=None,
                  name='anonymous', level=0):
-        """ Initialize the cogs with a pre-determined maximum size """
+        """ 
+        Initialize the cogs with a pre-determined maximum size 
+        """
         self.name = name
         self.max_cables = max_cables
         self.max_bundles = max_bundles
@@ -42,48 +46,62 @@ class Cog(object):
                                  name=name)
 
     def step_up(self, cable_activities, enough_cables):
-        """ Cable_activities percolate upward through daisychain and ziptie """
+        """ 
+        Cable_activities percolate upward through daisychain and ziptie 
+        """
         # TODO: fix this so that cogs can gracefully handle more cables 
-        # or else never be assigned them in the first place
+        # or else never be assigned them in the first place. 
+        # Enable them to grow dynamically, rather than preallocated,
+        # if that can be shown to improve performance.
         if cable_activities.size > self.max_cables:
             cable_activities = cable_activities[:self.max_cables, :]
-            print '-----  Number of max cables exceeded in', self.name, \
-                    '  -----'
-        #chain_activities, self.reaction = self.daisychain.step_up(
-        #        cable_activities)
-        chain_activities = self.daisychain.step_up(
-                cable_activities)
-        #self.surprise = self.daisychain.get_surprise()
+            print ''.join(['-----  Number of max cables exceeded in', 
+                            self.name, '  -----'])
+        chain_activities = self.daisychain.step_up(cable_activities)
+        # Wait to start training the cog's bundles until the cog's
+        # input cables are adequately populated. This is the job
+        # of the gearbox's ziptie.
         if enough_cables is True:
             bundle_activities = self.ziptie.step_up(chain_activities)
         else:
             bundle_activities = np.zeros((0,1))
+        # TODO: Check whether this is necessary
         bundle_activities = tools.pad(bundle_activities, (self.max_bundles, 0))
         return bundle_activities
 
     def step_down(self, bundle_goals):
-        """ Bundle_goals percolate downward """
+        """ 
+        Bundle_goals percolate downward 
+        """
         chain_goals = self.ziptie.step_down(bundle_goals) 
         cable_goals = self.daisychain.step_down(chain_goals)     
         return cable_goals
 
     def get_index_projection(self, bundle_index):
-        """ Project a bundle down through the ziptie and daisychain """
+        """ 
+        Project a bundle down through the ziptie and daisychain 
+        """
         chain_projection = self.ziptie.get_index_projection(bundle_index)
         cable_projection = self.daisychain.get_index_projection(
                 chain_projection)
         return cable_projection
          
     def fraction_filled(self):
-        """ How full is the set of cables for this cog? """
+        """ 
+        How full is the set of cables for this cog? 
+        """
         return float(self.daisychain.num_cables) / float(self.max_cables)
 
     def num_bundles(self):
-        """ How many bundles have been created in this cog? """
+        """ 
+        How many bundles have been created in this cog? 
+        """
         return self.ziptie.num_bundles
             
     def visualize(self):
-        """ Show the internal state of the daisychain and ziptie """
-        #self.daisychain.visualize()
+        """ 
+        Show the internal state of the daisychain and ziptie 
+        """
+        self.daisychain.visualize()
         if self.max_bundles > 0:
             self.ziptie.visualize()

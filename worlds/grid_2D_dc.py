@@ -11,7 +11,8 @@ import numpy as np
 from grid_2D import World as Grid_2D_World
 
 class World(Grid_2D_World):
-    """ Decoupled two-dimensional grid world
+    """ 
+    Decoupled two-dimensional grid world
     
     It's just like the grid_2D world except that the sensors
     array represents a row and a column separately, 
@@ -19,6 +20,9 @@ class World(Grid_2D_World):
     Optimal performance is a reward of about 90 per time step.
     """
     def __init__(self, lifespan=None):
+        """ 
+        Set up the world based on the grid_2D world
+        """
         Grid_2D_World.__init__(self, lifespan)
         self.name = 'grid_2D_dc'
         self.name_long = 'decoupled two dimensional grid world'
@@ -27,6 +31,9 @@ class World(Grid_2D_World):
         self.display_state = False
             
     def assign_sensors(self):
+        """
+        Create an appropriate sensor array
+        """
         # Sensors 0-4 represent the 5 rows of the 
         sensors = np.zeros(self.num_sensors)
         sensors[self.world_state[0]] = 1

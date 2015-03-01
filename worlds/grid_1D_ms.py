@@ -19,9 +19,8 @@ class World(BaseWorld):
     def __init__(self, lifespan=None):
         BaseWorld.__init__(self, lifespan)
         self.VISUALIZE_PERIOD = 10 ** 4
-        self.REWARD_MAGNITUDE = 1.
-        self.ENERGY_COST = 0.01 * self.REWARD_MAGNITUDE
-        self.JUMP_FRACTION = 0.10
+        self.ENERGY_COST = 0.01
+        self.JUMP_FRACTION = 0.1
         self.display_state = False
         self.name = 'grid_1D_ms'
         self.name_long = 'multi-step one dimensional grid world'
@@ -33,6 +32,9 @@ class World(BaseWorld):
         self.simple_state = 0
             
     def step(self, action): 
+        """
+        Advance the world by one time step
+        """
         self.action = action.ravel()
         self.timestep += 1 
         energy = self.action[0] + self.action[1]
@@ -53,8 +55,8 @@ class World(BaseWorld):
         sensors = np.zeros(self.num_sensors)
         sensors[self.simple_state] = 1
         # Assign reward based on the current state 
-        reward = sensors[8] * (-self.REWARD_MAGNITUDE)
-        reward += sensors[3] * (self.REWARD_MAGNITUDE)
+        reward = sensors[8] * -1.
+        reward += sensors[3] 
         # Punish actions just a little 
         reward -= energy * self.ENERGY_COST
         reward = np.max(reward, -1)

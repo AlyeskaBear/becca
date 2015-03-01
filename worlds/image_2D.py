@@ -1,7 +1,7 @@
 """
 Two-dimensional visual servo task
 
-Like the 1D visual srvo task, this task gives BECCA a chance 
+Like the 1D visual servo task, this task gives BECCA a chance 
 to build a comparatively large number of sensors into 
 a few informative features. 
 """
@@ -20,9 +20,12 @@ class World(BaseWorld):
     In this world, BECCA can direct its gaze up, down, left, and
     right, saccading about an block_image_data of a black square on a white
     background. It is rewarded for directing it near the center.
-    Optimal performance is a reward of around 90 reward per time step.
+    Optimal performance is a reward of around .8 reward per time step.
     """
     def __init__(self, lifespan=None):
+        """
+        Set up the world
+        """
         BaseWorld.__init__(self, lifespan)
         self.VISUALIZE_PERIOD = 10 ** 4
         self.REWARD_MAGNITUDE = 1.
@@ -70,6 +73,9 @@ class World(BaseWorld):
         self.step_counter = 0
 
     def step(self, action): 
+        """
+        Advance the world by one time step
+        """
         self.timestep += 1
         self.action = action.ravel()
         # Actions 0-3 move the field of view to a higher-numbered 
@@ -134,7 +140,9 @@ class World(BaseWorld):
         return self.sensors, self.reward
      
     def visualize(self, agent):
-        """ Show what is going on in BECCA and in the world """
+        """ 
+        Show what is going on in BECCA and in the world 
+        """
         self.row_history.append(self.row_position)
         self.column_history.append(self.column_position)
         if self.animate:

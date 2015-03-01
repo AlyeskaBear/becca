@@ -1,10 +1,11 @@
-""" the Arborkey class """
-import matplotlib.pyplot as plt
+""" 
+the Arborkey class 
+"""
 import numpy as np
-import tools
 
 class Arborkey(object):
-    """ Compares potential goals and decides which to send to the drivetrain
+    """ 
+    Compares potential goals and decides which to send to the drivetrain
     
     The arborkey is at the highest level of control in the agent.
     It is named for the toothed key used to clamp drill chuck jaws
@@ -24,58 +25,60 @@ class Arborkey(object):
     As it matures, it will also modulate its level of arousal--
     how long it allows itself to evaluate options before taking action--
     based on its recent reward and punishment history.
+    
+    TODO: Incorporate restlessness. The longer the arborkey goes
+    without taking an action, the more likely it will be to act.
     """
-    def __init__(self):
-        self.MAX_LENGTH = 25
-        self.REWARD_DECAY_RATE = .5
-        self.ACTION_PROPENSITY = 4. / float(self.MAX_LENGTH)
+    def __init__(self, num_cables):
+        # The number of elements stored in short term memory
+        self.STM_LENGTH = 25
+        #self.REWARD_DECAY_RATE = 1.
         self.goal_candidates = []
         self.expected_reward = []
         self.time_since_observed = []
-        self.time_since_acted = 0.
 
-    def step(self, goal_candidate, candidate_reward, current_reward):
-        """ Evaluate and recommend a goal candidate """
-        self.time_since_acted += 1.
+    def step(self, goal_candidate, hub_reward, curiosity,
+             candidate_reward, current_reward):
+        """ 
+        Advance the arborkey through one time step.
+        Evaluate goal candidates and possibly recommend one. 
+        """
         goal = None
         # Update the list of goal candidates 
         if goal_candidate is not None:
-            self.goal_candidates.append(goal_candidate)
-            self.expected_reward.append(candidate_reward)
-            self.time_since_observed.append(0.)
+            if hub_reward + curiosity > current_reward:
+                self.goal_candidates.append(goal_candidate)
+                self.expected_reward.append(candidate_reward + curiosity)
+                self.time_since_observed.append(0.)
         if len(self.expected_reward) == 0:
             return None
-        # Estimate the value of each candidate
-        decayed_reward = np.array(self.expected_reward) / ( 1. + 
-                self.REWARD_DECAY_RATE * np.array(self.time_since_observed))
-        value = (decayed_reward - current_reward + 
-                 self.ACTION_PROPENSITY * self.time_since_acted)
-        # Find the most likely candidate
-        best_goal_index = np.where(value == max(value))[0][-1]
-        highest_value = value[best_goal_index]
+
+        # Estimate the present reward value of each candidate
+        #decayed_reward = (np.array(self.expected_reward)).ravel() / ( 1. + 
+        #        self.REWARD_DECAY_RATE * np.array(self.time_since_observed))
+        decayed_reward = (np.array(self.expected_reward)).ravel() / ( 
+                1. + np.array(self.time_since_observed))
+        reward_value = decayed_reward - current_reward
+        # Find the most rewarding candidate
+        best_goal_index = np.where(reward_value == np.max(reward_value))[0][-1]
+        highest_reward_value = reward_value[best_goal_index]
         # Check whether the best candidate is good enough to pick 
-        if highest_value > 0.:
+        if highest_reward_value > 0.:
             goal = self.goal_candidates.pop(best_goal_index)
             self.expected_reward.pop(best_goal_index)
             self.time_since_observed.pop(best_goal_index)
             self.goal_candidates = []
             self.expected_reward = []
             self.time_since_observed = []
-            self.time_since_acted = 0.
+
         # If the list of candidates is too long, reduce it
-        if len(self.goal_candidates) > self.MAX_LENGTH:
+        if len(self.goal_candidates) > self.STM_LENGTH:
             worst_goal_index = np.where(self.expected_reward == 
                                         min(self.expected_reward))[0][0]
             self.goal_candidates.pop(worst_goal_index)
             self.expected_reward.pop(worst_goal_index)
             self.time_since_observed.pop(worst_goal_index)
-        #print 'car', candidate_reward, 'gc', goal_candidate, 'cur', current_reward, 'bgi', best_goal_index, 'hv', highest_value, 'g', goal
-        return goal_candidate
-        #return goal
-
-    def add_cables(self, num_new_cables):
-        """ Add new cables to the hub when new gearboxes are created """ 
-        pass
+        return goal
 
     def visualize(self):
         pass

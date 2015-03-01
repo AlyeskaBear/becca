@@ -1,5 +1,5 @@
 """
-benchmark 0.6.0
+benchmark 0.6.1
 
 A suite of worlds to characterize the performance of BECCA variants.
 Other agents may use this benchmark as well, as long as they have the 
@@ -10,13 +10,14 @@ benchmark will be version numbered.
 Run at the command line as a script with no argmuments:
 > python benchmark.py
 
-For N_RUNS = 7, Becca 0.6.0 scored 56
+For N_RUNS = 7, Becca 0.6.1 scored ??
 """
 import matplotlib.pyplot as plt
 import numpy as np
 import tester
 from core.agent import Agent
 from worlds.grid_1D import World as World_grid_1D
+from worlds.grid_1D_delay import World as World_grid_1D_delay
 from worlds.grid_1D_ms import World as World_grid_1D_ms
 from worlds.grid_1D_noise import World as World_grid_1D_noise
 from worlds.grid_2D import World as World_grid_2D
@@ -32,6 +33,8 @@ def main():
     for i in range(N_RUNS):
         performance = []
         world = World_grid_1D(lifespan=benchmark_lifespan)
+        performance.append(tester.test(world, show=False))
+        world = World_grid_1D_delay(lifespan=benchmark_lifespan)
         performance.append(tester.test(world, show=False))
         world = World_grid_1D_ms(lifespan=benchmark_lifespan)
         performance.append(tester.test(world, show=False))
