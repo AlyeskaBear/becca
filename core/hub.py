@@ -23,7 +23,7 @@ class Hub(object):
         self.REWARD_LEARNING_RATE = .1
         # Keep a history of reward and active features to account for 
         # delayed reward.
-        self.TRACE_LENGTH = 10
+        self.TRACE_LENGTH = 5
         # As time passes, grow more optimistic about the effect of 
         # trying neglected goals.
         # A curiosity time constant. Larger means curiosity builds more slowly.
