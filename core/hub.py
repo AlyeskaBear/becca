@@ -23,11 +23,14 @@ class Hub(object):
         self.REWARD_LEARNING_RATE = .1
         # Keep a history of reward and active features to account for 
         # delayed reward.
-        self.TRACE_LENGTH = 25
+        self.TRACE_LENGTH = 10
         # As time passes, grow more optimistic about the effect of 
         # trying neglected goals.
         # A curiosity time constant. Larger means curiosity builds more slowly.
-        self.EXPLORATION_FACTOR = 60.
+        #self.EXPLORATION_FACTOR = 3.  * (self.num_cables * 
+        #                                self.num_actions ) ** .5
+        self.EXPLORATION_FACTOR = 3.  * (self.num_cables * 
+                                        self.num_actions ) ** .5
         # Decay the reward trace a little faster
         self.TIME_FACTOR = 2. 
         self.trace_magnitude = 0.
@@ -90,12 +93,14 @@ class Hub(object):
         self.mask = (np.sign(np.maximum(self.mask, cable_activities))
                      ).astype('int')
         state = self.activity_history[0]
+        # Don't train on deliberate actions
+        state[:self.num_actions] = 0.
         action = self.action_history[0]
+        #self.i_state = np.nonzero(state)[0]
+        #self.i_action = np.nonzero(action)[0]
         
         # Increment the count according to the most recent features and actions
         state_by_action = state * action.T 
-        self.i_state = np.nonzero(state)[0]
-        self.i_action = np.nonzero(action)[0]
         self.count += state_by_action
         self.running_activity  = self.running_activity + state
         self.curiosity = self.running_activity / (self.running_activity + 

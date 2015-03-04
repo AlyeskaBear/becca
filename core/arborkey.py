@@ -31,8 +31,13 @@ class Arborkey(object):
     """
     def __init__(self, num_cables):
         # The number of elements stored in short term memory
+        # TODO: change name
         self.STM_LENGTH = 25
         #self.REWARD_DECAY_RATE = 1.
+        # Propensity to act
+        self.restlessness = 0.
+        # Amount by which restlessness is incremented each time step
+        self.NERVOUSNESS = 1e-5
         self.goal_candidates = []
         self.expected_reward = []
         self.time_since_observed = []
@@ -43,12 +48,19 @@ class Arborkey(object):
         Advance the arborkey through one time step.
         Evaluate goal candidates and possibly recommend one. 
         """
+        """
+        Increment restlessness by a small amount for each time step in which 
+        an action is not taken. This helps the agent avoid getting stuck
+        in ruts. 
+        """
+        self.restlessness += self.NERVOUSNESS * (1. - current_reward)
         goal = None
         # Update the list of goal candidates 
         if goal_candidate is not None:
-            if hub_reward + curiosity > current_reward:
+            if hub_reward + curiosity + self.restlessness >= current_reward:
                 self.goal_candidates.append(goal_candidate)
-                self.expected_reward.append(candidate_reward + curiosity)
+                self.expected_reward.append(candidate_reward + curiosity +
+                                            self.restlessness)
                 self.time_since_observed.append(0.)
         if len(self.expected_reward) == 0:
             return None
@@ -63,10 +75,12 @@ class Arborkey(object):
         best_goal_index = np.where(reward_value == np.max(reward_value))[0][-1]
         highest_reward_value = reward_value[best_goal_index]
         # Check whether the best candidate is good enough to pick 
-        if highest_reward_value > 0.:
+        # TODO: check whether the winning goal is ever any but the most recent
+        if highest_reward_value >= 0.:
             goal = self.goal_candidates.pop(best_goal_index)
             self.expected_reward.pop(best_goal_index)
             self.time_since_observed.pop(best_goal_index)
+            self.restlessness = 0.
             self.goal_candidates = []
             self.expected_reward = []
             self.time_since_observed = []
