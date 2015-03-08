@@ -37,7 +37,7 @@ class Agent(object):
         # Number of time steps between generating visualization plots
         self.display_interval = 1e3
         # Number of time steps between making a backup copy of the agent
-        self.backup_interval = 1e3
+        self.backup_interval = 1e4
         self.name = agent_name
         self.log_dir = os.path.normpath(os.path.join(mod_path, '..', 'log'))
         if not os.path.isdir(self.log_dir):
