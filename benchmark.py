@@ -10,7 +10,7 @@ benchmark will be version numbered.
 Run at the command line as a script with no argmuments:
 > python benchmark.py
 
-For N_RUNS = 11, Becca 0.6.1 scored ??
+For N_RUNS = 11, Becca 0.6.1 scored 75
 """
 import matplotlib.pyplot as plt
 import numpy as np
