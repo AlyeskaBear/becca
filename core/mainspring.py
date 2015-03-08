@@ -42,11 +42,8 @@ class Mainspring(object):
         self.num_cables = initial_size
         self.num_actions = num_actions
         #cable_shape = (self.num_cables, 1)
-        #transition_shape = (self.num_cables, self.num_cables)
         transition_shape = (self.num_cables, self.num_actions)
 
-        #self.reward_history = list(np.zeros(self.TRACE_LENGTH))
-        #cable_shape = (self.num_cables, 1)
         self.stm_indices = [[0.] * self.NUM_ATTENDED] * (
                 self.TRACE_LENGTH + 1)
         self.stm_activities = [[0.] * self.NUM_ATTENDED] * (
@@ -159,7 +156,6 @@ class Mainspring(object):
         Add new cables to the hub when new gearboxes are created 
         """ 
         self.num_cables = self.num_cables + num_new_cables
-        #transition_shape = (self.num_cables, self.num_cables)
         transition_shape = (self.num_cables, self.num_actions)
         #self.value = tools.pad(self.value, transition_shape)
         self.reward = tools.pad(self.reward, transition_shape)

@@ -21,29 +21,25 @@ class Hub(object):
         self.num_actions = num_actions
         # Set constants that adjust the behavior of the hub
         self.REWARD_LEARNING_RATE = .1
-        # Keep a history of reward and active features to account for 
-        # delayed reward.
-        self.TRACE_LENGTH = 5
         # As time passes, grow more optimistic about the effect of 
         # trying neglected goals.
         # A curiosity time constant. Larger means curiosity builds more slowly.
-        #self.EXPLORATION_FACTOR = 3.  * (self.num_cables * 
-        #                                self.num_actions ) ** .5
         self.EXPLORATION_FACTOR = 3.  * (self.num_cables * 
                                         self.num_actions ) ** .5
-        # Decay the reward trace a little faster
-        self.TIME_FACTOR = 2. 
+        # Tweak the rate of decay of the reward trace
+        self.TIME_FACTOR = 1. 
+        # Keep a history of reward and active features to account for 
+        # delayed reward.
+        self.TRACE_LENGTH = int(self.TIME_FACTOR * 6.)
         self.trace_magnitude = 0.
         for tau in np.arange(self.TRACE_LENGTH):
-            self.trace_magnitude += 1. / (1. + self.TIME_FACTOR * float(tau))
+            self.trace_magnitude += 2. ** (-self.TIME_FACTOR * float(tau))
 
         # Initialize variables for later use
         self.reward_history = list(np.zeros(self.TRACE_LENGTH))
         feature_shape = (self.num_cables, 1)
         self.activity_history = [np.zeros(feature_shape)] * (
                 self.TRACE_LENGTH + 1)
-        #self.action_history = [np.zeros(feature_shape)] * (
-        #        self.TRACE_LENGTH + 1)
         self.action_history = [np.zeros((self.num_actions, 1))] * (
                 self.TRACE_LENGTH + 1)
         """
@@ -60,7 +56,6 @@ class Hub(object):
         a goal (action). Element [i,j] represents the transition
         from feature i to action j.
         """
-        #transition_shape = (self.num_cables, self.num_cables)
         transition_shape = (self.num_cables, self.num_actions)
         self.reward = np.zeros(transition_shape)
         # This counts the number of times each transition has been encountered 
@@ -86,8 +81,8 @@ class Hub(object):
             in both experimental psychology and economics as representing
             typical human behavior.
             """
-            reward_trace += self.reward_history[tau] / (
-                    1. + self.TIME_FACTOR * float(tau))
+            reward_trace += self.reward_history[tau] * (
+                    2. ** (-self.TIME_FACTOR * float(tau)))
         reward_trace /= self.trace_magnitude
 
         self.mask = (np.sign(np.maximum(self.mask, cable_activities))
@@ -96,8 +91,6 @@ class Hub(object):
         # Don't train on deliberate actions
         state[:self.num_actions] = 0.
         action = self.action_history[0]
-        #self.i_state = np.nonzero(state)[0]
-        #self.i_action = np.nonzero(action)[0]
         
         # Increment the count according to the most recent features and actions
         state_by_action = state * action.T 
@@ -119,7 +112,6 @@ class Hub(object):
                                        weights=cable_activities.ravel())
         expected_reward = average_reward + average_curiosity
         # Ignore all cables that are still masked. These are yet unused.
-        #expected_reward[np.where(self.mask.ravel() < 1.)] -= 4.
         best_reward = np.max(expected_reward)
         potential_winners = np.where(expected_reward == best_reward)[0] 
         # Break any ties by lottery
@@ -150,7 +142,6 @@ class Hub(object):
         """ 
         Assign the goal to train on, based on the goal that was issued 
         """
-        #goal = np.zeros((self.num_cables, 1))
         goal = np.zeros((self.num_actions, 1))
         if issued_goal_index is not None:
             goal[issued_goal_index] = 1.
@@ -168,7 +159,6 @@ class Hub(object):
         """ 
         self.num_cables = self.num_cables + num_new_cables
         features_shape = (self.num_cables, 1)
-        #transition_shape = (self.num_cables, self.num_cables) 
         transition_shape = (self.num_cables, self.num_actions) 
         self.reward = tools.pad(self.reward, transition_shape)
         self.count = tools.pad(self.count, transition_shape)
@@ -178,7 +168,5 @@ class Hub(object):
         for index in range(len(self.activity_history)):
             self.activity_history[index] = tools.pad(
                     self.activity_history[index], features_shape)
-            #self.action_history[index] = tools.pad(
-            #        self.action_history[index], features_shape)
             self.action_history[index] = tools.pad(
                     self.action_history[index], (self.num_actions, 1))

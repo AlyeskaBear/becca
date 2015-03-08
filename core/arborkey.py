@@ -33,7 +33,6 @@ class Arborkey(object):
         # The number of elements stored in short term memory
         # TODO: change name
         self.STM_LENGTH = 25
-        #self.REWARD_DECAY_RATE = 1.
         # Propensity to act
         self.restlessness = 0.
         # Amount by which restlessness is incremented each time step
@@ -66,8 +65,6 @@ class Arborkey(object):
             return None
 
         # Estimate the present reward value of each candidate
-        #decayed_reward = (np.array(self.expected_reward)).ravel() / ( 1. + 
-        #        self.REWARD_DECAY_RATE * np.array(self.time_since_observed))
         decayed_reward = (np.array(self.expected_reward)).ravel() / ( 
                 1. + np.array(self.time_since_observed))
         reward_value = decayed_reward - current_reward
