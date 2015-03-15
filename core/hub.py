@@ -44,11 +44,12 @@ class Hub(object):
                 self.TRACE_LENGTH + 1)
         """
         The mask indicates which cables are active and which are 
-        yet unused. Ignoring the ones taht haven't started carrying
+        yet unused. Ignoring the ones that haven't started carrying
         a signal yet speeds up learning.
         """
         self.mask = np.zeros(feature_shape)
-        self.mask[:num_actions + num_sensors] = 1.
+        #self.mask[:num_actions + num_sensors] = 1.
+        self.mask[:num_sensors] = 1.
         """
         reward is a property of every transition. 
         In this 2D array representation, each row
@@ -88,8 +89,9 @@ class Hub(object):
         self.mask = (np.sign(np.maximum(self.mask, cable_activities))
                      ).astype('int')
         state = self.activity_history[0]
+        # debug: Remove actions from features
         # Don't train on deliberate actions
-        state[:self.num_actions] = 0.
+        #state[:self.num_actions] = 0.
         action = self.action_history[0]
         
         # Increment the count according to the most recent features and actions
@@ -119,8 +121,10 @@ class Hub(object):
             goal_cable = potential_winners[np.random.randint(
                     potential_winners.size)]
         else:
-            goal_cable = np.random.randint(self.num_cables)
+            goal_cable = np.random.randint(self.num_actions)
 
+        #print 'gc', goal_cable, 'ars', average_reward.shape
+        #print 'rs', self.reward.shape, 'cas', cable_activities.shape
         hub_reward = average_reward[goal_cable]
         hub_curiosity = average_curiosity[goal_cable]
 

@@ -65,7 +65,7 @@ class World(BaseWorld):
         self.row_position = np.random.random_integers(self.row_min, 
                                                       self.row_max)
         self.num_sensors = 2 * self.fov_span ** 2
-        self.num_actions = 17
+        self.num_actions = 16
         self.sensors = np.zeros(self.num_sensors)
         self.column_history = []
         self.row_history = []

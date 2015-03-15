@@ -33,7 +33,7 @@ class World(BaseWorld):
         self.name_long = 'one dimensional grid world'
         print "Entering", self.name_long
         self.num_sensors = 9
-        self.num_actions = 9
+        self.num_actions = 8
         self.action = np.zeros((self.num_actions,1))
         self.world_state = 0
         self.simple_state = 0
@@ -55,7 +55,6 @@ class World(BaseWorld):
         #            5      2 steps to the left
         #            6      3 steps to the left
         #            7      4 steps to the left
-        #            8      stay put
         step_size = (self.action[0] + 
                  2 * self.action[1] + 
                  3 * self.action[2] + 

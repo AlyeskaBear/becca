@@ -31,7 +31,7 @@ class World(BaseWorld):
         self.name = 'grid_2D'
         self.name_long = 'two dimensional grid world'
         print "Entering", self.name_long
-        self.num_actions = 9            
+        self.num_actions = 8
         self.world_size = 5
         self.num_sensors = self.world_size ** 2
         self.world_state = np.array([1, 1])

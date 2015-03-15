@@ -32,11 +32,16 @@ class Arborkey(object):
     def __init__(self, num_cables):
         # The number of elements stored in short term memory
         # TODO: change name
-        self.STM_LENGTH = 25
+        # debug: remove list of goals? 
+        # Maybe the most recent is always the one chosen.
+        #self.STM_LENGTH = 25
+        self.STM_LENGTH = 1
+
         # Propensity to act
         self.restlessness = 0.
         # Amount by which restlessness is incremented each time step
-        self.NERVOUSNESS = 1e-5
+        # debug: increased from 1e-5 to 1e-4
+        self.NERVOUSNESS = 1e-4
         self.goal_candidates = []
         self.expected_reward = []
         self.time_since_observed = []
@@ -55,13 +60,16 @@ class Arborkey(object):
         self.restlessness += self.NERVOUSNESS * (1. - current_reward)
         goal = None
         # Update the list of goal candidates 
+        #print 'gc', goal_candidate,'hr', hub_reward, 'c', curiosity, 'r', self.restlessness, 'cr', current_reward, 'sum', hub_reward + curiosity + self.restlessness
         if goal_candidate is not None:
-            if hub_reward + curiosity + self.restlessness >= current_reward:
+            #if hub_reward + curiosity + self.restlessness >= current_reward:
+            if True:
                 self.goal_candidates.append(goal_candidate)
                 self.expected_reward.append(candidate_reward + curiosity +
                                             self.restlessness)
                 self.time_since_observed.append(0.)
         if len(self.expected_reward) == 0:
+            #print 'no expected reward. bailing.'
             return None
 
         # Estimate the present reward value of each candidate
@@ -73,7 +81,8 @@ class Arborkey(object):
         highest_reward_value = reward_value[best_goal_index]
         # Check whether the best candidate is good enough to pick 
         # TODO: check whether the winning goal is ever any but the most recent
-        if highest_reward_value >= 0.:
+        #if highest_reward_value >= 0.:
+        if True :
             goal = self.goal_candidates.pop(best_goal_index)
             self.expected_reward.pop(best_goal_index)
             self.time_since_observed.pop(best_goal_index)
@@ -89,6 +98,11 @@ class Arborkey(object):
             self.goal_candidates.pop(worst_goal_index)
             self.expected_reward.pop(worst_goal_index)
             self.time_since_observed.pop(worst_goal_index)
+            
+        # debug prints
+        #print '--ak'
+        #print 'gc', goal_candidate, 'hr', hub_reward, 'c', curiosity
+        #print 'canr', candidate_reward, 'curr', current_reward
         return goal
 
     def visualize(self):

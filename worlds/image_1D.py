@@ -38,7 +38,7 @@ class World(BaseWorld):
         self.step_counter = 0
         self.fov_span = 7 
         self.num_sensors = 2 * self.fov_span ** 2
-        self.num_actions = 9
+        self.num_actions = 8
 
         # Initialize the image to be used as the environment
         self.block_image_filename = os.path.join(mod_path, 'images', 

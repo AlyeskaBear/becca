@@ -39,7 +39,7 @@ class World(BaseWorld):
         # These are noise meant to distract.
         self.num_noise_sensors = 15        
         self.num_sensors = self.num_noise_sensors + self.num_real_sensors
-        self.num_actions = 3
+        self.num_actions = 2
         self.action = np.zeros((self.num_actions,1))
         self.world_state = 0      
         self.simple_state = 0       

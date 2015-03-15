@@ -31,7 +31,9 @@ class Agent(object):
         communicate with each other. 
         """
         self.num_sensors = num_sensors
-        self.num_actions = num_actions
+        # Add one to create a null action. 
+        # This action has no effect on the world.
+        self.num_actions = num_actions + 1
         # Force display of progress and block the agent?
         self.show = show
         # Number of time steps between generating visualization plots
@@ -48,9 +50,12 @@ class Agent(object):
         # Initialize agent infrastructure.
         # Choose min_cables to account for all sensors and actions, 
         # at a minimum.
-        min_cables = self.num_actions + self.num_sensors
+        # debug: form features from sensor values only
+        #min_cables = self.num_actions + self.num_sensors
+        min_cables = self.num_sensors
+
         self.drivetrain = drivetrain.Drivetrain(min_cables)
-        num_cables = self.drivetrain.cables_per_gearbox
+        num_cables = self.drivetrain.cables_per_ziptie
         self.hub = hub.Hub(num_cables, num_actions=self.num_actions, 
                            num_sensors=self.num_sensors,
                            name='_'.join([self.name, 'hub']))
@@ -89,14 +94,16 @@ class Agent(object):
         if sensors.ndim == 1:
             sensors = sensors[:,np.newaxis]
         # Propogate the new sensor inputs through the drivetrain
+        #feature_activities = self.drivetrain.step_up(self.action, sensors)
+        # debug: send sensors only, not actions
         feature_activities = self.drivetrain.step_up(self.action, sensors)
         # The drivetrain will grow over time as the agent gains experience.
-        # If the drivetrain added a new gearbox, scale the hub up appropriately.
-        if self.drivetrain.gearbox_added:
-            self.hub.add_cables(self.drivetrain.cables_per_gearbox)
-            self.spindle.add_cables(self.drivetrain.cables_per_gearbox)
-            self.mainspring.add_cables(self.drivetrain.cables_per_gearbox)
-            self.drivetrain.gearbox_added = False
+        # If the drivetrain added a new ziptie, scale the hub up appropriately.
+        if self.drivetrain.ziptie_added:
+            self.hub.add_cables(self.drivetrain.cables_per_ziptie)
+            self.spindle.add_cables(self.drivetrain.cables_per_ziptie)
+            self.mainspring.add_cables(self.drivetrain.cables_per_ziptie)
+            self.drivetrain.ziptie_added = False
         # Feed the feature_activities to the hub for calculating goals
         self.hub_goal, hub_reward, hub_curiosity, reward_trace = self.hub.step(
                 feature_activities, self.reward) 
@@ -120,16 +127,21 @@ class Agent(object):
                                                     self.reward)
             self.hub.update(feature_activities, self.arborkey_goal, self.reward)
             self.mainspring.update(self.arborkey_goal)
-            if self.arborkey_goal is not None:
-                self.drivetrain.assign_goal(self.arborkey_goal)
+            #if self.arborkey_goal is not None:
+            #    self.drivetrain.assign_goal(self.arborkey_goal)
+            action_index = self.arborkey_goal
         else:
             # debug: circumvent attention (spindle, mainspring, arborkey)
             self.hub.update(feature_activities, self.hub_goal, self.reward)
-            if self.hub_goal is not None:
-                self.drivetrain.assign_goal(self.hub_goal)
+            #if self.hub_goal is not None:
+            #    self.drivetrain.assign_goal(self.hub_goal)
+            action_index = self.hub_goal
 
         # Choose an action
-        self.action = self.drivetrain.step_down()
+        #self.action = self.drivetrain.step_down()
+        self.action = np.zeros(self.action.shape)
+        if action_index is not None:
+            self.action[action_index] = 1.
         # debug: Choose a single random action 
         random_action = False
         if random_action:
@@ -166,7 +178,7 @@ class Agent(object):
         self._show_reward_history()
 
         # TODO: Some of these still need to be created
-        #tools.visualize_hierarchy(self, show=False)
+        tools.visualize_hierarchy(self, show=False)
         #self.drivetrain.visualize()
         #self.spindle.visualize()
         tools.visualize_hub(self.hub, show=False)

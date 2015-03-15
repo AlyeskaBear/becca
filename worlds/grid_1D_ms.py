@@ -26,7 +26,7 @@ class World(BaseWorld):
         self.name_long = 'multi-step one dimensional grid world'
         print "Entering", self.name_long
         self.num_sensors = 9
-        self.num_actions = 3
+        self.num_actions = 2
         self.action = np.zeros((self.num_actions,1))
         self.world_state = 0            
         self.simple_state = 0
