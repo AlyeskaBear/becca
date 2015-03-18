@@ -27,10 +27,10 @@ class World(BaseWorld):
         Set up the world
         """
         BaseWorld.__init__(self, lifespan)
-        self.VISUALIZE_PERIOD = 10 ** 4
+        self.VISUALIZE_PERIOD = 1e4
         self.REWARD_MAGNITUDE = 1.
-        self.JUMP_FRACTION = 1. / 10.
-        self.print_feature_set = True
+        self.JUMP_FRACTION = .1
+        self.print_feature_set = False
         self.animate = False
         self.name = 'image_2D'
         self.name_long = 'two dimensional visual world'
@@ -188,7 +188,7 @@ class World(BaseWorld):
         if self.print_feature_set:
             (feature_set, feature_activities) = agent.get_index_projections()
             wtools.print_pixel_array_features(feature_set, self.num_sensors,
-                                              self.num_actions,
+                                              0,
                                               self.fov_span, self.fov_span,
                                               directory='log', 
                                               world_name=self.name)  

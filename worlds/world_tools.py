@@ -134,9 +134,14 @@ def print_pixel_array_features(projections, num_pixels_x2, start_index,
     num_blocks = len(projections)
     for block_index in range(num_blocks):
         for feature_index in range(len(projections[block_index])):
-            states_per_feature = 2 ** (block_index + 1)
+            #states_per_feature = 2 ** (block_index + 1)
             plt.close(99)
             feature_fig = plt.figure(num=99)
+            projection_image_list = (visualize_pixel_array_feature(projections[
+                    block_index][feature_index][
+                    start_index:start_index + num_pixels_x2][:,np.newaxis], 
+                    fov_horz_span, fov_vert_span, array_only=True))[0] 
+            '''
             projection_image_list = (visualize_pixel_array_feature(projections[
                     block_index][feature_index][
                     start_index:start_index + num_pixels_x2,:], fov_horz_span,
@@ -151,6 +156,12 @@ def print_pixel_array_features(projections, num_pixels_x2, start_index,
                 plt.gray()
                 ax.imshow(projection_image_list[state_index], 
                           interpolation=interp, vmin=0., vmax=1.)
+            '''
+            rect = (0., 0., 1., 1.)
+            ax = feature_fig.add_axes(rect)
+            plt.gray()
+            ax.imshow(projection_image_list, 
+                      interpolation=interp, vmin=0., vmax=1.)
             # create a plot of individual features
             filename = '_'.join(('block', str(block_index).zfill(2),
                                  'feature',str(feature_index).zfill(4),

@@ -108,7 +108,7 @@ class Agent(object):
         self.hub_goal, hub_reward, hub_curiosity, reward_trace = self.hub.step(
                 feature_activities, self.reward) 
         # debug: toggle attention on and off
-        use_attention = True 
+        use_attention = False 
         if use_attention:
             # Evaluate the goal using the mainspring
             mainspring_reward = self.mainspring.evaluate(self.hub_goal) 

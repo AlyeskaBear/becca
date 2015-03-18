@@ -133,8 +133,8 @@ def str_to_int(exp):
     Convert a string to an integer 
     """ 
     sum = 0
-    for character in exp:
-        sum += ord(character)
+    for i, character in enumerate(exp):
+        sum += i + ord(character) + i * ord(character)
     return sum
 
 def timestr(timestep, s_per_step=.25, precise=True): 
@@ -211,6 +211,9 @@ def visualize_array(image_data, shape=None, save_eps=False,
         epsfilename = 'log/' + label + '.eps'
     fig = plt.figure(str_to_int(label))
     
+    # Treat nan values like zeros for display purposes
+    image_data = np.nan_to_num(np.copy(image_data))
+     
     # Diane made the brilliant suggestion to leave this plot in color. 
     # It looks much prettier.
     plt.summer()
@@ -315,7 +318,7 @@ def visualize_hierarchy(agent, show=True):
             color=COPPER_HIGHLIGHT, zorder=-10)
 
     dt = agent.drivetrain
-    n_gb = len(dt.zipties)
+    n_zt = len(dt.zipties)
     max_zipties = 4
     y = 0.
     delta_y = depth  / float(max_zipties - 1)
@@ -332,16 +335,16 @@ def visualize_hierarchy(agent, show=True):
             unmasked.append([])
         if agent.hub.mask[i_mask] > 0.:
             unmasked[i_ziptie_mask].append(i_cable_mask)
-    for i_gb in np.arange(n_gb):
+    for i_zt in np.arange(n_zt):
         # Plot the cable activities and goals
-        gb = dt.zipties[i_gb]
-        cables = gb.cable_activities
-        #goals = gb.cable_goals
-        bundles = gb.bundle_activities
+        zt = dt.zipties[i_zt]
+        cables = zt.cable_activities
+        #goals = zt.cable_goals
+        bundles = zt.bundle_activities
         n_cables = cables.size
         n_bundles = bundles.size
         for i_cable in np.arange(n_cables):
-            if i_cable in unmasked[i_gb]:
+            if i_cable in unmasked[i_zt]:
                 x = width * i_cable / float(n_cables) 
                 cable_diameter = .1 + 5. * cables[int(i_cable)] ** .5
                 #goal_diameter = .1 + 5. * goals[int(i_cable)] ** .5
@@ -352,21 +355,21 @@ def visualize_hierarchy(agent, show=True):
         
         # Mark the arborkey goal feature
         if i_ziptie_arborkey is not None:
-            if i_gb == i_ziptie_arborkey:
+            if i_zt == i_ziptie_arborkey:
                 x = width * i_cable_arborkey / float(n_cables) 
                 arbor_diameter = 7.
                 plt.plot(x, y, 's', color=COPPER_SHADOW, 
                          markerfacecolor='none', markersize=arbor_diameter)
         # Mark the hub goal feature
         if i_ziptie_hub is not None:
-            if i_gb == i_ziptie_hub:
+            if i_zt == i_ziptie_hub:
                 x = width * i_cable_hub / float(n_cables) 
                 hub_diameter = 4.
                 plt.plot(x, y, 's', color=COPPER_SHADOW, 
                          markerfacecolor='none', markersize=hub_diameter)
         # Mark the attended feature
         if i_ziptie_attended is not None:
-            if i_gb == i_ziptie_attended:
+            if i_zt == i_ziptie_attended:
                 x = width * i_cable_attended / float(n_cables) 
                 attended_diameter = 6.
                 plt.plot(x, y, 'o', color=COPPER_SHADOW, 
@@ -377,7 +380,7 @@ def visualize_hierarchy(agent, show=True):
         # Mark recently attended features
         for count_stm, i_stm in enumerate(recently_attended):
             i_ziptie_stm, i_cable_stm = dt.map_index(i_stm)
-            if i_gb == i_ziptie_stm:
+            if i_zt == i_ziptie_stm:
                 x = width * i_cable_stm / float(n_cables) 
                 alpha = decayed_activities[count_stm]
                 attended_diameter = 4.
@@ -388,12 +391,13 @@ def visualize_hierarchy(agent, show=True):
         for i_bundle in np.arange(n_bundles):
             #x_bundle = width * float(i_bundle) / float(n_bundles)
             x_bundle = width * float(i_bundle) / float(n_cables)
-            projection = gb.get_index_projection(i_bundle)
+            projection = zt.get_index_projection(i_bundle)
             members = np.where(projection > 0.)[0]
             for member in members:
                 x_cable = width * float(member) / float(n_cables)
                 plt.plot(np.array([x_bundle, x_cable]),
                          np.array([y + delta_y, y]), linewidth = .3,
+                         alpha=.5,
                          color=COPPER)
             '''
             pre_members = np.where(projection[:,0] > 0.)[0]
@@ -412,6 +416,7 @@ def visualize_hierarchy(agent, show=True):
         y += delta_y
 
     n_cables_0 = dt.zipties[0].cable_activities.size 
+    '''
     x_divider = (float(agent.num_actions) - .5) * width / float(n_cables_0) 
     plt.plot(np.array([x_divider, x_divider]), 
              np.array([-.6,0.]), linewidth=.5,
@@ -428,6 +433,7 @@ def visualize_hierarchy(agent, show=True):
              rotation='vertical',
              fontsize=5., 
              color=COPPER_SHADOW)
+    '''
     #plt.text(width, -.2, ' '.join([str(agent.timestep), 'time steps']), 
     plt.text(width, -.2, timestr(agent.timestep), 
              horizontalalignment='right',

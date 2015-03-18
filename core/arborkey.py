@@ -79,6 +79,17 @@ class Arborkey(object):
         # Find the most rewarding candidate
         best_goal_index = np.where(reward_value == np.max(reward_value))[0][-1]
         highest_reward_value = reward_value[best_goal_index]
+        """
+        There is an important assumption to make (or not) at this point:
+        By default, should BECCA expect that doing nothing should result
+        in the current level of reward on the following time step?
+        This is a very helpful prior for some worlds, and extremely 
+        unhelpful for others. I've gone back and forth on this.
+        In the set of tasks that BECCA is intended for--the tasks that
+        I perform on a typical day--I believe that this assumption is 
+        wrong more often than it is right.
+
+        """
         # Check whether the best candidate is good enough to pick 
         # TODO: check whether the winning goal is ever any but the most recent
         #if highest_reward_value >= 0.:
@@ -99,10 +110,6 @@ class Arborkey(object):
             self.expected_reward.pop(worst_goal_index)
             self.time_since_observed.pop(worst_goal_index)
             
-        # debug prints
-        #print '--ak'
-        #print 'gc', goal_candidate, 'hr', hub_reward, 'c', curiosity
-        #print 'canr', candidate_reward, 'curr', current_reward
         return goal
 
     def visualize(self):

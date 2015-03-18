@@ -25,11 +25,11 @@ class World(BaseWorld):
         Set up the world
         """
         BaseWorld.__init__(self, lifespan)
-        self.VISUALIZE_PERIOD = 10 ** 4
+        self.VISUALIZE_PERIOD = 10 ** 3
         self.REWARD_MAGNITUDE = 1.
         self.JUMP_FRACTION = 1. / 10.
         self.STEP_COST = 0.1 * self.REWARD_MAGNITUDE
-        self.print_feature_set = True
+        self.print_feature_set = False
         self.animate = False 
         self.graphing = True
         self.name_long = 'one dimensional visual world'
@@ -147,10 +147,9 @@ class World(BaseWorld):
             fig.canvas.draw()
             # Periodically visualize the entire feature set
             if self.print_feature_set:
-                (feature_set, feature_activities) = \
-                        agent.get_index_projections()
+                feature_set, feature_activities = agent.get_index_projections()
                 wtools.print_pixel_array_features(feature_set, self.num_sensors,
-                                                  self.num_actions, 
+                                                  0, 
                                                   self.fov_span, self.fov_span,
                                                   directory='log', 
                                                   world_name=self.name)

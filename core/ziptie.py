@@ -1,6 +1,7 @@
 """ 
 the Ziptie class 
 """
+import copy
 import numpy as np
 import tools
 
@@ -47,9 +48,9 @@ class ZipTie(object):
         self.num_bundles = 0
         # User-defined constants
         self.NUCLEATION_THRESHOLD = .1
-        self.NUCLEATION_ENERGY_RATE = 1e-3
+        self.NUCLEATION_ENERGY_RATE = 1e-3 * 2**-level
         self.AGGLOMERATION_THRESHOLD = .1
-        self.AGGLOMERATION_ENERGY_RATE = 1e-3
+        self.AGGLOMERATION_ENERGY_RATE = 1e-2 * 2**-level
         '''
         if self.in_gearbox:
             # These seem to strike a nice balance between 
@@ -88,9 +89,8 @@ class ZipTie(object):
                                              (self.max_num_cables, 1))
         # debug: don't adapt cable activities 
         self.cable_activities = new_cable_activities
-        self.cable_activities = tools.bounded_sum2(self.cable_activities,
-                                                  new_cable_activities * 
-                                                  self.ACTIVITY_DECAY_RATE)
+        self.cable_activities = tools.bounded_sum2(new_cable_activities, 
+                self.cable_activities * (1. - self.ACTIVITY_DECAY_RATE))
         '''
         """
         Find bundle activities by taking the generalized mean of
@@ -131,9 +131,8 @@ class ZipTie(object):
         in the set of cables in the bundle.
         """
         #self.bundle_map[np.where(self.bundle_map==0.)] = np.nan
-        #print 'bm', self.bundle_map
-        #print 'ca', self.cable_activities.T
         bundle_components = self.bundle_map * self.cable_activities.T 
+        # TODO: consider other ways to calculate bundle energies
         self.bundle_energies = np.nansum(bundle_components,
                                          axis=1)[:,np.newaxis]
         self.bundle_energies[np.where(np.isnan(self.bundle_energies))] = 0.
@@ -143,14 +142,16 @@ class ZipTie(object):
         max_energy = self.bundle_energies[energy_index[-1]]
         #print 'max_e', max_energy
         mod_energies = self.bundle_energies - (
-                max_energy * energy_index / (self.num_bundles + tools.EPSILON))
+                max_energy * ( (self.num_bundles - energy_index) / 
+                               (self.num_bundles + tools.EPSILON) ))
         #print 'me', mod_energies.T
         
         self.bundle_activities = np.nanmin(bundle_components,
                                            axis=1)[:,np.newaxis]
         #print 'ba before', self.bundle_activities.T
         self.bundle_activities[np.where(mod_energies < 0.)] = 0.
-        self.bundle_activities[np.where(np.isnan(self.bundle_activities))] = 0.
+        self.bundle_activities = np.nan_to_num(self.bundle_activities)
+        #self.bundle_activities[np.where(np.isnan(self.bundle_activities))] = 0.
         #print 'ba', self.bundle_activities.T
 
         self.reconstruction = np.nanmax(self.bundle_activities * 
@@ -243,7 +244,12 @@ class ZipTie(object):
         """
         #coactivities = np.dot(self.bundle_activities, 
         #                      self.nonbundle_activities.T)
-        coactivities = self.bundle_energies * self.nonbundle_activities.T
+        coactivities = self.bundle_activities * self.nonbundle_activities.T
+        #print self.name
+        #print 'ca', np.nonzero(coactivities)
+        #print 'ba', self.bundle_activities.T
+        #print 'nba', self.nonbundle_activities.T
+
         # Each cable's nonbundle activity is distributed to 
         # agglomeration energy with each bundle proportionally 
         # to their coactivities.
@@ -254,6 +260,9 @@ class ZipTie(object):
         self.agglomeration_energy += (coactivities * 
                                       #(1. - self.agglomeration_energy) *
                                       self.AGGLOMERATION_ENERGY_RATE)
+        #print self.name
+        #print 'ae', np.sort(self.agglomeration_energy[np.nonzero(np.nan_to_num(
+        #        self.agglomeration_energy))].ravel())
         '''
         # For any bundles that are already full, don't change their coactivity
         # TODO: make this more elegant than enforcing a hard maximum count
@@ -266,7 +275,7 @@ class ZipTie(object):
 
         # Don't accumulate agglomeration energy between cables already 
         # in the same bundle 
-        self.agglomeration_energy *= 1 - self.bundle_map
+        self.agglomeration_energy *= 1 - np.nan_to_num(self.bundle_map)
 
         new_candidates = np.where(self.agglomeration_energy >= 
                                   self.AGGLOMERATION_THRESHOLD)
@@ -276,8 +285,11 @@ class ZipTie(object):
             candidate_cable = new_candidates[1][candidate_index]
             candidate_bundle = new_candidates[0][candidate_index]
             self.bundle_map[candidate_bundle, candidate_cable] = 1.
-            self.nucleation_energy[candidate_cable, 0] = 0.
+            #self.nucleation_energy[candidate_cable, 0] = 0.
+            self.nucleation_energy[candidate_cable, :] = 0.
+            self.nucleation_energy[:, candidate_cable] = 0.
             self.agglomeration_energy[:, candidate_cable] = 0.
+            #print 'bundle grown!', candidate_bundle, candidate_cable
         return
         
         '''
@@ -302,7 +314,8 @@ class ZipTie(object):
         """ 
         Project bundle indices down to their cable indices 
         """
-        projection = self.bundle_map[bundle_index,:]
+        projection = copy.deepcopy(self.bundle_map[bundle_index,:])
+        projection[np.isnan(projection)] = 0.
         return projection
         
     def bundles_created(self):
@@ -319,11 +332,12 @@ class ZipTie(object):
         '''
 
     def visualize(self, save_eps=False):
-        #print self.name, '0', np.nonzero(self.bundle_map)[0]
-        #print self.name, '1', np.nonzero(self.bundle_map)[1]
-        #print self.max_num_bundles, 'bundles maximum'
-        #tools.visualize_array(self.bundle_map, 
-        #                          label=self.name + '_bundle_map')
-        #tools.visualize_array(self.agglomeration_energy, 
-        #                          label=self.name + '_agg_energy')
+        print self.name, '0', np.nonzero(np.nan_to_num(np.copy(
+                self.bundle_map)))[0]
+        print self.name, '1', np.nonzero(np.nan_to_num(np.copy(
+                self.bundle_map)))[1]
+        print self.max_num_bundles, 'bundles maximum'
+        tools.visualize_array(self.bundle_map, label=self.name + '_bundle_map')
+        tools.visualize_array(self.agglomeration_energy, 
+                              label=self.name + '_agg_energy')
         pass
