@@ -23,7 +23,7 @@ class Drivetrain(object):
     into increasingly concrete actions.
     '''
     """
-    def __init__(self, min_cables):
+    def __init__(self, min_cables, exploit=False):
         """ 
         Initialize the drivetrain.
 
@@ -33,8 +33,8 @@ class Drivetrain(object):
         self.num_zipties =  1
         self.min_cables = min_cables
         first_ziptie_name = ''.join(('ziptie_', str(self.num_zipties - 1)))
-        self.zipties = [ziptie.ZipTie(self.min_cables, 
-                                          name=first_ziptie_name)]
+        self.zipties = [ziptie.ZipTie(self.min_cables, exploit=exploit,
+                                      name=first_ziptie_name)]
         self.cables_per_ziptie = self.zipties[0].max_num_cables
         self.bundles_per_ziptie = self.zipties[0].max_num_bundles
         self.ziptie_added = False

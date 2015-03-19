@@ -25,7 +25,7 @@ class World(BaseWorld):
         Set up the world
         """
         BaseWorld.__init__(self, lifespan)
-        self.VISUALIZE_PERIOD = 10 ** 3
+        self.VISUALIZE_PERIOD = 10 ** 4
         self.REWARD_MAGNITUDE = 1.
         self.JUMP_FRACTION = 1. / 10.
         self.STEP_COST = 0.1 * self.REWARD_MAGNITUDE

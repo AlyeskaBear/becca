@@ -21,7 +21,7 @@ class Agent(object):
     a reward and puts out an array of action commands at each time step.
     """
     def __init__(self, num_sensors, num_actions, show=True, 
-                 agent_name='test_agent'):
+                 exploit=False, agent_name='test_agent'):
         """
         Configure the Agent
 
@@ -29,6 +29,14 @@ class Agent(object):
         arguments. They define the number of elements in the 
         sensors and actions arrays that the agent and the world use to
         communicate with each other. 
+
+        Keyword arguments:
+        _________________
+        exploit : bool
+            If True, this arg indicates that the agent should try to maximize
+            performance in the near term, rather than invest effort in learning.
+            This is useful when benchmarking performance on standard 
+            learning tasks.
         """
         self.num_sensors = num_sensors
         # Add one to create a null action. 
@@ -54,10 +62,11 @@ class Agent(object):
         #min_cables = self.num_actions + self.num_sensors
         min_cables = self.num_sensors
 
-        self.drivetrain = drivetrain.Drivetrain(min_cables)
+        self.drivetrain = drivetrain.Drivetrain(min_cables, exploit=exploit)
         num_cables = self.drivetrain.cables_per_ziptie
         self.hub = hub.Hub(num_cables, num_actions=self.num_actions, 
                            num_sensors=self.num_sensors,
+                           exploit=exploit,
                            name='_'.join([self.name, 'hub']))
         self.spindle = spindle.Spindle(num_cables)
         self.mainspring = mainspring.Mainspring(num_cables, self.num_actions,

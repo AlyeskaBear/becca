@@ -1,5 +1,5 @@
 """
-benchmark 0.6.1
+benchmark 0.6.2
 
 A suite of worlds to characterize the performance of BECCA variants.
 Other agents may use this benchmark as well, as long as they have the 
@@ -7,10 +7,23 @@ same interface. (See BECCA documentation for a detailed specification.)
 In order to facilitate apples-to-apples comparisons between agents, the 
 benchmark will be version numbered.
 
+0.6.2 is a significant change from 0.6.1. It incorporates separate 
+training and testing epochs, as is traditional in characterizing 
+machine learning algorithms against benchmarks. This has the drawback
+of not capturing differences in learning rate. It has the advantages
+that it captures ultimate performance levels. This is expecially
+appropriate when considering agents that are expected to have
+long lifetimes. Ultimate performance is of greater concern than
+how fast they climb the initial learning curve.
+
+The length of the training and testing epochs are somewhat arbitrary.
+Feel free to adjust them if doing so better captures the ultimate
+performance of an agent on the tasks.
+
 Run at the command line as a script with no argmuments:
 > python benchmark.py
 
-For N_RUNS = 11, Becca 0.6.1 scored 75
+Becca 0.6.2 scored ?? 
 """
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,42 +37,23 @@ from worlds.grid_2D import World as World_grid_2D
 from worlds.grid_2D_dc import World as World_grid_2D_dc
 from worlds.image_1D import World as World_image_1D
 from worlds.image_2D import World as World_image_2D
+from worlds.fruit import World as World_fruit
 
 def main():
-    N_RUNS = 11
-    benchmark_lifespan = 1e4
-    overall_performance = []
     # Run all the worlds in the benchmark and tabulate their performance
-    for i in range(N_RUNS):
-        performance = []
-        world = World_grid_1D(lifespan=benchmark_lifespan)
-        performance.append(tester.test(world, show=False))
-        world = World_grid_1D_delay(lifespan=benchmark_lifespan)
-        performance.append(tester.test(world, show=False))
-        world = World_grid_1D_ms(lifespan=benchmark_lifespan)
-        performance.append(tester.test(world, show=False))
-        world = World_grid_1D_noise(lifespan=benchmark_lifespan)
-        performance.append(tester.test(world, show=False))
-        world = World_grid_2D(lifespan=benchmark_lifespan)
-        performance.append(tester.test(world, show=False))
-        world = World_grid_2D_dc(lifespan=benchmark_lifespan)
-        performance.append(tester.test(world, show=False))
-        world = World_image_1D(lifespan=benchmark_lifespan)
-        performance.append(tester.test(world, show=False))
-        world = World_image_2D(lifespan=benchmark_lifespan)
-        performance.append(tester.test(world, show=False))
-
-        print "Individual benchmark scores: " , performance
-        total = 0
-        for val in performance:
-            total += val
-        mean_performance = total / len(performance)
-        overall_performance.append(mean_performance)
-        print "Overall benchmark score, ", i , "th run: ", mean_performance 
-    print "All overall benchmark scores: ", overall_performance 
-    
-    #  Find the median benchmark score
-    print "Typical performance score: ", np.median(np.array(overall_performance))
+    performance = []
+    performance.append(tester.train_and_test(World_grid_1D))
+    performance.append(tester.train_and_test(World_grid_1D_delay))
+    performance.append(tester.train_and_test(World_grid_1D_ms))
+    performance.append(tester.train_and_test(World_grid_1D_noise))
+    performance.append(tester.train_and_test(World_grid_2D))
+    performance.append(tester.train_and_test(World_grid_2D_dc))
+    performance.append(tester.train_and_test(World_image_1D))
+    performance.append(tester.train_and_test(World_image_2D,
+            training_period=4e5, testing_period=1e4))
+    performance.append(tester.train_and_test(World_fruit))
+    print "Individual benchmark scores: " , performance
+    print "Overall benchmark score:", np.mean(np.array(performance)) 
     
     # Block the program, displaying all plots.
     # When the plot windows are closed, the program closes.

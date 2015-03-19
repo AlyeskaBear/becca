@@ -15,10 +15,12 @@ class Hub(object):
     2) updates the reward estimate for current transitions and
     3) selects a goal.
     """
-    def __init__(self, num_cables, num_actions=0, num_sensors=0, name='hub'):
+    def __init__(self, num_cables, num_actions=0, num_sensors=0, 
+                 exploit=False, name='hub'):
         self.name = name
         self.num_cables = num_cables
         self.num_actions = num_actions
+        self.exploit = exploit
         # Set constants that adjust the behavior of the hub
         self.REWARD_LEARNING_RATE = .1
         # As time passes, grow more optimistic about the effect of 
@@ -98,8 +100,12 @@ class Hub(object):
         state_by_action = state * action.T 
         self.count += state_by_action
         self.running_activity  = self.running_activity + state
-        self.curiosity = self.running_activity / (self.running_activity + 
-                self.EXPLORATION_FACTOR * (1. + self.count) )
+        if self.exploit:
+            # Aim for highest performance possible and do no exploration
+            self.curiosity = np.zeros(self.count.shape)
+        else:
+            self.curiosity = self.running_activity / (self.running_activity + 
+                    self.EXPLORATION_FACTOR * (1. + self.count) )
 
         # Update the expected reward
         rate = self.REWARD_LEARNING_RATE

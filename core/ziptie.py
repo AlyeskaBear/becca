@@ -25,10 +25,12 @@ class ZipTie(object):
     #def __init__(self, max_num_cables, max_num_bundles, 
     #             max_cables_per_bundle=None,
     #             name='ziptie_', in_gearbox=False):
-    def __init__(self, min_cables, name='anonymous', level=0):
+    def __init__(self, min_cables, exploit=False,
+                 name='anonymous', level=0):
         """ 
         Initialize each map, pre-allocating max_num_bundles 
         """
+        self.exploit = exploit
         self.name = name
         self.level = level
         self.max_num_cables = int(2 ** np.ceil(np.log2(min_cables)))
@@ -182,10 +184,10 @@ class ZipTie(object):
         '''
         # As appropriate update the co-activity estimate and 
         # create new bundles
-        if not self.bundles_full:
-            self._create_new_bundles()
-        self._grow_bundles()
-        #return self.bundle_activities[:self.num_bundles,:]
+        if not self.exploit:
+            if not self.bundles_full:
+                self._create_new_bundles()
+            self._grow_bundles()
         return self.bundle_activities
 
     def _create_new_bundles(self):
