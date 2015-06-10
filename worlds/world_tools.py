@@ -1,8 +1,6 @@
 """
 A few functions that are useful to multiple worlds
 """
-
-import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -169,49 +167,6 @@ def print_pixel_array_features(projections, num_pixels_x2, start_index,
             full_filename = os.path.join(directory, filename)
             plt.title(filename)
             plt.savefig(full_filename, format='png') 
-
-def make_movie(stills_directory, movie_filename='', frames_per_still=1,
-               stills_per_frame=1):
-    """ 
-    Make a movie out of a sequence of still frames 
-    """
-    if not movie_filename:
-        movie_filename = ''.join((stills_directory, '.avi'))
-    stills_filenames = []
-    extensions = ['.png', '.jpg']
-    stills_filenames = tools.get_files_with_suffix(stills_directory, extensions)
-    stills_filenames.sort()
-    print 'mf', movie_filename
-    print 'st', len(stills_filenames)
-
-    image = cv2.imread(stills_filenames[0])
-    (height, width, depth) = image.shape
-    frame_size = (width, height)
-    """ fourCC code for the encoder to use"""
-    # MJPG is pretty good quality and claims to be broadly supported
-    codec = 'MJPG' 
-    fourcc = cv2.cv.CV_FOURCC(codec[0], codec[1], codec[2], codec[3])
-    fps = 30.
-    is_color = True
-    video_writer = cv2.VideoWriter(movie_filename, fourcc, fps, 
-                                   frame_size, is_color)
-    images = []
-    num_stills_this_frame = 0
-    for filename in stills_filenames:
-        print 'writing', filename
-        image = cv2.imread(filename)
-        resized_image = resample2D(image, height, width)
-        images.append(resized_image)
-        num_stills_this_frame += 1
-        if num_stills_this_frame == stills_per_frame:
-            image = np.zeros(images[0].shape)
-            for image_ in images:
-                image += image_
-            image = (image / len(images)).astype('uint8')
-            for frame_counter in range(frames_per_still):
-                video_writer.write(image)
-            num_stills_this_frame = 0
-            images = []
 
 def resample2D(array, num_rows, num_cols):
     """ 

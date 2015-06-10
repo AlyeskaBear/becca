@@ -21,7 +21,7 @@ class Agent(object):
     a reward and puts out an array of action commands at each time step.
     """
     def __init__(self, num_sensors, num_actions, show=True, 
-                 exploit=False, agent_name='test_agent'):
+                 exploit=False, classifier=False, agent_name='test_agent'):
         """
         Configure the Agent
 
@@ -32,6 +32,11 @@ class Agent(object):
 
         Keyword arguments:
         _________________
+        classifier : bool
+            If True, this arg indicates that the agent is participating 
+            in a classification task. Certain parameters are selected
+            specifically to maximize performance, since classification tasks
+            are a special subset of all reinforcement learning tasks.
         exploit : bool
             If True, this arg indicates that the agent should try to maximize
             performance in the near term, rather than invest effort in learning.
@@ -45,9 +50,9 @@ class Agent(object):
         # Force display of progress and block the agent?
         self.show = show
         # Number of time steps between generating visualization plots
-        self.display_interval = 1e3
+        self.display_interval = 1e5
         # Number of time steps between making a backup copy of the agent
-        self.backup_interval = 1e4
+        self.backup_interval = self.display_interval
         self.name = agent_name
         self.log_dir = os.path.normpath(os.path.join(mod_path, '..', 'log'))
         if not os.path.isdir(self.log_dir):
@@ -62,11 +67,12 @@ class Agent(object):
         #min_cables = self.num_actions + self.num_sensors
         min_cables = self.num_sensors
 
-        self.drivetrain = drivetrain.Drivetrain(min_cables, exploit=exploit)
+        self.drivetrain = drivetrain.Drivetrain(min_cables, exploit=exploit,
+                                                classifier=classifier)
         num_cables = self.drivetrain.cables_per_ziptie
         self.hub = hub.Hub(num_cables, num_actions=self.num_actions, 
                            num_sensors=self.num_sensors,
-                           exploit=exploit,
+                           exploit=exploit, classifier=classifier,
                            name='_'.join([self.name, 'hub']))
         self.spindle = spindle.Spindle(num_cables)
         self.mainspring = mainspring.Mainspring(num_cables, self.num_actions,
@@ -105,7 +111,13 @@ class Agent(object):
         # Propogate the new sensor inputs through the drivetrain
         #feature_activities = self.drivetrain.step_up(self.action, sensors)
         # debug: send sensors only, not actions
-        feature_activities = self.drivetrain.step_up(self.action, sensors)
+        #import time
+        #tic = time.clock()
+        (feature_activities, modified_cables) = self.drivetrain.step_up(
+                self.action, sensors)
+        #toc = time.clock()
+        #print toc - tic
+
         # The drivetrain will grow over time as the agent gains experience.
         # If the drivetrain added a new ziptie, scale the hub up appropriately.
         if self.drivetrain.ziptie_added:
@@ -115,7 +127,7 @@ class Agent(object):
             self.drivetrain.ziptie_added = False
         # Feed the feature_activities to the hub for calculating goals
         self.hub_goal, hub_reward, hub_curiosity, reward_trace = self.hub.step(
-                feature_activities, self.reward) 
+                feature_activities, self.reward, modified_cables) 
         # debug: toggle attention on and off
         use_attention = False 
         if use_attention:
@@ -150,7 +162,8 @@ class Agent(object):
         #self.action = self.drivetrain.step_down()
         self.action = np.zeros(self.action.shape)
         if action_index is not None:
-            self.action[action_index] = 1.
+            self.action[action_index] = hub_reward + hub_curiosity
+            #self.action[action_index] = 1.
         # debug: Choose a single random action 
         random_action = False
         if random_action:
@@ -188,7 +201,7 @@ class Agent(object):
 
         # TODO: Some of these still need to be created
         tools.visualize_hierarchy(self, show=False)
-        #self.drivetrain.visualize()
+        self.drivetrain.visualize()
         #self.spindle.visualize()
         tools.visualize_hub(self.hub, show=False)
         #tools.visualize_mainspring(self.mainspring, show=False)

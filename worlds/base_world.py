@@ -20,6 +20,7 @@ class World(object):
         # These will likely be overridden in any subclass
         self.num_sensors = 0
         self.num_actions = 0
+        self.classifier = False
         
     def step(self, action):
         """ 

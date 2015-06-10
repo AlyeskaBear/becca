@@ -23,17 +23,20 @@ class Drivetrain(object):
     into increasingly concrete actions.
     '''
     """
-    def __init__(self, min_cables, exploit=False):
+    def __init__(self, min_cables, exploit=False, classifier=False):
         """ 
         Initialize the drivetrain.
 
         min_cables is the minimum number of cables that a ziptie in the
         drivetrain should be able to accomodate.
         """
+        self.exploit = exploit
+        self.classifier = classifier
         self.num_zipties =  1
+        #self.min_cables = min_cables
         self.min_cables = min_cables
         first_ziptie_name = ''.join(('ziptie_', str(self.num_zipties - 1)))
-        self.zipties = [ziptie.ZipTie(self.min_cables, exploit=exploit,
+        self.zipties = [ziptie.ZipTie(self.min_cables, exploit=self.exploit,
                                       name=first_ziptie_name)]
         self.cables_per_ziptie = self.zipties[0].max_num_cables
         self.bundles_per_ziptie = self.zipties[0].max_num_bundles
@@ -49,23 +52,33 @@ class Drivetrain(object):
         # debug: don't sense actions directly 
         #cable_activities = np.vstack((action, sensors))
         cable_activities = sensors
-
-        for ziptie in self.zipties:
-            cable_activities = ziptie.step_up(cable_activities) 
+        
+        modified_cables = []
+        modified_bundles = None
+        for level, ziptie in enumerate(self.zipties):
+            (cable_activities, 
+             level_modified_cables, 
+             modified_bundles) = ziptie.step_up(cable_activities, 
+                                                modified_bundles) 
+            if level_modified_cables is not None:
+                for cable in level_modified_cables:
+                    modified_cables.append(cable +   
+                                           level * self.bundles_per_ziptie)
         # If the top ziptie has created its first two bundles,
         # create a new one on top of that.
         if ziptie.bundles_created() > 1:
             self.add_ziptie()
-            cable_activities = self.zipties[-1].step_up(cable_activities) 
+            cable_activities = self.zipties[-1].step_up(
+                    cable_activities, level_modified_cables) 
         # Build full feature activities array
         num_features = self.cables_per_ziptie * len(self.zipties)
-        feature_activities = np.zeros((num_features , 1))
+        feature_activities = np.zeros(num_features)
         for (ziptie_index, ziptie) in enumerate(self.zipties):
             start_index = self.cables_per_ziptie * ziptie_index
             end_index = self.cables_per_ziptie * (ziptie_index + 1)
             feature_activities[start_index: end_index] = (
                     ziptie.cable_activities.copy())
-        return feature_activities
+        return feature_activities, modified_cables
 
         '''
     def assign_goal(self, goal_index): 
@@ -124,7 +137,8 @@ class Drivetrain(object):
         """
         next_ziptie_name = ''.join(('ziptie_', str(self.num_zipties)))
         self.zipties.append(ziptie.ZipTie(self.cables_per_ziptie,
-                                 name=next_ziptie_name, 
+                                 name=next_ziptie_name, exploit=self.exploit,
+                                 classifier=self.classifier, 
                                  level=self.num_zipties))
         print "Added ziptie", self.num_zipties
         self.num_zipties +=  1

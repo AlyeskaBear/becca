@@ -54,8 +54,6 @@ class Gearbox(object):
         #self.fill_fraction_threshold = 0.
         #self.step_multiplier = int(2 ** self.level)
         #self.step_counter = 1000000
-        # The rate at which cable activities decay (float, 0 < x < 1)
-        self.ACTIVITY_DECAY_RATE = 2 ** (-self.level)
         # Constants for adaptively rescaling the cable activities
         #self.max_vals = np.zeros((self.max_cables, 1)) 
         #self.min_vals = np.zeros((self.max_cables, 1))
@@ -86,9 +84,6 @@ class Gearbox(object):
         
         # debug: don't adapt cable activities 
         self.cable_activities = new_cable_activities
-        self.cable_activities = tools.bounded_sum2(self.cable_activities,
-                                                  new_cable_activities * 
-                                                  self.ACTIVITY_DECAY_RATE)
 
         '''
         cluster_training_activities = np.maximum(

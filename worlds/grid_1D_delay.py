@@ -16,7 +16,7 @@ class World(Grid_1D_World):
     This task is identical to the grid_1D task with the
     exception that reward is randomly delayed a few time steps.
     """
-    def __init__(self, lifespan=None):
+    def __init__(self, lifespan=None, test=False):
         """
         Initialize the world. Base it on the grid_1D world.
         """

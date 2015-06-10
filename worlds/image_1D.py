@@ -20,7 +20,7 @@ class World(BaseWorld):
     along a mural. It is rewarded for directing it near the center. 
     Optimal performance is a reward of somewhere around .9 per time step.
     """
-    def __init__(self, lifespan=None):
+    def __init__(self, lifespan=None, test=False):
         """
         Set up the world
         """
@@ -72,6 +72,7 @@ class World(BaseWorld):
         """
         self.timestep += 1
         self.action = action.ravel() 
+        self.action[np.nonzero(self.action)] = 1.
         # Actions 0-3 move the field of view to a higher-numbered row 
         # (downward in the image) with varying magnitudes, and 
         # actions 4-7 do the opposite.

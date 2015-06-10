@@ -18,7 +18,7 @@ class World(BaseWorld):
     horizontal or vertical step taken. 
     Optimal performance is a reward of about .9 per time step.
     """
-    def __init__(self, lifespan=None):
+    def __init__(self, lifespan=None, test=False):
         """
         Set up the world
         """
@@ -44,7 +44,10 @@ class World(BaseWorld):
         """
         Advance the world by one time step
         """
-        self.action = np.round(action).ravel().astype(int)
+        #print '1', action
+        #self.action = np.round(action).ravel().astype(int)
+        self.action = action.ravel()
+        self.action[np.nonzero(self.action)] = 1.
         self.timestep += 1
         self.world_state += (self.action[0:2] - 
                              self.action[4:6] + 
@@ -56,8 +59,10 @@ class World(BaseWorld):
                   np.sum(2 * self.action[6:8]))
         # At random intervals, jump to a random position in the world
         if np.random.random_sample() < self.JUMP_FRACTION:
-            self.world_state = np.random.random_integers(
-                    0, self.world_size, self.world_state.shape)
+            #self.world_state = np.random.random_integers(
+            #        0, self.world_size, self.world_state.shape)
+            self.world_state = np.random.randint(
+                    0, self.world_size, size=self.world_state.size)
         # Enforce lower and upper limits on the grid world 
         # by looping them around
         self.world_state = np.remainder(self.world_state, self.world_size)

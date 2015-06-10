@@ -23,7 +23,7 @@ class World(BaseWorld):
     task for troubleshooting BECCA. 
     Optimal performance is a reward of about 90 per time step.
     """
-    def __init__(self, lifespan=None):
+    def __init__(self, lifespan=None, test=False):
         BaseWorld.__init__(self, lifespan)
         self.VISUALIZE_PERIOD = 10 ** 4
         self.REWARD_MAGNITUDE = 1.
@@ -44,6 +44,7 @@ class World(BaseWorld):
         Advance the world one time step
         """
         self.action = action
+        self.action[np.nonzero(self.action)] = 1.
         self.timestep += 1 
         # Find the step size as combinations of the action commands
         #     action[i]     result

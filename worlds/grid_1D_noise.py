@@ -21,7 +21,7 @@ class World(BaseWorld):
     Optimal performance is a reward of about .70 per time step.
     """
     
-    def __init__(self, lifespan=None):
+    def __init__(self, lifespan=None, test=False):
         """
         Set up the world 
         """
@@ -49,6 +49,7 @@ class World(BaseWorld):
         Take one time step through the world 
         """
         self.action = action.copy().ravel()
+        self.action[np.nonzero(self.action)] = 1.
         self.timestep += 1 
         step_size = self.action[0] - self.action[1]
         # An approximation of metabolic energy

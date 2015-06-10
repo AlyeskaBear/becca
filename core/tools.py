@@ -108,6 +108,22 @@ def pad(a, shape, val=0.):
     axis is incremented by the magnitude of that value.
     Use val (default 0) to fill in the extra spaces. 
     """
+    # For  padding a 1D array
+    if isinstance(shape, (int, long)):
+        if shape <= 0:
+            rows = a.size - shape
+        else:
+            rows = shape
+            if rows < a.size:
+                print ' '.join(['a.size is', str(a.size), 
+                                ' but trying to pad to ', str(rows), 'rows.'])
+                return a
+        # Handle the case where a is a one-dimensional array
+        padded = np.ones(rows) * val
+        padded[:a.size] = a
+        return padded
+
+    # For padding a 2D array
     if shape[0] <= 0:
         rows = a.shape[0] - shape[0]
     else:
@@ -116,6 +132,8 @@ def pad(a, shape, val=0.):
         if rows < a.shape[0]:
             print ' '.join(['a.shape[0] is', str(a.shape[0]), 
                             ' but trying to pad to ', str(rows), 'rows.'])
+            return a
+
     if shape[1] <= 0:
         cols = a.shape[1] - shape[1]
     else:
@@ -242,15 +260,21 @@ def visualize_hub(hub, show=False):
     max = float(int(dec * np.max(hub.reward))) / dec
     plt.imshow(hub.reward.astype(np.float), interpolation='nearest', 
                vmin=-mag, vmax=mag)
+    plt.gca().get_xaxis().set_visible(False)
+    plt.gca().get_yaxis().set_visible(False)
     plt.title(' '.join(['reward, max =', str(max)]), fontsize=fontsize)
     plt.subplot(2,2,2)
     plt.gray()
     plt.imshow(np.log(hub.running_activity + 1.), interpolation='nearest')
+    plt.gca().get_xaxis().set_visible(False)
+    plt.gca().get_yaxis().set_visible(False)
     plt.title(''.join(['running_activity, max = ', 
               str(int(np.max(hub.running_activity)))]), fontsize=fontsize)
     plt.subplot(2,2,3)
     plt.gray()
     plt.imshow(np.log(hub.count + 1.), interpolation='nearest')
+    plt.gca().get_xaxis().set_visible(False)
+    plt.gca().get_yaxis().set_visible(False)
     plt.title(''.join(['count, max = ', str(int(np.max(hub.count)))]), 
               fontsize=fontsize)
     plt.subplot(2,2,4)
@@ -259,6 +283,8 @@ def visualize_hub(hub, show=False):
     max_text = str(float(int(dec * max)) / dec) 
     plt.imshow(hub.curiosity.astype(np.float), interpolation='nearest', 
                vmin=0., vmax=max)
+    plt.gca().get_xaxis().set_visible(False)
+    plt.gca().get_yaxis().set_visible(False)
     plt.title(' '.join(['curiosity, max =', max_text]), fontsize=fontsize)
 
     frames_directory = os.path.join('core', 'hub_frames')

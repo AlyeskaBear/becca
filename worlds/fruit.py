@@ -33,7 +33,7 @@ class World(BaseWorld):
     is designed to force the robot to create features 
     from its sensors.
     """
-    def __init__(self, lifespan=None):
+    def __init__(self, lifespan=None, test=False):
         """ 
         Set up the world 
         """
@@ -66,11 +66,7 @@ class World(BaseWorld):
         # This might also be due to the fact that the features are built
         # of two-timestep daisychains
         self.REWARD = 1.
-        self.world_directory = 'becca_world_fruit'
         self.verbose =  False
-        #self.log_directory = os.path.join(self.world_directory, 'log')
-        #self.frames_directory = os.path.join(self.world_directory, 'frames') 
-        #self.frame_counter = 10000
 
     def grab_fruit(self):
         """
@@ -105,6 +101,7 @@ class World(BaseWorld):
         """
         self.timestep += 1 
         self.actions = action.ravel()
+        self.actions[np.nonzero(self.actions)] = 1.
         self.acted = False
         # Figure out which action was taken
         self.eat = False

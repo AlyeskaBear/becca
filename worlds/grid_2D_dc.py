@@ -19,7 +19,7 @@ class World(Grid_2D_World):
     rather than coupled together.
     Optimal performance is a reward of about 90 per time step.
     """
-    def __init__(self, lifespan=None):
+    def __init__(self, lifespan=None, test=False):
         """ 
         Set up the world based on the grid_2D world
         """

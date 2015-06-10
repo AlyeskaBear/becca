@@ -22,7 +22,7 @@ class World(BaseWorld):
     background. It is rewarded for directing it near the center.
     Optimal performance is a reward of around .8 reward per time step.
     """
-    def __init__(self, lifespan=None):
+    def __init__(self, lifespan=None, test=False):
         """
         Set up the world
         """
@@ -78,6 +78,7 @@ class World(BaseWorld):
         """
         self.timestep += 1
         self.action = action.ravel()
+        self.action[np.nonzero(self.action)] = 1.
         # Actions 0-3 move the field of view to a higher-numbered 
         # row (downward in the block_image_data) with varying magnitudes, 
         # and actions 4-7 do the opposite.

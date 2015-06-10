@@ -23,7 +23,10 @@ performance of an agent on the tasks.
 Run at the command line as a script with no argmuments:
 > python benchmark.py
 
-Becca 0.6.2 scored ?? 
+Becca 0.6.2 performance:
+Individual benchmark scores:  [0.8901109781044666, 0.6416460844431342, 0.775659881629856, 0.65019771458443798, 0.76505323762976185, 0.71393510430354068, 0.88913811088287908, 0.74383240353778235, 0.99767270390160268]
+Overall benchmark score: 0.785249579891
+
 """
 import matplotlib.pyplot as plt
 import numpy as np
@@ -47,10 +50,11 @@ def main():
     performance.append(tester.train_and_test(World_grid_1D_ms))
     performance.append(tester.train_and_test(World_grid_1D_noise))
     performance.append(tester.train_and_test(World_grid_2D))
-    performance.append(tester.train_and_test(World_grid_2D_dc))
+    performance.append(tester.train_and_test(World_grid_2D_dc,
+                                             training_period=2e4))
     performance.append(tester.train_and_test(World_image_1D))
     performance.append(tester.train_and_test(World_image_2D,
-            training_period=4e5, testing_period=1e4))
+                                             training_period=2e4))
     performance.append(tester.train_and_test(World_fruit))
     print "Individual benchmark scores: " , performance
     print "Overall benchmark score:", np.mean(np.array(performance)) 

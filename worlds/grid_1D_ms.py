@@ -16,7 +16,7 @@ class World(BaseWorld):
     The fourth position is rewarded and the ninth position is punished. 
     Optimal performance is a reward of about 85 per time step.
     """
-    def __init__(self, lifespan=None):
+    def __init__(self, lifespan=None, test=False):
         BaseWorld.__init__(self, lifespan)
         self.VISUALIZE_PERIOD = 10 ** 4
         self.ENERGY_COST = 0.01
@@ -36,6 +36,7 @@ class World(BaseWorld):
         Advance the world by one time step
         """
         self.action = action.ravel()
+        self.action[np.nonzero(self.action)] = 1.
         self.timestep += 1 
         energy = self.action[0] + self.action[1]
         self.world_state += self.action[0] - self.action[1]

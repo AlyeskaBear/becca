@@ -16,30 +16,36 @@ class Hub(object):
     3) selects a goal.
     """
     def __init__(self, num_cables, num_actions=0, num_sensors=0, 
-                 exploit=False, name='hub'):
+                 exploit=False, classifier=False, name='hub'):
         self.name = name
         self.num_cables = num_cables
         self.num_actions = num_actions
+        self.classifier = classifier
         self.exploit = exploit
+        # Tweak the rate of decay of the reward trace
+        self.TIME_FACTOR = 1. 
         # Set constants that adjust the behavior of the hub
-        self.REWARD_LEARNING_RATE = .1
+        if self.classifier:
+            self.REWARD_LEARNING_RATE = 1e-5
+            self.TRACE_LENGTH = 1
+        else:
+            self.REWARD_LEARNING_RATE = 1e-3
+            self.TRACE_LENGTH = int(self.TIME_FACTOR * 6.)
+            
         # As time passes, grow more optimistic about the effect of 
         # trying neglected goals.
         # A curiosity time constant. Larger means curiosity builds more slowly.
-        self.EXPLORATION_FACTOR = 3.  * (self.num_cables * 
+        self.EXPLORATION_FACTOR = 3. * (self.num_cables * 
                                         self.num_actions ) ** .5
-        # Tweak the rate of decay of the reward trace
-        self.TIME_FACTOR = 1. 
         # Keep a history of reward and active features to account for 
         # delayed reward.
-        self.TRACE_LENGTH = int(self.TIME_FACTOR * 6.)
         self.trace_magnitude = 0.
         for tau in np.arange(self.TRACE_LENGTH):
             self.trace_magnitude += 2. ** (-self.TIME_FACTOR * float(tau))
 
         # Initialize variables for later use
         self.reward_history = list(np.zeros(self.TRACE_LENGTH))
-        feature_shape = (self.num_cables, 1)
+        feature_shape = self.num_cables
         self.activity_history = [np.zeros(feature_shape)] * (
                 self.TRACE_LENGTH + 1)
         self.action_history = [np.zeros((self.num_actions, 1))] * (
@@ -68,7 +74,7 @@ class Hub(object):
         self.running_activity = np.zeros(transition_shape)
         self.frame_counter = 10000
 
-    def step(self, cable_activities, raw_reward):
+    def step(self, cable_activities, raw_reward, modified_cables):
         """ 
         Advance the hub one step 
         """
@@ -90,7 +96,7 @@ class Hub(object):
 
         self.mask = (np.sign(np.maximum(self.mask, cable_activities))
                      ).astype('int')
-        state = self.activity_history[0]
+        state = self.activity_history[0][:,np.newaxis]
         # debug: Remove actions from features
         # Don't train on deliberate actions
         #state[:self.num_actions] = 0.
@@ -99,6 +105,9 @@ class Hub(object):
         # Increment the count according to the most recent features and actions
         state_by_action = state * action.T 
         self.count += state_by_action
+        # Reset the count for all modified cables
+        if len(modified_cables) > 0: 
+            self.count[np.array(modified_cables), :] = 0.
         self.running_activity  = self.running_activity + state
         if self.exploit:
             # Aim for highest performance possible and do no exploration
@@ -107,17 +116,28 @@ class Hub(object):
             self.curiosity = self.running_activity / (self.running_activity + 
                     self.EXPLORATION_FACTOR * (1. + self.count) )
 
-        # Update the expected reward
-        rate = self.REWARD_LEARNING_RATE
-        self.reward += ((reward_trace - self.reward) * state_by_action * rate) 
+        if not self.exploit:
+            # Update the expected reward.
+            # If exploiting, don't do this. It allows BECCA to glean
+            # valuable training information from repeated exposure to the
+            # same test instance.
+            rate_raw = ((1 - self.REWARD_LEARNING_RATE) / 
+                        (self.count + tools.EPSILON) + 
+                        self.REWARD_LEARNING_RATE) 
+            rate = np.minimum(0.5, rate_raw)
+            self.reward += ((reward_trace - self.reward) * 
+                             state_by_action * rate) 
+
         self.reward_trace = reward_trace
         self.state_by_action = state_by_action
 
         # Choose a goal at every timestep
         average_reward = np.average(self.reward, axis=0,
-                                    weights=cable_activities.ravel())
+                                    weights=cable_activities.ravel() + 
+                                    tools.EPSILON)
         average_curiosity = np.average(self.curiosity, axis=0, 
-                                       weights=cable_activities.ravel())
+                                       weights=cable_activities.ravel() + 
+                                       tools.EPSILON)
         expected_reward = average_reward + average_curiosity
         # Ignore all cables that are still masked. These are yet unused.
         best_reward = np.max(expected_reward)
@@ -168,7 +188,7 @@ class Hub(object):
         Add new cables to the hub when new gearboxes are created 
         """ 
         self.num_cables = self.num_cables + num_new_cables
-        features_shape = (self.num_cables, 1)
+        features_shape = self.num_cables
         transition_shape = (self.num_cables, self.num_actions) 
         self.reward = tools.pad(self.reward, transition_shape)
         self.count = tools.pad(self.count, transition_shape)
