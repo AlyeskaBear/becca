@@ -30,7 +30,7 @@ class World(BaseWorld):
         self.VISUALIZE_PERIOD = 1e4
         self.REWARD_MAGNITUDE = 1.
         self.JUMP_FRACTION = .1
-        self.print_feature_set = False
+        self.print_feature_set = True
         self.animate = False
         self.name = 'image_2D'
         self.name_long = 'two dimensional visual world'

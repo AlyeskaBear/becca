@@ -29,7 +29,7 @@ class World(BaseWorld):
         self.REWARD_MAGNITUDE = 1.
         self.JUMP_FRACTION = 1. / 10.
         self.STEP_COST = 0.1 * self.REWARD_MAGNITUDE
-        self.print_feature_set = False
+        self.print_feature_set = True
         self.animate = False 
         self.graphing = True
         self.name_long = 'one dimensional visual world'

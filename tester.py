@@ -27,8 +27,9 @@ import pstats
 #from worlds.hello import World
 #from becca_world_chase_ball.chase import World
 #from becca_world_chase_ball.simple_chase import World
-from becca_world_mnist.mnist import World
-#from becca_world_watch.watch import World
+#from becca_world_mnist.mnist import World
+from becca_world_watch.watch import World
+#from becca_world_listen.listen import World
 
 from core.agent import Agent 
 
@@ -51,6 +52,7 @@ def train_and_test(world_module, training_period=1e4, testing_period=1e4):
     return test_performance
 
 def run(world, restore=False, exploit=False, show=True):
+# debug: default to exploit behavior
 #def run(world, restore=False, exploit=True, show=True):
     """ 
     Run BECCA with a world 
