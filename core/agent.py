@@ -50,7 +50,7 @@ class Agent(object):
         # Force display of progress and block the agent?
         self.show = show
         # Number of time steps between generating visualization plots
-        self.display_interval = 1e5
+        self.display_interval = 1e4
         # Number of time steps between making a backup copy of the agent
         self.backup_interval = self.display_interval
         self.name = agent_name
@@ -61,11 +61,7 @@ class Agent(object):
                 self.log_dir, '.'.join([agent_name, 'pickle']))
 
         # Initialize agent infrastructure.
-        # Choose min_cables to account for all sensors and actions, 
-        # at a minimum.
-        # debug: form features from sensor values only
-        #min_cables = self.num_actions + self.num_sensors
-        min_cables = self.num_sensors
+        min_cables = 5 * self.num_sensors
 
         self.drivetrain = drivetrain.Drivetrain(min_cables, exploit=exploit,
                                                 classifier=classifier)
@@ -162,8 +158,9 @@ class Agent(object):
         #self.action = self.drivetrain.step_down()
         self.action = np.zeros(self.action.shape)
         if action_index is not None:
-            self.action[action_index] = hub_reward + hub_curiosity
-            #self.action[action_index] = 1.
+            # debug: Allow fractional actions?
+            #self.action[action_index] = hub_reward + hub_curiosity
+            self.action[action_index] = 1.
         # debug: Choose a single random action 
         random_action = False
         if random_action:

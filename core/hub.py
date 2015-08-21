@@ -35,8 +35,7 @@ class Hub(object):
         # As time passes, grow more optimistic about the effect of 
         # trying neglected goals.
         # A curiosity time constant. Larger means curiosity builds more slowly.
-        self.EXPLORATION_FACTOR = 3. * (self.num_cables * 
-                                        self.num_actions ) ** .5
+        self.EXPLORATION_FACTOR = 10. * self.num_cables**.5 * self.num_actions
         # Keep a history of reward and active features to account for 
         # delayed reward.
         self.trace_magnitude = 0.
@@ -108,13 +107,15 @@ class Hub(object):
         # Reset the count for all modified cables
         if len(modified_cables) > 0: 
             self.count[np.array(modified_cables), :] = 0.
-        self.running_activity  = self.running_activity + state
         if self.exploit:
             # Aim for highest performance possible and do no exploration
             self.curiosity = np.zeros(self.count.shape)
         else:
+            #self.curiosity = self.running_activity / (self.running_activity + 
+            #        self.EXPLORATION_FACTOR * (1. + self.count) )
+            #print self.running_activity
             self.curiosity = self.running_activity / (self.running_activity + 
-                    self.EXPLORATION_FACTOR * (1. + self.count) )
+                                                      self.EXPLORATION_FACTOR)
 
         if not self.exploit:
             # Update the expected reward.
@@ -154,7 +155,6 @@ class Hub(object):
         hub_reward = average_reward[goal_cable]
         hub_curiosity = average_curiosity[goal_cable]
 
-        self.running_activity[:,goal_cable] *= 1. - cable_activities.ravel()
         """
         Instituting this check here biases the solution.
         It will work faster on certain types of worlds, and fail 
@@ -175,6 +175,17 @@ class Hub(object):
         goal = np.zeros((self.num_actions, 1))
         if issued_goal_index is not None:
             goal[issued_goal_index] = 1.
+        active_cables = np.where(cable_activities > 0.)[0]
+        #print 'issued_goal_index'
+        #print issued_goal_index 
+        #print 'active cables'
+        #print active_cables
+        #print 'pre-updated running activity', self.running_activity.shape
+        #print self.running_activity[active_cables,:]
+        self.running_activity  = (self.running_activity + 
+                                  cable_activities[:,np.newaxis])
+        self.running_activity[:,issued_goal_index] *=  np.maximum(
+                0., 1. - cable_activities)
         # Update the activity, action history, and reward.
         self.reward_history.append(raw_reward)
         self.reward_history.pop(0)

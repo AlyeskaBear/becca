@@ -49,7 +49,7 @@ class ZipTie(object):
         #self.NUCLEATION_THRESHOLD = 1e-2 * 2**(-level)
         # higher level features too basic, grew to slowly
         #self.NUCLEATION_THRESHOLD = 1e-2 * 4**(-level)
-        self.NUCLEATION_THRESHOLD = 1e3 * 2 ** (-level)
+        self.NUCLEATION_THRESHOLD = 1e3 #* 2 ** (-level)
         #self.NUCLEATION_ENERGY_RATE = 1e-3 * self.NUCLEATION_THRESHOLD
         # TODO: remove this 
         #self.NUCLEATION_ENERGY_RATE = 1.
@@ -58,10 +58,12 @@ class ZipTie(object):
         #self.AGGLOMERATION_ENERGY_RATE = self.NUCLEATION_ENERGY_RATE
         self.ACTIVITY_THRESHOLD = 1e-2
         # The rate at which cable activities decay (float, 0 < x < 1)
+        # TODO: remove activity decay rate
         if classifier:
             self.ACTIVITY_DECAY_RATE = 1.
         else:
-            self.ACTIVITY_DECAY_RATE = 2 ** (-self.level)
+            #self.ACTIVITY_DECAY_RATE = 2 ** (-self.level)
+            self.ACTIVITY_DECAY_RATE = 1.
 
         self.bundles_full = False        
         self.bundle_activities = np.zeros(self.max_num_bundles)
@@ -88,8 +90,8 @@ class ZipTie(object):
                                              self.max_num_cables)
         # debug: don't adapt cable activities 
         self.cable_activities = new_cable_activities
-        self.cable_activities = tools.bounded_sum2(new_cable_activities, 
-                self.cable_activities * (1. - self.ACTIVITY_DECAY_RATE))
+        #self.cable_activities = tools.bounded_sum2(new_cable_activities, 
+        #        self.cable_activities * (1. - self.ACTIVITY_DECAY_RATE))
         # For any modified cables, reset their energy accumulation
         #if modified_cables is not None:
         # debug: don't prevent higher levels from using modified cables
@@ -101,8 +103,10 @@ class ZipTie(object):
         Find bundle activities by taking the minimum input value
         in the set of cables in the bundle.
         """
-        threshold = np.max(self.cable_activities) * self.ACTIVITY_THRESHOLD
+        threshold = (np.max(self.cable_activities) * self.ACTIVITY_THRESHOLD + 
+                     tools.EPSILON)
         nb.sparsify_array1d_threshold(self.cable_activities, threshold)
+        '''
         self.bundle_energies = np.zeros(self.max_num_bundles)
         if self.n_map_entries > 0:
             nb.sum_sparse_col_weights(
@@ -114,7 +118,9 @@ class ZipTie(object):
         mod_energies = self.bundle_energies - (
                 max_energy * ( (self.num_bundles - energy_index) / 
                                (self.num_bundles + tools.EPSILON) ))
+        '''
         self.bundle_activities = np.zeros(self.max_num_bundles)
+        # Initialize bundle activities to the highest possible minimum value
         self.bundle_activities[:self.num_bundles] = 1.
         if self.n_map_entries > 0:
             nb.min_sparse_col_weights(
@@ -159,8 +165,8 @@ class ZipTie(object):
             agglomerated_bundle = None
             agglomerated_cable = None
             if not self.bundles_full:
-                nucleated_cables = self._create_new_bundles()
-                agglomerated_cable , agglomerated_bundle = self._grow_bundles()
+                #nucleated_cables = self._create_new_bundles()
+                #agglomerated_cable , agglomerated_bundle = self._grow_bundles()
                 if nucleated_cables is not None:
                     for cable in nucleated_cables:
                         modified_cables.append(cable)
@@ -168,7 +174,8 @@ class ZipTie(object):
                     modified_cables.append(agglomerated_cable)
         else:
             agglomerated_bundle = None
-
+        # debug
+        self.bundle_activities = np.zeros(self.bundle_activities.shape)
         return self.bundle_activities, modified_cables, agglomerated_bundle
 
     def _create_new_bundles(self):
