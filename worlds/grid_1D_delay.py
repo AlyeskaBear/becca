@@ -7,7 +7,9 @@ makes the task challenging.
 """
 import numpy as np
 import core.tools as tools
+from worlds.base_world import World as BaseWorld
 from worlds.grid_1D import World as Grid_1D_World
+
 
 class World(Grid_1D_World):
     """ 
@@ -24,9 +26,9 @@ class World(Grid_1D_World):
         self.name = 'grid_1D_delay'
         self.name_long = 'one dimensional grid world with delay'
         print '--delayed'
-        self.display_state = False 
         self.MAX_DELAY = 4
         self.future_reward = [0.] * self.MAX_DELAY
+        self.world_visualize_period = 1e6
     
     def assign_reward(self, sensors):
         """
@@ -46,16 +48,12 @@ class World(Grid_1D_World):
         reward = self.future_reward.pop(0)
         return reward
         
-    def visualize(self, agent):
-        if (self.display_state):
-            state_image = ['.'] * (self.num_sensors + self.num_actions + 2)
-            state_image[self.simple_state] = 'O'
-            state_image[self.num_sensors:self.num_sensors + 2] = '||'
-            action_index = np.where(self.action > 0.1)[0]
-            if action_index.size > 0:
-                for i in range(action_index.size):
-                    state_image[self.num_sensors + 2 + action_index[i]] = 'x'
-            print(''.join(state_image))
-            
-        if (self.timestep % self.VISUALIZE_PERIOD) == 0:
-            print("world age is %s timesteps " % self.timestep)
+    def visualize_world(self):
+        state_image = ['.'] * (self.num_sensors + self.num_actions + 2)
+        state_image[self.simple_state] = 'O'
+        state_image[self.num_sensors:self.num_sensors + 2] = '||'
+        action_index = np.where(self.action > 0.1)[0]
+        if action_index.size > 0:
+            for i in range(action_index.size):
+                state_image[self.num_sensors + 2 + action_index[i]] = 'x'
+        print(''.join(state_image))

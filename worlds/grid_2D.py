@@ -98,4 +98,3 @@ class World(BaseWorld):
             return
         
         print("world age is %s timesteps " % self.timestep)
-        projections = agent.get_index_projections(to_screen=False)

@@ -1,11 +1,12 @@
 """
-Connect a BECCA agent to a world and run them.
+Connect a BECCA brain to a world and run them.
 
-To use this module as a top level script, select the World that the Agent 
-will be placed in.
-Make sure the appropriate import line is included and uncommented below. 
-Run from the command line.
-> python tester.py
+To use this module as a top level script: 
+    1. Select the World that the Brain will be placed in.
+    2. Make sure the appropriate import line is included and 
+        uncommented below. 
+    3. Run from the command line.
+        > python tester.py
 """
 
 import cProfile
@@ -14,7 +15,7 @@ import pstats
 
 # Worlds from the benchmark
 #from worlds.base_world import World
-#from worlds.grid_1D import World
+from worlds.grid_1D import World
 #from worlds.grid_1D_delay import World
 #from worlds.grid_1D_ms import World
 #from worlds.grid_1D_noise import World
@@ -23,73 +24,103 @@ import pstats
 #from worlds.image_1D import World
 #from worlds.image_2D import World
 #from worlds.fruit import World
+
 # If you want to run a world of your own, add the appropriate line here
 #from worlds.hello import World
-from becca_world_chase_ball.chase import World
+#from becca_world_chase_ball.chase import World
 #from becca_world_chase_ball.simple_chase import World
 #from becca_world_mnist.mnist import World
 #from becca_world_watch.watch import World
 #from becca_world_listen.listen import World
 
-from core.agent import Agent 
+from core.brain import Brain 
 
-def train_and_test(world_module, training_period=1e4, testing_period=1e4):
+def train_and_test(world_class, training_period=1e4, testing_period=1e4):
     """
-    First train the agent on a world, then test the agent's performance. 
+    First train the brain on a world, then test the brain's performance. 
     
-    Return the test performance, the average reward per timestep 
-    during the testing period.
+    Parameters
+    ----------
+    world_class : World
+        The class containing the BECCA-compatible world that the 
+        brain will be receiving sensor and reward information from and 
+        sending action commands to.
+    training_period, testing_period : int, optional
+        The number of time steps to train or test the brain
+        on the current world.  The default is 10,000.
+
+    Returns
+    -------
+    test_performance : float
+        The average reward per time step during the testing period.
     """
-    world = world_module(lifespan=training_period)
-    train_average = run(world, show=False)
+    # Train the brain on the world
+    world = world_class(lifespan=training_period)
+    train_average = run(world)
     train_performance = train_average * training_period 
-    world = world_module(lifespan=testing_period, test=True)
-    total_average = run(world, restore=True, exploit=True, show=False)
+    world = world_class(lifespan=testing_period, test=True)
+    # Test the brain on the world
+    total_average = run(world, restore=True, exploit=True)
     total_performance = total_average * (training_period + testing_period)
     test_performance = ((total_performance - train_performance) / 
                         testing_period )
-    print 'Test performance is:', test_performance
+
+    print('Test performance is: {0:.3}'.format(test_performance))
     return test_performance
 
-def run(world, restore=False, exploit=False, show=True):
-# debug: default to exploit behavior
-#def run(world, restore=False, exploit=True, show=True):
+def run(world, restore=False, exploit=False):
     """ 
-    Run BECCA with a world 
+    Run BECCA with a world. 
 
-    If restore is True, this method loads a saved agent if it can find one.
-    Otherwise it creates a new one. It connects the agent and
-    the world together and runs them for as long as the 
-    world dictates.
+    Connects the brain and the world together and runs them for as long 
+    as the world dictates.
+
+    Parameters
+    ----------
+    restore : bool, optional
+        If ``restore`` is True, try to restore the brain from a previously saved
+        version, picking up where it left off. 
+        Otherwise it create a new one. The default is False.
+    exploit : bool, optional
+        If ``exploit`` is True, 
+        The default is False.
+
+    Returns
+    -------
+    performance : float
+        The performance of the brain over its lifespan, measured by the
+        average reward it gathered per time step.
     """
-    agent_name = '_'.join((world.name, 'agent'))
-    agent = Agent(world.num_sensors, world.num_actions, 
-                  agent_name=agent_name, exploit=exploit, 
-                  classifier=world.classifier, show=show)
+    brain_name = '{0}_brain'.format(world.name)
+    brain = Brain(world.num_sensors, world.num_actions, 
+                  brain_name=brain_name, exploit=exploit)
     if restore:
-        agent = agent.restore()
-    actions = np.zeros((world.num_actions,1))
-    # Repeat the loop through the duration of the existence of the world 
+        brain = brain.restore()
+    # Start at a resting state.
+    actions = np.zeros(world.num_actions)
+    sensors, reward = world.step(actions)
+    # Repeat the loop through the duration of the existence of the world:
+    # sense, act, repeat.
     while(world.is_alive()):
+        actions = brain.step(sensors, reward)
         sensors, reward = world.step(actions)
-        world.visualize(agent)
-        actions = agent.step(sensors, reward)
-    return agent.report_performance()
+        world.visualize(brain)
+    performance = brain.report_performance()
+    return performance
 
 def profile():
     """
-    Profile the agent's performance on the selected world.
+    Profile the brain's performance on the selected world.
     """
     profiling_lifespan = 1e3
-    print 'profiling BECCA\'s performance...'
-    #cProfile.run('run(World(lifespan=profiling_lifespan), restore=True)', 
-    #             'tester_profile')
-    cProfile.run(''.join(['run(World(lifespan=', str(profiling_lifespan),
-                          '), restore=True)']), 'tester.profile')
+    print('Profiling BECCA\'s performance...')
+    command = 'run(World(lifespan={0}), restore=True)'.format(
+            profiling_lifespan)
+    cProfile.run(command, 'tester.profile')
     p = pstats.Stats('tester.profile')
     p.strip_dirs().sort_stats('time', 'cumulative').print_stats(30)
-    print '   View at the command line with' 
-    print ' > python -m pstats tester.profile'
+    print('   View at the command line with')
+    print(' > python -m pstats tester.profile')
     
 if __name__ == '__main__':
     # To profile BECCA's performance with world, set profile_flag to True.

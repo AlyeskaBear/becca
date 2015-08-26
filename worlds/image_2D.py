@@ -184,12 +184,3 @@ class World(BaseWorld):
         plt.title("Image sensed")
         fig.show()
         fig.canvas.draw()
-
-        # Periodcally show the entire feature set 
-        if self.print_feature_set:
-            (feature_set, feature_activities) = agent.get_index_projections()
-            wtools.print_pixel_array_features(feature_set, self.num_sensors,
-                                              0,
-                                              self.fov_span, self.fov_span,
-                                              directory='log', 
-                                              world_name=self.name)  

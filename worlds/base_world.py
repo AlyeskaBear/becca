@@ -15,7 +15,10 @@ class World(object):
             self.LIFESPAN = 10 ** 4
         else:
             self.LIFESPAN = lifespan
-        self.timestep = 0
+        # Starting at -1 allows for an intialization pass.
+        self.timestep = -1
+        self.world_visualize_period = 1e4
+        self.brain_visualize_period = 1e4
         self.name = 'abstract base world'
         # These will likely be overridden in any subclass
         self.num_sensors = 0
@@ -40,8 +43,15 @@ class World(object):
         else:
             return False
    
-    def visualize(self, agent):
+    def visualize(self, brain):
         """ 
         Let the world show BECCA's internal state as well as its own
         """
-        print self.timestep, 'timesteps'
+        if (self.timestep % self.world_visualize_period) == 0:
+            self.visualize_world()
+        if (self.timestep % self.brain_visualize_period) == 0:
+            brain.visualize()
+
+    def visualize_world(self):
+        print('{0} is {1} time steps old.'.format(self.name, self.timestep))
+

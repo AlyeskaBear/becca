@@ -30,6 +30,7 @@ class World(BaseWorld):
         self.action = np.zeros((self.num_actions,1))
         self.world_state = 0            
         self.simple_state = 0
+        self.world_visualize_period = 1e3
             
     def step(self, action): 
         """
@@ -63,11 +64,7 @@ class World(BaseWorld):
         reward = np.max(reward, -1)
         return sensors, reward
 
-    def visualize(self, agent):
-        if (self.display_state):
-            state_image = ['.'] * self.num_sensors
-            state_image[self.simple_state] = 'O'
-            print(''.join(state_image))
-            
-        if (self.timestep % self.VISUALIZE_PERIOD) == 0:
-            print("world age is %s timesteps " % self.timestep)
+    def visualize_world(self):
+        state_image = ['.'] * self.num_sensors
+        state_image[self.simple_state] = 'O'
+        print(''.join(state_image))

@@ -1,7 +1,7 @@
 """ 
 One-dimensional grid task
 
-This task tests an agent's ability to choose an appropriate action.
+This task tests an brain's ability to choose an appropriate action.
 It is straightforward. Reward and punishment is clear and immediate.  
 There is only one reward state and it can be reached in a single 
 step.
@@ -13,11 +13,11 @@ class World(BaseWorld):
     """
     One-dimensional grid world
 
-    In this task, the agent steps forward and backward along 
+    In this task, the brain steps forward and backward along 
     a nine-position line. The fourth position is rewarded and 
     the ninth position is punished. There is also a slight 
     punishment for effort expended in taking actions. 
-    Occasionally the agent will get
+    Occasionally the brain will get
     involuntarily bumped to a random position on the line.
     This is intended to be a simple-as-possible 
     task for troubleshooting BECCA. 
@@ -25,7 +25,6 @@ class World(BaseWorld):
     """
     def __init__(self, lifespan=None, test=False):
         BaseWorld.__init__(self, lifespan)
-        self.VISUALIZE_PERIOD = 10 ** 4
         self.REWARD_MAGNITUDE = 1.
         self.ENERGY_COST =  self.REWARD_MAGNITUDE / 100.
         self.JUMP_FRACTION = 0.1
@@ -37,7 +36,8 @@ class World(BaseWorld):
         self.action = np.zeros((self.num_actions,1))
         self.world_state = 0
         self.simple_state = 0
-        self.display_state = False
+        self.world_visualize_period = 1e6
+        self.brain_visualize_period = 1e3
     
     def step(self, action): 
         """
@@ -102,19 +102,16 @@ class World(BaseWorld):
         reward = np.maximum(reward, -self.REWARD_MAGNITUDE)
         return reward
         
-    def visualize(self, agent):
+    def visualize_world(self):
         """ 
         Show what's going on in the world 
         """
-        if (self.display_state):
-            state_image = ['.'] * (self.num_sensors + self.num_actions + 2)
-            state_image[self.simple_state] = 'O'
-            state_image[self.num_sensors:self.num_sensors + 2] = '||'
-            action_index = np.where(self.action > 0.1)[0]
-            if action_index.size > 0:
-                for i in range(action_index.size):
-                    state_image[self.num_sensors + 2 + action_index[i]] = 'x'
-            print(''.join(state_image))
-            
-        if (self.timestep % self.VISUALIZE_PERIOD) == 0:
-            print("world age is %s timesteps " % self.timestep)
+        state_image = ['.'] * (self.num_sensors + self.num_actions + 2)
+        state_image[self.simple_state] = 'O'
+        state_image[self.num_sensors:self.num_sensors + 2] = '||'
+        action_index = np.where(self.action > 0.1)[0]
+        if action_index.size > 0:
+            for i in range(action_index.size):
+                state_image[self.num_sensors + 2 + action_index[i]] = 'x'
+        print(''.join(state_image))
+           
