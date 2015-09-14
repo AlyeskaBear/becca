@@ -26,11 +26,9 @@ class World(BaseWorld):
         Set up the world 
         """
         BaseWorld.__init__(self, lifespan)
-        self.VISUALIZE_PERIOD = 10 ** 4
         self.REWARD_MAGNITUDE = 1.
         self.ENERGY_COST = 0.01 * self.REWARD_MAGNITUDE
         self.JUMP_FRACTION = 0.1
-        self.display_state = False
         self.name = 'grid_1D_noise'
         self.name_long = 'noisy one dimensional grid world'
         print "Entering", self.name_long
@@ -43,6 +41,7 @@ class World(BaseWorld):
         self.action = np.zeros((self.num_actions,1))
         self.world_state = 0      
         self.simple_state = 0       
+        self.brain_visualize_period = 1e3
 
     def step(self, action): 
         """ 
@@ -78,19 +77,15 @@ class World(BaseWorld):
         reward -= energy * self.ENERGY_COST        
         return sensors, reward
 
-    def visualize(self, agent):
+    def visualize_world(self):
         """ 
         Show what's going on in the world 
         """
-        if (self.display_state):
-            state_image = ['.'] * (self.num_real_sensors + 
-                                   self.num_actions + 2)
-            state_image[self.simple_state] = 'O'
-            state_image[self.num_real_sensors:self.num_real_sensors + 2] = '||'
-            action_index = np.where(self.action > 0.1)[0]
-            if action_index.size > 0:
-                state_image[self.num_real_sensors + 2 + action_index[0]] = 'x'
-            print(''.join(state_image))
-
-        if (self.timestep % self.VISUALIZE_PERIOD) == 0:
-            print("world age is %s timesteps " % self.timestep)
+        state_image = ['.'] * (self.num_real_sensors + 
+                               self.num_actions + 2)
+        state_image[self.simple_state] = 'O'
+        state_image[self.num_real_sensors:self.num_real_sensors + 2] = '||'
+        action_index = np.where(self.action > 0.1)[0]
+        if action_index.size > 0:
+            state_image[self.num_real_sensors + 2 + action_index[0]] = 'x'
+        print(''.join(state_image))

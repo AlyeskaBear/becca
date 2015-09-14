@@ -10,7 +10,7 @@ import os
 mod_path = os.path.dirname(os.path.abspath(__file__))
 
 import amygdala
-#import cerebellum
+import cerebellum
 #import hippocampus
 import ganglia
 #import cortex
@@ -28,24 +28,26 @@ class Brain(object):
 
     Attributes
     ----------
-    name : str
-        Unique name for this brain.
-    num_sensors : int
-        The number of distinct sensors that the world will be passing in 
-        to the brain.
-    num_actions : int
-        The number of distinct actions that the brain can choose to 
-        execute in the world.
-    timestep : int
-        The age of the brain in discrete time stpes.
+    amygdala, cerebellum, cortex, ganglia, hippocampus : 
+        Refer the documentation in each of their respective modules.
     backup_interval : int
         The number of time steps between saving a copy of the brain
         out to a pickle file for easy recovery.
-    pickle_filename : str
-        Relative path and filename of the backup pickle file.
     log_dir : str
         Relative path to the ``log`` directory. This is where backups
         and images of the brains state and performance are kept.
+    name : str
+        Unique name for this brain.
+    num_actions : int
+        The number of distinct actions that the brain can choose to 
+        execute in the world.
+    num_sensors : int
+        The number of distinct sensors that the world will be passing in 
+        to the brain.
+    pickle_filename : str
+        Relative path and filename of the backup pickle file.
+    timestep : int
+        The age of the brain in discrete time stpes.
     """
 
     def __init__(self, num_sensors, num_actions, 
@@ -79,11 +81,10 @@ class Brain(object):
         self.timestep = 0
 
         self.amygdala = amygdala.Amygdala(num_sensors)
-        #self.cerebellum = cerebellum.Cerebellum(num_sensors, num_actions)
+        self.cerebellum = cerebellum.Cerebellum(num_sensors, num_actions)
         #self.hippocampus = hippocampus.Hippocampus(num_sensors)
         self.ganglia = ganglia.Ganglia(num_sensors, num_actions)
         #self.cortex = cortex.Cortex(num_sensors, num_actions)
-
 
     def step(self, sensors, reward):
         """
@@ -126,8 +127,10 @@ class Brain(object):
         features = sensors
         # features = cortex.step(sensors)
         self.amygdala.step(features, reward) 
-        # predictions = self.cerebellum.step(features)
         actions = self.ganglia.step(features)
+        self.cerebellum.update(features, actions)
+        self.next_features, self.next_actions = (
+                self.cerebellum.predict(features, actions))
 
         if (self.timestep % self.backup_interval) == 0:
             self.backup()    
@@ -143,7 +146,7 @@ class Brain(object):
         print('{0} is {1} time steps old'.format(self.name, self.timestep))
 
         self.amygdala.visualize(self.timestep, self.name, self.log_dir)
-        #self.cerebullum.visualize()
+        self.cerebellum.visualize(self.name, self.log_dir)
         #self.hippocampus.visualize()
         #self.ganglia.visualize()
         #self.cortex.visualize()
@@ -162,6 +165,7 @@ class Brain(object):
                                               self.name, 
                                               self.log_dir)
         print('Final performance is {0:.3}'.format(performance))
+        self.backup()
         return performance
 
     def backup(self):
