@@ -323,7 +323,7 @@ def visualize_mainspring(mainspring, show=False):
     mainspring.frame_counter += 1
     if show:
         plt.show()
-            
+        
 def visualize_hierarchy(agent, show=True):
     """ 
     Show how cables compose bundles across zipties 
@@ -441,7 +441,7 @@ def visualize_hierarchy(agent, show=True):
             '''
         y += delta_y
 
-    n_cables_0 = dt.zipties[0].cable_activities.size 
+    #n_cables_0 = dt.zipties[0].cable_activities.size 
     '''
     x_divider = (float(agent.num_actions) - .5) * width / float(n_cables_0) 
     plt.plot(np.array([x_divider, x_divider]), 

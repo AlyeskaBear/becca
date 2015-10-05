@@ -81,7 +81,7 @@ class Amygdala(object):
         self.reward_history = []
         self.reward_steps = []
 
-    def step(self, new_features, reward):
+    def learn(self, new_features, reward):
         """
         Assign reward to features.
         
@@ -133,6 +133,16 @@ class Amygdala(object):
         # Log the reward.
         self.cumulative_reward += reward
         self.time_since_reward_log += 1
+
+    def get_reward_by_feature(self):
+        """
+        Get a copy of self.reward_by_feature.
+
+        Returns
+        -------
+        A copy of self.reward_by_feature .
+        """
+        return self.reward_by_feature.copy()
 
     def visualize(self, timestep, brain_name, log_dir):
         """

@@ -23,11 +23,9 @@ class World(BaseWorld):
         Set up the world
         """
         BaseWorld.__init__(self, lifespan)
-        self.VISUALIZE_PERIOD = 10 ** 4
         self.REWARD_MAGNITUDE = 1.
         self.ENERGY_COST = 0.05 * self.REWARD_MAGNITUDE
         self.JUMP_FRACTION = 0.1
-        self.display_state = False
         self.name = 'grid_2D'
         self.name_long = 'two dimensional grid world'
         print "Entering", self.name_long
@@ -39,6 +37,8 @@ class World(BaseWorld):
         self.targets = [(1,1), (3,3)]
         # Punish positions (2,4) and (4,2)
         self.obstacles = [(1,3), (3,1)]
+        self.world_visualize_period = 1e6
+        self.brain_visualize_period = 1e3
     
     def step(self, action): 
         """
@@ -86,15 +86,10 @@ class World(BaseWorld):
                 self.world_state[1] * self.world_size] = 1
         return sensors
 
-    def visualize(self, agent):
+    def visualize_world(self):
         """ 
         Show the state of the world and the agent 
         """
-        if (self.display_state):
-            print ''.join(['state', str(self.world_state), '  action', 
-                           str((self.action[0:2] + 2 * self.action[2:4] - 
-                                self.action[4:6] - 2 * self.action[6:8]).T)])
-        if (self.timestep % self.VISUALIZE_PERIOD) != 0:
-            return
-        
-        print("world age is %s timesteps " % self.timestep)
+        print ''.join(['state', str(self.world_state), '  action', 
+                       str((self.action[0:2] + 2 * self.action[2:4] - 
+                            self.action[4:6] - 2 * self.action[6:8]).T)])

@@ -25,7 +25,6 @@ class World(BaseWorld):
         Set up the world
         """
         BaseWorld.__init__(self, lifespan)
-        self.VISUALIZE_PERIOD = 10 ** 4
         self.REWARD_MAGNITUDE = 1.
         self.JUMP_FRACTION = 1. / 10.
         self.STEP_COST = 0.1 * self.REWARD_MAGNITUDE
@@ -39,6 +38,8 @@ class World(BaseWorld):
         self.fov_span = 7 
         self.num_sensors = 2 * self.fov_span ** 2
         self.num_actions = 8
+        self.world_visualize_period = 1e6
+        self.brain_visualize_period = 1e3
 
         # Initialize the image to be used as the environment
         self.block_image_filename = os.path.join(mod_path, 'images', 
@@ -112,37 +113,29 @@ class World(BaseWorld):
         self.reward -= np.abs(column_step) / self.MAX_STEP_SIZE * self.STEP_COST
         return self.sensors, self.reward
             
-    def visualize(self, agent):
+    def visualize_world(self):
         """ 
         Show what's going on in the world
         """
-        if self.animate:
-            print ''.join(['column_position: ', str(self.column_position), 
-                           '  self.reward: ', str(self.reward), 
-                           '  self.column_step: ', str(self.column_step)])
-        if not self.graphing:
-            return
-
         # Periodically show the state history and inputs as perceived by BECCA
         self.column_history.append(self.column_position)
-        if (self.timestep % self.VISUALIZE_PERIOD) == 0:
-            print ''.join(["world is ", str(self.timestep), " timesteps old"])
-            fig = plt.figure(11)
-            plt.clf()
-            plt.plot( self.column_history, 'k.')    
-            plt.title(''.join(['Column history for ', self.name]))
-            plt.xlabel('time step')
-            plt.ylabel('position (pixels)')
-            fig.show()
-            fig.canvas.draw()
+        print ''.join(["world is ", str(self.timestep), " timesteps old"])
+        fig = plt.figure(11)
+        plt.clf()
+        plt.plot( self.column_history, 'k.')    
+        plt.title(''.join(['Column history for ', self.name]))
+        plt.xlabel('time step')
+        plt.ylabel('position (pixels)')
+        fig.show()
+        fig.canvas.draw()
 
-            fig  = plt.figure(12)
-            sensed_image = np.reshape(
-                    0.5 * (self.sensors[:len(self.sensors)/2] - 
-                           self.sensors[len(self.sensors)/2:] + 1), 
-                    (self.fov_span, self.fov_span))
-            plt.gray()
-            plt.imshow(sensed_image, interpolation='nearest')
-            plt.title("Image sensed")
-            fig.show()
-            fig.canvas.draw()
+        fig  = plt.figure(12)
+        sensed_image = np.reshape(
+                0.5 * (self.sensors[:len(self.sensors)/2] - 
+                       self.sensors[len(self.sensors)/2:] + 1), 
+                (self.fov_span, self.fov_span))
+        plt.gray()
+        plt.imshow(sensed_image, interpolation='nearest')
+        plt.title("Image sensed")
+        fig.show()
+        fig.canvas.draw()

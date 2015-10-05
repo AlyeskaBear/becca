@@ -28,7 +28,6 @@ class World(Grid_2D_World):
         self.name_long = 'decoupled two dimensional grid world'
         print ", decoupled"
         self.num_sensors = self.world_size * 2
-        self.display_state = False
             
     def assign_sensors(self):
         """

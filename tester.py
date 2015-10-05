@@ -102,7 +102,7 @@ def run(world, restore=False, exploit=False):
     # Repeat the loop through the duration of the existence of the world:
     # sense, act, repeat.
     while(world.is_alive()):
-        actions = brain.step(sensors, reward)
+        actions = brain.sense_act_learn(sensors, reward)
         sensors, reward = world.step(actions)
         world.visualize(brain)
     performance = brain.report_performance()

@@ -27,7 +27,6 @@ class World(BaseWorld):
         Set up the world
         """
         BaseWorld.__init__(self, lifespan)
-        self.VISUALIZE_PERIOD = 1e4
         self.REWARD_MAGNITUDE = 1.
         self.JUMP_FRACTION = .1
         self.print_feature_set = True
@@ -71,6 +70,8 @@ class World(BaseWorld):
         self.row_history = []
         self.last_feature_vizualized = 0
         self.step_counter = 0
+        self.world_visualize_period = 1e6
+        self.brain_visualize_period = 1e3
 
     def step(self, action): 
         """
@@ -140,20 +141,13 @@ class World(BaseWorld):
             self.reward += self.REWARD_MAGNITUDE
         return self.sensors, self.reward
      
-    def visualize(self, agent):
+    def visualize_world(self):
         """ 
         Show what is going on in BECCA and in the world 
         """
         self.row_history.append(self.row_position)
         self.column_history.append(self.column_position)
-        if self.animate:
-            print ''.join([str(self.row_position), ', ', 
-                           str(self.column_position), 
-                           '-row and col position  ', 
-                           str(self.reward), '-reward'])
         # Periodically display the history and inputs as perceived by BECCA
-        if (self.timestep % self.VISUALIZE_PERIOD) != 0:
-            return
 
         print ' '.join(["world is", str(self.timestep), "timesteps old."])
         fig = plt.figure(11)

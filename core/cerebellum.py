@@ -219,7 +219,7 @@ class Cerebellum(object):
             vote = self.guess[i_combo,:]
             p_vote = vote / np.sum(vote)
             i_best_hypo = np.random.choice(np.arange(vote.size), p=p_vote)
-            best_vote = vote[i_best_hypo]
+            #best_vote = vote[i_best_hypo]
             self.age[i_combo, i_best_hypo] = 1.
             self.next_combo[i_combo] = self.guess[i_combo, i_best_hypo]
 
@@ -227,7 +227,7 @@ class Cerebellum(object):
         next_sensors = self.next_combo[self.num_actions:]
         return next_sensors, next_actions
 
-    def update(self, features, actions):
+    def learn(self, features, actions):
         """
         Update the cerebellar model of the world and its dynamics.
 
@@ -240,7 +240,7 @@ class Cerebellum(object):
         """
         new_combo = np.concatenate((actions, features))
         (num_combos, num_hypos, _) = self.hypos.shape
-        total_diff = np.sum(np.abs(new_combo - self.next_combo))
+        #total_diff = np.sum(np.abs(new_combo - self.next_combo))
         for i_combo, new_val in enumerate(new_combo):
 
             # Increment tries and wins for every hypo.
@@ -491,7 +491,7 @@ class Cerebellum(object):
         samples_shape = self.samples.shape
         num_combos = samples_shape[0]
         num_samples = samples_shape[1]
-        num_samples_show = 1000
+        num_samples_show = 100
         total_samples = num_combos * num_samples
         frac_samples = float(num_samples_show) / float(total_samples)
 

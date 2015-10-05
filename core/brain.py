@@ -11,8 +11,9 @@ mod_path = os.path.dirname(os.path.abspath(__file__))
 
 import amygdala
 import cerebellum
-#import hippocampus
+import cingulate
 import ganglia
+import hippocampus
 #import cortex
 #import tools
 
@@ -28,7 +29,7 @@ class Brain(object):
 
     Attributes
     ----------
-    amygdala, cerebellum, cortex, ganglia, hippocampus : 
+    amygdala, cerebellum, cingulate, cortex, ganglia, hippocampus : 
         Refer the documentation in each of their respective modules.
     backup_interval : int
         The number of time steps between saving a copy of the brain
@@ -69,7 +70,8 @@ class Brain(object):
             The default is 'test_brain'.
         """
         self.num_sensors = num_sensors
-        self.num_actions = num_actions
+        # Always include an extra action. The last is the 'do nothing' action.
+        self.num_actions = num_actions + 1
         self.backup_interval = 1e4
         self.name = brain_name
         self.log_dir = os.path.normpath(os.path.join(mod_path, '..', 'log'))
@@ -77,16 +79,23 @@ class Brain(object):
             os.makedirs(self.log_dir)
         self.pickle_filename = os.path.join(self.log_dir, 
                                             '{0}.pickle'.format(brain_name))
-        self.action = np.zeros(self.num_actions)
+        #self.actions = np.zeros(self.num_actions)
+        self.predicted_actions = np.zeros(self.num_actions)
+        self.predicted_features = np.zeros(self.num_sensors)
         self.timestep = 0
 
-        self.amygdala = amygdala.Amygdala(num_sensors)
-        self.cerebellum = cerebellum.Cerebellum(num_sensors, num_actions)
-        #self.hippocampus = hippocampus.Hippocampus(num_sensors)
-        self.ganglia = ganglia.Ganglia(num_sensors, num_actions)
-        #self.cortex = cortex.Cortex(num_sensors, num_actions)
+        self.amygdala = amygdala.Amygdala(self.num_sensors)
+        self.cerebellum = cerebellum.Cerebellum(self.num_sensors, 
+                                                self.num_actions)
+        self.cingulate = cingulate.Cingulate(self.num_sensors, 
+                                             self.num_actions, 
+                                             self.amygdala)
+        self.hippocampus = hippocampus.Hippocampus(self.num_sensors, 
+                                                   self.num_actions)
+        self.ganglia = ganglia.Ganglia(self.num_sensors, self.num_actions)
+        #self.cortex = cortex.Cortex(self.num_sensors, self.num_actions)
 
-    def step(self, sensors, reward):
+    def sense_act_learn(self, sensors, reward):
         """
         Take sensor and reward data in and use them to choose an action.
 
@@ -125,12 +134,27 @@ class Brain(object):
         
         self.timestep += 1
         features = sensors
+        # Calcuate activities of all the features.
         # features = cortex.step(sensors)
-        self.amygdala.step(features, reward) 
-        actions = self.ganglia.step(features)
-        self.cerebellum.update(features, actions)
-        self.next_features, self.next_actions = (
+
+        # Single out one input for consicous processing.
+        attended, attended_activity = self.cingulate.attend(
+                features, self.predicted_features)
+
+        # Decide which actions to take.
+        decision_scores = self.hippocampus.get_decision_scores(
+                self.amygdala.reward_by_feature, self.ganglia.goals)
+        actions, decision_index = self.ganglia.decide(
+                features, self.predicted_actions, decision_scores)
+
+        # Make predictions and calculate reactions for the next time step. 
+        self.predicted_features, self.predicted_actions = (
                 self.cerebellum.predict(features, actions))
+
+        # Learn from this new time step of experience.
+        self.amygdala.learn(features, reward) 
+        self.cerebellum.learn(features, actions)
+        self.hippocampus.learn(attended, attended_activity, decision_index)
 
         if (self.timestep % self.backup_interval) == 0:
             self.backup()    
@@ -147,9 +171,10 @@ class Brain(object):
 
         self.amygdala.visualize(self.timestep, self.name, self.log_dir)
         self.cerebellum.visualize(self.name, self.log_dir)
-        #self.hippocampus.visualize()
-        #self.ganglia.visualize()
-        #self.cortex.visualize()
+        self.cingulate.visualize(self.name, self.log_dir)
+        self.hippocampus.visualize(self.name, self.log_dir)
+        #self.ganglia.visualize(self.name, self.log_dir)
+        #self.cortex.visualize(self.name, self.log_dir)
  
     def report_performance(self):
         """

@@ -18,7 +18,6 @@ class World(BaseWorld):
     """
     def __init__(self, lifespan=None, test=False):
         BaseWorld.__init__(self, lifespan)
-        self.VISUALIZE_PERIOD = 10 ** 4
         self.ENERGY_COST = 0.01
         self.JUMP_FRACTION = 0.1
         self.display_state = False
@@ -30,7 +29,8 @@ class World(BaseWorld):
         self.action = np.zeros((self.num_actions,1))
         self.world_state = 0            
         self.simple_state = 0
-        self.world_visualize_period = 1e3
+        self.world_visualize_period = 1e6
+        self.brain_visualize_period = 1e3
             
     def step(self, action): 
         """
