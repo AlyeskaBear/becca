@@ -140,13 +140,21 @@ class Brain(object):
         # Single out one input for consicous processing.
         attended, attended_activity = self.cingulate.attend(
                 features, self.predicted_features)
+        self.hippocampus.attend(attended, attended_activity)
 
         # Decide which actions to take.
         decision_scores = self.hippocampus.get_decision_scores(
                 self.amygdala.reward_by_feature, self.ganglia.goals)
         actions, decision_index = self.ganglia.decide(
                 features, self.predicted_actions, decision_scores)
-
+        '''
+        print
+        print 'brain'
+        print 'ds', decision_scores
+        print 'di', decision_index
+        print 'actions', actions
+        print 'features', features
+        '''
         # Make predictions and calculate reactions for the next time step. 
         self.predicted_features, self.predicted_actions = (
                 self.cerebellum.predict(features, actions))
@@ -154,11 +162,10 @@ class Brain(object):
         # Learn from this new time step of experience.
         self.amygdala.learn(features, reward) 
         self.cerebellum.learn(features, actions)
-        self.hippocampus.learn(attended, attended_activity, decision_index)
+        self.hippocampus.learn(decision_index)
 
         if (self.timestep % self.backup_interval) == 0:
             self.backup()    
-
         return actions
 
     def visualize(self):

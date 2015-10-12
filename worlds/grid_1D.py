@@ -44,7 +44,7 @@ class World(BaseWorld):
         Advance the world one time step
         """
         self.action = action
-        self.action[np.nonzero(self.action)] = 1.
+        self.action = np.round(self.action)
         self.timestep += 1 
         # Find the step size as combinations of the action commands
         #     action[i]     result

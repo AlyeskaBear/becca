@@ -58,6 +58,9 @@ class Ganglia(object):
 
         Parameters
         ----------
+        decision_scores : array of floats
+            Scores representing the expected reward with taking each 
+            action or choosing each feature as a goal.
         features : array of floats
             The current activity of each of the features. 
         predicted_actions : array of floats
@@ -84,7 +87,8 @@ class Ganglia(object):
 
         # Treat predicted actions as automatic actions.
         decisions = np.zeros(self.num_elements)
-        decisions[:self.num_actions] += predicted_actions
+        # debug disable predicted actions. These are too high.
+        #decisions[:self.num_actions] += predicted_actions
         
         # Choose the decisions with the largest magnitude, whether it's 
         # a reward or a punishment. If it's a reward, choose that 
@@ -93,11 +97,15 @@ class Ganglia(object):
         decision_sign = np.sign(decision_scores[decision_index])
         decisions[decision_index] += decision_sign
 
+        #print 'di',decision_index
+        #print 'ds', decision_scores
+
         # If an inhibition decision was made, then change the 
         # decision index to be the final action, which is always 
         # the 'do nothing' action. This will allow the hippocampus
         # to stil learn appropriately from this time step.
         if decision_sign < 0.:
+            #print(' '.join(['Inhibition of index', str(decision_index)]))
             decision_index = self.num_actions - 1
         
         # In the state representation, actions come first.
