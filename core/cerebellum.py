@@ -125,6 +125,8 @@ class Cerebellum(object):
         self.guess = np.zeros((self.num_combos, self.num_samples))
         self.similarity = np.zeros((self.num_combos, self.num_samples))
         self.decay_rate = 1.
+        
+        self.skip = True
 
     def weighted_accuracy(self, wins, tries, age):
         """
@@ -188,6 +190,11 @@ class Cerebellum(object):
         The predicted probabilities of each action being
             chosen next based on ``features``.
         """
+        if self.skip:
+            next_features = np.zeros(features.size)
+            next_actions = np.zeros(actions.size)
+            return next_features, next_actions
+
         # Make a prediction for each action and feature based 
         # on the hypotheses it has accumulated.
         (num_combos, num_hypos, _) = self.hypos.shape
@@ -238,6 +245,9 @@ class Cerebellum(object):
         actions : array of floats
             The set of actions chosen in response to ``features``.
         """
+        if self.skip:
+            return
+
         new_combo = np.concatenate((actions, features))
         (num_combos, num_hypos, _) = self.hypos.shape
         #total_diff = np.sum(np.abs(new_combo - self.next_combo))

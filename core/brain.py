@@ -72,7 +72,7 @@ class Brain(object):
         self.num_sensors = num_sensors
         # Always include an extra action. The last is the 'do nothing' action.
         self.num_actions = num_actions + 1
-        self.backup_interval = 1e4
+        self.backup_interval = 1e5
         self.name = brain_name
         self.log_dir = os.path.normpath(os.path.join(mod_path, '..', 'log'))
         if not os.path.isdir(self.log_dir):

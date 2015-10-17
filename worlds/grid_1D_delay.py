@@ -35,7 +35,7 @@ class World(Grid_1D_World):
         Calcuate the reward corresponding to the current state and assign
         it to a future time step.
         """
-        new_reward = sensors[8]
+        new_reward = -sensors[8]
         new_reward += sensors[3]
         # Punish actions just a little
         new_reward -= self.energy  * self.ENERGY_COST

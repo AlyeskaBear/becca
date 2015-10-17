@@ -15,13 +15,13 @@ import pstats
 
 # Worlds from the benchmark
 #from worlds.base_world import World
-from worlds.grid_1D import World
+#from worlds.grid_1D import World
 #from worlds.grid_1D_delay import World
 #from worlds.grid_1D_ms import World
 #from worlds.grid_1D_noise import World
 #from worlds.grid_2D import World
 #from worlds.grid_2D_dc import World
-#from worlds.image_1D import World
+from worlds.image_1D import World
 #from worlds.image_2D import World
 #from worlds.fruit import World
 
@@ -112,7 +112,7 @@ def profile():
     """
     Profile the brain's performance on the selected world.
     """
-    profiling_lifespan = 1e3
+    profiling_lifespan = 1e4
     print('Profiling BECCA\'s performance...')
     command = 'run(World(lifespan={0}), restore=True)'.format(
             profiling_lifespan)

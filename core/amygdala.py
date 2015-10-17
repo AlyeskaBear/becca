@@ -68,6 +68,7 @@ class Amygdala(object):
         # to account for delayed reward.
         self.time_factor = 1.
         self.reward_learning_rate = 1e-3
+        #self.trace_length = 1
         self.trace_length = int(self.time_factor * 6.)
         self.trace_magnitude = 0.
         for tau in np.arange(self.trace_length):
@@ -123,6 +124,12 @@ class Amygdala(object):
         """
         self.reward_by_feature += ((reward_trace - self.reward_by_feature) * 
                                    features * self.reward_learning_rate)
+
+        if False:
+            print 
+            print 'rf', self.reward_by_feature
+            print reward_trace
+            print features
 
         # Update the activity, action history, and reward.
         self.recent_rewards.append(reward)
