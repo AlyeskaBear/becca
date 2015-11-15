@@ -56,8 +56,7 @@ def set_dense_val(array2d, i_rows, i_cols, val):
     Occur indirectly by modifying ``array2d``.
     """
     for i in range(len(i_rows)):
-        #array2d[i_rows[i], i_cols[i]] = val 
-        array2d[1, 1] = val 
+        array2d[i_rows[i], i_cols[i]] = val 
 
 @jit(nopython=True)
 def max_dense(array2d, results):

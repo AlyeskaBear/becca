@@ -108,8 +108,8 @@ class ZipTie(object):
         # arrays are used. Rows are bundle indices, and cols are 
         # feature indices.
         self.bundle_map_size = 8 
-        self.bundle_map_rows = -np.ones(self.bundle_map_size) 
-        self.bundle_map_cols = -np.ones(self.bundle_map_size) 
+        self.bundle_map_rows = -np.ones(self.bundle_map_size).astype(int)
+        self.bundle_map_cols = -np.ones(self.bundle_map_size).astype(int)
         self.n_map_entries = 0
         self.agglomeration_energy = np.zeros(map_size)
         self.nucleation_energy = np.zeros((self.max_num_cables, 
@@ -281,9 +281,9 @@ class ZipTie(object):
         if self.n_map_entries >= self.bundle_map_size:
             self.bundle_map_size *= 2
             self.bundle_map_rows = tools.pad(self.bundle_map_rows, 
-                                             self.bundle_map_size, val=-1.)
+                                             self.bundle_map_size, val=-1)
             self.bundle_map_cols = tools.pad(self.bundle_map_cols, 
-                                             self.bundle_map_size, val=-1.)
+                                             self.bundle_map_size, val=-1)
         
     def _grow_bundles(self):
         """ 
@@ -306,10 +306,6 @@ class ZipTie(object):
         # in the same bundle 
         val = 0.
         if self.n_map_entries > 0:
-            print 'ae', self.agglomeration_energy 
-            print 'bmr', self.bundle_map_rows[:self.n_map_entries] 
-            print 'bmc', self.bundle_map_cols[:self.n_map_entries]
-            print 'val', val
             nb.set_dense_val(self.agglomeration_energy, 
                              self.bundle_map_rows[:self.n_map_entries], 
                              self.bundle_map_cols[:self.n_map_entries], 
