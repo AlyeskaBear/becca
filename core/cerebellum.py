@@ -87,7 +87,7 @@ class Cerebellum(object):
         _2D_size = (self.num_features, self.num_elements)
         _3D_size = (self.num_features, self.num_elements, self.num_features)
         self.observations = np.zeros(_3D_size)
-        self.opportunities = np.ones(_2D_size) * tools.EPSILON
+        self.opportunities = np.ones(_2D_size) * tools.epsilon
         self.probabilities = np.zeros(_3D_size)
         self.curiosities = np.zeros(_2D_size)
         self.curiosity_rate = 1e-1 / float(self.num_elements)

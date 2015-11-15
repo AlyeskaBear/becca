@@ -15,13 +15,13 @@ import pstats
 
 # Worlds from the benchmark
 #from worlds.base_world import World
-#from worlds.grid_1D import World
+from worlds.grid_1D import World
 #from worlds.grid_1D_delay import World
 #from worlds.grid_1D_ms import World
 #from worlds.grid_1D_noise import World
 #from worlds.grid_2D import World
 #from worlds.grid_2D_dc import World
-from worlds.image_1D import World
+#from worlds.image_1D import World
 #from worlds.image_2D import World
 #from worlds.fruit import World
 
@@ -92,8 +92,7 @@ def run(world, restore=False, exploit=False):
         average reward it gathered per time step.
     """
     brain_name = '{0}_brain'.format(world.name)
-    brain = Brain(world.num_sensors, world.num_actions, 
-                  brain_name=brain_name, exploit=exploit)
+    brain = Brain(world.num_sensors, world.num_actions, brain_name=brain_name)
     if restore:
         brain = brain.restore()
     # Start at a resting state.

@@ -254,7 +254,7 @@ class ZipTie(object):
             self.bundle_map_cols[self.n_map_entries] = cable_index_b
             self.increment_n_map_entries()
             self.num_bundles += 1
-            print ''.join(['    ', self.name, 
+            print ' '.join(['    ', self.name, 
                            'bundle', str(self.num_bundles), 
                            'added with', str(cable_index_a), 
                            str(cable_index_b)]) 
@@ -306,6 +306,10 @@ class ZipTie(object):
         # in the same bundle 
         val = 0.
         if self.n_map_entries > 0:
+            print 'ae', self.agglomeration_energy 
+            print 'bmr', self.bundle_map_rows[:self.n_map_entries] 
+            print 'bmc', self.bundle_map_cols[:self.n_map_entries]
+            print 'val', val
             nb.set_dense_val(self.agglomeration_energy, 
                              self.bundle_map_rows[:self.n_map_entries], 
                              self.bundle_map_cols[:self.n_map_entries], 

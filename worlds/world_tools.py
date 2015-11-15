@@ -201,7 +201,7 @@ def visualize_pixel_array_feature(sensors,
         fig = plt.figure(tools.str_to_int(fig_name))
         fig.clf()
         plt.gray()
-        ax = fig.add_axes(0., 0., 1., 1.), frame_on=False)
+        fig.add_axes(0., 0., 1., 1., frame_on=False)
         plt.imshow(feature_pixels, vmin=0.0, vmax=1.0, 
                         interpolation='nearest')
         plt.title(fig_title)
