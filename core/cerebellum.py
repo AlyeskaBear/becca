@@ -223,7 +223,7 @@ class Cerebellum(object):
         _3D_size = (self.num_features, self.num_elements, self.num_features)
         self.observations = tools.pad(self.observations, _3D_size)
         self.opportunities = tools.pad(self.opportunities, _2D_size, 
-                                       val=tools.EPSILON)
+                                       val=tools.epsilon)
         self.probabilities = tools.pad(self.probabilities, _3D_size)
         self.curiosities = tools.pad(self.curiosities, _2D_size)
 

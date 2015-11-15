@@ -182,7 +182,7 @@ def visualize_pixel_array_feature(sensors,
         n_pixels = fov_horz_span * fov_vert_span * 2
 
     # Maximize contrast
-    sensors *= 1 / (np.max(sensors) + tools.EPSILON)
+    sensors *= 1 / (np.max(sensors) + tools.epsilon)
 
     # Calculate the visualization image pixel values.
     pixel_values = ((sensors[ 0:n_pixels] - 
