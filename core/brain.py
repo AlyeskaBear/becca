@@ -11,11 +11,9 @@ mod_path = os.path.dirname(os.path.abspath(__file__))
 
 import amygdala
 import cerebellum
-import cingulate
 import ganglia
-import hippocampus
-#import cortex
-#import tools
+import cortex
+import tools
 
 class Brain(object):
     """ 
@@ -29,30 +27,29 @@ class Brain(object):
 
     Attributes
     ----------
-    amygdala, cerebellum, cingulate, cortex, ganglia, hippocampus : 
-        Refer the documentation in each of their respective modules.
+    amygdala, cerebellum, cortex, ganglia: 
+        Refer the documentation in each of these respective modules.
     backup_interval : int
-        The number of time steps between saving a copy of the brain
+        The number of time steps between saving a copy of the ``brain``
         out to a pickle file for easy recovery.
     log_dir : str
         Relative path to the ``log`` directory. This is where backups
-        and images of the brains state and performance are kept.
+        and images of the ``brain``'s state and performance are kept.
     name : str
-        Unique name for this brain.
+        Unique name for this ``brain``.
     num_actions : int
-        The number of distinct actions that the brain can choose to 
+        The number of distinct actions that the ``brain`` can choose to 
         execute in the world.
     num_sensors : int
         The number of distinct sensors that the world will be passing in 
-        to the brain.
+        to the ``brain``.
     pickle_filename : str
         Relative path and filename of the backup pickle file.
     timestep : int
-        The age of the brain in discrete time stpes.
+        The age of the ``brain`` in discrete time stpes.
     """
 
-    def __init__(self, num_sensors, num_actions, 
-                 exploit=False, brain_name='test_brain'):
+    def __init__(self, num_sensors, num_actions, brain_name='test_brain'):
         """
         Configure the Brain.
 
@@ -60,16 +57,13 @@ class Brain(object):
         ----------
         num_sensors, num_actions : int
             Value for ``self.num_sensors`` and ``self.num_actions``.
-        exploit : bool, optional
-            Controls whether the brain's tendency to explore is 
-            disabled. This drives the brain to get the best performance
-            it knows how to at that moment, without investing 
-            any research into how to improve. The default is False.  
         brain_name : str, optional
             A unique identifying name for the brain. 
             The default is 'test_brain'.
         """
-        self.num_sensors = num_sensors
+        # Include two extra sensors. These are for explicitly sensing reward
+        # and punshment.
+        self.num_sensors = num_sensors + 2
         # Always include an extra action. The last is the 'do nothing' action.
         self.num_actions = num_actions + 1
         self.backup_interval = 1e5
@@ -79,21 +73,16 @@ class Brain(object):
             os.makedirs(self.log_dir)
         self.pickle_filename = os.path.join(self.log_dir, 
                                             '{0}.pickle'.format(brain_name))
-        #self.actions = np.zeros(self.num_actions)
-        self.predicted_actions = np.zeros(self.num_actions)
-        self.predicted_features = np.zeros(self.num_sensors)
+
+        self.cortex = cortex.Cortex(self.num_sensors)
+        self.num_features = self.cortex.size
         self.timestep = 0
 
-        self.amygdala = amygdala.Amygdala(self.num_sensors)
-        self.cerebellum = cerebellum.Cerebellum(self.num_sensors, 
+        # Initialize all the components of the ``brain``.
+        self.amygdala = amygdala.Amygdala(self.num_features)
+        self.cerebellum = cerebellum.Cerebellum(self.num_features, 
                                                 self.num_actions)
-        self.cingulate = cingulate.Cingulate(self.num_sensors, 
-                                             self.num_actions, 
-                                             self.amygdala)
-        self.hippocampus = hippocampus.Hippocampus(self.num_sensors, 
-                                                   self.num_actions)
-        self.ganglia = ganglia.Ganglia(self.num_sensors, self.num_actions)
-        #self.cortex = cortex.Cortex(self.num_sensors, self.num_actions)
+        self.ganglia = ganglia.Ganglia(self.num_features, self.num_actions)
 
     def sense_act_learn(self, sensors, reward):
         """
@@ -113,14 +102,14 @@ class Brain(object):
             to mean that the sensor was fully contacted for 50% of the sensing
             duration or that there is a 50% chance that the sensor was
             fully contacted during the entire sensing duration. For another
-            example, a light sensor reading of zero won't  be 
+            example, a light sensor reading of zero won't be 
             interpreted as by the ``brain`` as darkness. It will just be 
             interpreted as a lack of information about the lightness.
         reward : float
             The extent to which the ``brain`` is being rewarded by the 
             world. It is expected to be between -1 and 1, inclusive.
             -1 is the worst pain ever. 1 is the most intense ecstasy 
-            imaginable. 0 is completely neutral.
+            imaginable. 0 is neutral.
 
         Returns
         -------
@@ -131,42 +120,33 @@ class Brain(object):
             allows the ``brain`` to learn most effectively how to interact 
             with the world to obtain more reward. 
         """
-        
         self.timestep += 1
-        features = sensors
         # Calcuate activities of all the features.
-        # features = cortex.step(sensors)
+        (features, 
+         modified_features, 
+         grow) = self.cortex.featurize_and_learn(sensors, reward)
 
-        # Single out one input for consicous processing.
-        attended, attended_activity = self.cingulate.attend(
-                features, self.predicted_features)
-        self.hippocampus.attend(attended, attended_activity)
+        # If the ``cortex`` just added a new level to its hierarchy, 
+        # grow the rest of the components accordingly.
+        if grow:
+            self.amygdala.grow(self.cortex.size)
+            self.cerebellum.grow(self.cortex.size)
+            self.ganglia.grow(self.cortex.size)
 
         # Decide which actions to take.
-        decision_scores = self.hippocampus.get_decision_scores(
-                self.amygdala.reward_by_feature, self.ganglia.goals)
-        actions, decision_index = self.ganglia.decide(
-                features, self.predicted_actions, decision_scores)
-        '''
-        print
-        print 'brain'
-        print 'ds', decision_scores
-        print 'di', decision_index
-        print 'actions', actions
-        print 'features', features
-        '''
-        # Make predictions and calculate reactions for the next time step. 
-        self.predicted_features, self.predicted_actions = (
-                self.cerebellum.predict(features, actions))
+        decision_values = self.cerebellum.get_decision_values(
+                features, self.amygdala.reward_by_feature, self.ganglia.goals)
+        actions, goals = self.ganglia.decide(features, decision_values)
 
         # Learn from this new time step of experience.
         self.amygdala.learn(features, reward) 
-        self.cerebellum.learn(features, actions)
-        self.hippocampus.learn(decision_index)
+        self.cerebellum.learn(features, actions, goals)
 
         if (self.timestep % self.backup_interval) == 0:
-            self.backup()    
-        return actions
+            self.backup()  
+        # Account for the fact that the last "do nothing" action 
+        # was added by the ``brain``.   
+        return actions[:-1]
 
     def visualize(self):
         """ 
@@ -177,11 +157,9 @@ class Brain(object):
         print('{0} is {1} time steps old'.format(self.name, self.timestep))
 
         self.amygdala.visualize(self.timestep, self.name, self.log_dir)
-        self.cerebellum.visualize(self.name, self.log_dir)
-        self.cingulate.visualize(self.name, self.log_dir)
-        self.hippocampus.visualize(self.name, self.log_dir)
+        #self.cerebellum.visualize(self.name, self.log_dir)
         #self.ganglia.visualize(self.name, self.log_dir)
-        #self.cortex.visualize(self.name, self.log_dir)
+        #self.cortex.visualize()
  
     def report_performance(self):
         """
@@ -214,6 +192,10 @@ class Brain(object):
         try:
             with open(self.pickle_filename, 'wb') as brain_data:
                 pickle.dump(self, brain_data)
+            # Save a second copy. If you only save one, and the user
+            # happens to ^C out of the program while it is being saved,
+            # the file becomes corrupted, and all the learning that the
+            # ``brain`` did is lost.
             with open('{0}.bak'.format(self.pickle_filename), 
                       'wb') as brain_data_bak:
                 pickle.dump(self, brain_data_bak)
@@ -246,6 +228,9 @@ class Brain(object):
             those in the already initialized brain. If it matches, 
             accept the brain. If it doesn't,
             print a message, and keep the just-initialized brain.
+            Sometimes the pickle file is corrputed. When this is the case
+            you can manually overwrite it by removing the .bak from the 
+            .pickle.bak file. Then you can restore from the backup pickle.
             """
             if ((loaded_brain.num_sensors == self.num_sensors) and 
                 (loaded_brain.num_actions == self.num_actions)):

@@ -10,12 +10,21 @@ def center_surround(fov, fov_horz_span, fov_vert_span, verbose=False):
     """ 
     Convert a 2D array of b/w pixel values to center-surround 
     
-    Args:
-        fov: field of view, 2D array of pixel values
-        fov_horz_span: desired number of center-surround superpixel columns
-        fov_vert_span: desired number of center-surround superpixel rows
-    Returns: 
-        a 2D array of the center surround values
+    Parameters
+    ----------
+    fov : 2D array of floats
+         Pixel values from the field of view.
+    fov_horz_span : int
+        Desired number of center-surround superpixel columns.
+    fov_vert_span: int
+        Desired number of center-surround superpixel rows.
+    verbose : bool
+        If True, print more information to the console.
+
+    Returns
+    -------
+    center_surround_pixels :  2D array of floats
+        The center surround values corresponding to the inputs.
     """ 
     fov_height = fov.shape[0]
     fov_width = fov.shape[1]
@@ -72,110 +81,168 @@ def center_surround(fov, fov_horz_span, fov_vert_span, verbose=False):
         plt.draw() 
     return center_surround_pixels
 
-def visualize_pixel_array_feature(feature, 
-                                  fov_horz_span=None, fov_vert_span=None,
-                                  block_index=-1, feature_index=-1, 
-                                  world_name=None, save_png=False, 
-                                  filename='log/feature', array_only=False):
-    """ 
-    Show a visual approximation of an array of center-surround features 
-    """
-    # Calculate the number of pixels that span the field of view
-    n_pixels = feature.shape[0] / 2
-    if fov_horz_span is None:
-        fov_horz_span = np.sqrt(n_pixels)
-        fov_vert_span = np.sqrt(n_pixels)
-    if array_only:
-        pixel_array = []
-    else:
-        block_str = str(block_index).zfill(2)
-        feature_str = str(feature_index).zfill(3)
-        fig_title = ' '.join(('Block', block_str, 'Feature', feature_str, 
-                              'from', world_name))
-        fig_name = ' '.join(('Features from ', world_name))
-        fig = plt.figure(tools.str_to_int(fig_name))
-        fig.clf()
-    num_states = feature.shape[1]
-    for state_index in range(num_states):
-        feature_sensors = feature[:,state_index]
-        # Maximize contrast
-        feature_sensors *= 1 / (np.max(feature_sensors) + tools.EPSILON)
-        pixel_values = ((feature_sensors[ 0:n_pixels] - 
-                         feature_sensors[n_pixels:2 * n_pixels]) + 1.0) / 2.0
-        feature_pixels = pixel_values.reshape(fov_vert_span, fov_horz_span)
-        if array_only:
-            pixel_array.append(feature_pixels)
-        else:
-            plt.gray()
-            ax = fig.add_axes((float(state_index)/float(num_states), 0., 
-                               1/float(num_states), 1.), frame_on=False)
-            im = plt.imshow(feature_pixels, vmin=0.0, vmax=1.0, 
-                            interpolation='nearest')
-            plt.title(fig_title)
-    if array_only:
-        return pixel_array
-    else:
-        if save_png:
-            filename = (filename + '_' + world_name  + '_' + block_str + 
-                        '_' + feature_str + '.png')
-            fig.savefig(filename, format='png')
-        fig.show()
-        fig.canvas.draw()
-
 def print_pixel_array_features(projections, num_pixels_x2, start_index, 
                                fov_horz_span, fov_vert_span, 
                                directory='log', world_name='', name='',
                                interp='nearest'):
     """  
-    Interpret an array of center-surround pixels as an image 
+    Interpret an array of center-surround pixels as an image.
+
+    Parameters
+    ----------
+    directory : str
+       The directory into which the feature images will be saved. 
+       Default is 'log'.
+    fov_horz_span, fov_vert_span : int
+        The number of pixels in the horizontal (columns) and vertical (rows)
+        directions.
+    interp : str
+        The method of interpolation that matplotlib will use when creating
+        the image. Default is 'nearest'.
+    num_pixels_x2 : int
+        Twice the number of center-surround superpixels. 
+    projections : list of list of array of floats
+        This is the set of all the projections of all the features from 
+        all the ``ZipTie``s onto sensors. 
+    start_index : int
+        Which index in the projection arrays marks the beginning of 
+        the center-surround sensors.
+    world_name : str
+        A base name for the image filenames, associated with the world.
     """
-    num_blocks = len(projections)
-    for block_index in range(num_blocks):
-        for feature_index in range(len(projections[block_index])):
-            #states_per_feature = 2 ** (block_index + 1)
+    num_levels = len(projections)
+    for level_index in range(num_levels):
+        for feature_index in range(len(projections[level_index])):
             plt.close(99)
             feature_fig = plt.figure(num=99)
-            projection_image_list = (visualize_pixel_array_feature(projections[
-                    block_index][feature_index][
-                    start_index:start_index + num_pixels_x2][:,np.newaxis], 
-                    fov_horz_span, fov_vert_span, array_only=True))[0] 
-            '''
-            projection_image_list = (visualize_pixel_array_feature(projections[
-                    block_index][feature_index][
-                    start_index:start_index + num_pixels_x2,:], fov_horz_span,
-                    fov_vert_span, array_only=True)) 
-            for state_index in range(states_per_feature): 
-                left =  (float(state_index) / float(states_per_feature))
-                bottom = 0.
-                width =  1. /  float(states_per_feature)
-                height =  1
-                rect = (left, bottom, width, height)
-                ax = feature_fig.add_axes(rect)
-                plt.gray()
-                ax.imshow(projection_image_list[state_index], 
-                          interpolation=interp, vmin=0., vmax=1.)
-            '''
+
+            # Get the pixel array for the projection image.
+            projection_image = (visualize_pixel_array_feature(
+                    projections[level_index][feature_index]
+                    [start_index:start_index + num_pixels_x2], 
+                    fov_horz_span, fov_vert_span, array_only=True)) 
             rect = (0., 0., 1., 1.)
             ax = feature_fig.add_axes(rect)
             plt.gray()
-            ax.imshow(projection_image_list, 
+            ax.imshow(projection_image, 
                       interpolation=interp, vmin=0., vmax=1.)
-            # create a plot of individual features
-            filename = '_'.join(('block', str(block_index).zfill(2),
+
+            # Create a plot of individual features.
+            filename = '_'.join(['level', str(level_index).zfill(2),
                                  'feature',str(feature_index).zfill(4),
-                                 world_name, 'world', name, 'image.png'))
+                                 world_name, 'image.png'])
             full_filename = os.path.join(directory, filename)
             plt.title(filename)
             plt.savefig(full_filename, format='png') 
 
+def visualize_pixel_array_feature(sensors, 
+                                  fov_horz_span=None, fov_vert_span=None,
+                                  level_index=-1, feature_index=-1, 
+                                  world_name=None, save_png=False, 
+                                  filename='log/feature', array_only=False):
+    """ 
+    Show a visual approximation of an array of center-surround sensorss.
+
+    Parameters
+    ----------
+    array_only : bool
+        If True, calculate but do not plot the pixel values of the image.
+        Default is False.
+    feature_index : int
+        The index of the feature in its ``ZipTie``.
+    filename : str
+        The base filename under which each feature visualization image
+        is saved. The default is 'log/feature'.    
+    fov_horz_span : int
+        Desired number of center-surround superpixel columns.
+    fov_vert_span: int
+        Desired number of center-surround superpixel rows.
+    level_index : int
+        The index of the ``ZipTie`` level from which the feature is taken.
+    save_png : bool
+        If True, save a copy of the visualization as a png. Default is False.
+    sensors : array of floats
+        This assumes that sensors are arranged as a set of flattened
+        superpixel brightness sernsors concatenated with the complementary
+        set of flattened superpixel darkness sensors (1. - brightness). 
+    world_name : str
+        The name of the world that generated the features.
+
+    Returns
+    -------
+    feature_pixels : 2D array of floats
+        If ``array_only``, return the array of image values.
+    """
+    # Calculate the number of pixels that span the field of view
+    if fov_horz_span is None:
+        n_pixels = sensors.shape[0] / 2
+        fov_horz_span = np.sqrt(n_pixels)
+        fov_vert_span = np.sqrt(n_pixels)
+    else:
+        n_pixels = fov_horz_span * fov_vert_span * 2
+
+    # Maximize contrast
+    sensors *= 1 / (np.max(sensors) + tools.EPSILON)
+
+    # Calculate the visualization image pixel values.
+    pixel_values = ((sensors[ 0:n_pixels] - 
+                     sensors[n_pixels:2 * n_pixels]) + 1.0) / 2.0
+    feature_pixels = pixel_values.reshape(fov_vert_span, fov_horz_span)
+
+    if array_only:
+        return feature_pixels
+    else:
+    # Initialize the and plot the figure.
+        level_str = str(level_index).zfill(2)
+        feature_str = str(feature_index).zfill(3)
+        fig_title = ' '.join(('Level', level_str, 'Feature', feature_str, 
+                              'from', world_name))
+        fig_name = ' '.join(('Features from ', world_name))
+        fig = plt.figure(tools.str_to_int(fig_name))
+        fig.clf()
+        plt.gray()
+        ax = fig.add_axes((float(state_index)/float(num_states), 0., 
+                           1/float(num_states), 1.), frame_on=False)
+        im = plt.imshow(feature_pixels, vmin=0.0, vmax=1.0, 
+                        interpolation='nearest')
+        plt.title(fig_title)
+
+        # Save the image file.
+        if save_png:
+            filename = ''.join([filename, '_', world_name, '_', 
+                                level_str, '_', feature_str, '.png'])
+            fig.savefig(filename, format='png')
+
+        # Force an update of the screen display.
+        fig.show()
+        fig.canvas.draw()
+
+
 def resample2D(array, num_rows, num_cols):
     """ 
-    Resample a 2D array to get one that has num_rows and num_cols 
+    Resample a 2D array to get one that has num_rows and num_cols.
+
+    Use and approximate nearest neighbor method to resample to the 
+    pixel on the next lower row and column..
+
+    Parameters
+    ----------
+    array : 2D array of floats
+        The array to resample from.
+    num_cols, num_rows : ints
+        The number of rows and columns to include in the 
+        evenly-spaced grid resampling.
+
+    Returns
+    -------
+    resampled_array : 2D array of floats
+        The resampled version of the array with the appropriate dimensions.
     """
     rows = (np.linspace(0., .9999999, num_rows) * 
             array.shape[0]).astype(np.int) 
     cols = (np.linspace(0., .9999999, num_cols) * 
             array.shape[1]).astype(np.int) 
+
     if len(array.shape) == 2:
         resampled_array = array[rows, :]
         resampled_array = resampled_array[:, cols]
@@ -183,48 +250,3 @@ def resample2D(array, num_rows, num_cols):
         resampled_array = array[rows, :,:]
         resampled_array = resampled_array[:, cols,:]
     return resampled_array
-
-def duration_string(time_in_sec):
-    """ 
-    Convert time in seconds to a human readable date string 
-    """
-    sec_per_min = 60
-    min_per_hr = 60
-    hr_per_day = 24
-    day_per_mon = 30
-    mon_per_yr = 12
-    # Calculate seconds
-    sec = time_in_sec - sec_per_min * int(time_in_sec / sec_per_min)
-    time_in_min = (time_in_sec - sec) / sec_per_min
-    duration = ''.join(('%0.2f' % (sec), 's'))
-    if time_in_min == 0:
-        return duration
-    # Calculate minutes
-    min = time_in_min - min_per_hr * int(time_in_min / min_per_hr)
-    time_in_hr = (time_in_min - min) / min_per_hr
-    duration = ''.join((str(int(min)), 'm ', duration))
-    if time_in_hr == 0:
-        return duration
-    # Calculate hours
-    hr = time_in_hr - hr_per_day * int(time_in_hr / hr_per_day)
-    time_in_day = (time_in_hr - hr) / hr_per_day
-    duration = ''.join((str(int(hr)), 'h ', duration))
-    if time_in_day == 0:
-        return duration
-    # Calculate days
-    day = time_in_day - day_per_mon * int(time_in_day / day_per_mon)
-    time_in_mon = (time_in_day - day) / day_per_mon
-    duration = ''.join((str(int(day)), 'd ', duration))
-    if time_in_mon == 0:
-        return duration
-    # Calculate months
-    mon = time_in_mon - mon_per_yr * int(time_in_mon / mon_per_yr)
-    time_in_yr = (time_in_mon - mon) / mon_per_yr
-    duration = ''.join((str(int(mon)), 'l ', duration))
-    if time_in_yr == 0:
-        return duration
-    else:
-        duration = ''.join((str(int(time_in_yr)), 'y ', duration))
-        return duration
-
-    print 'dont reach', 'dur', duration

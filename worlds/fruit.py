@@ -1,5 +1,5 @@
 """
-a task in which an robot must choose between ripe and unripe fruit 
+A task in which an robot must choose between ripe and unripe fruit.
 
 In this task, the robot's sensors tell it whether a fruit is either
 1) small or large and
@@ -21,7 +21,7 @@ from worlds.base_world import World as BaseWorld
 
 class World(BaseWorld):
     """ 
-    fruit selection world
+    The Fruit selection world.
     
     In this world, the robot has only two sensors,
     large/small and yellow/purple
@@ -33,14 +33,20 @@ class World(BaseWorld):
     is designed to force the robot to create features 
     from its sensors.
     """
-    def __init__(self, lifespan=None, test=False):
+    def __init__(self, lifespan=None):
         """ 
-        Set up the world 
+        Set up the world.
+
+        Parameters
+        ----------
+        lifespan : int
+            The number of time steps to continue the world.
         """
         BaseWorld.__init__(self, lifespan)
         self.name = 'fruit'
         self.name_long = 'fruit selection world'
         print "Entering", self.name_long
+        self.world_visualize_period = 1e3
         """
         Break out the sensors into
            0: large?
@@ -56,21 +62,17 @@ class World(BaseWorld):
         Break out the actions into
             0: eat
             1: discard
-            2: do nothing this time step
         """
         self.num_actions = 2
         self.action = np.zeros(self.num_actions)
         self.grab_fruit()
-        # If REWARD is 1, the agent is very content and doesn't make 
-        # a move on the next time step
-        # This might also be due to the fact that the features are built
-        # of two-timestep daisychains
-        self.REWARD = 1.
+        self.reward = 1.
         self.verbose =  False
 
     def grab_fruit(self):
         """
         Grab a new piece of fruit from the box.
+
         Randomly assign its attributes.
         self.size == 0 # large
         self.size == 1 # small
@@ -97,13 +99,25 @@ class World(BaseWorld):
 
     def step(self, action): 
         """ 
-        Take one time step through the world 
+        Take one time step through the world.
+
+        Parameters
+        ----------
+        action : array of floats
+            The set of action commands to execute.
+
+        Returns
+        -------
+        self.reward : float
+            The amount of reward or punishment given by the world.
+        self.sensors : array of floats
+            The values of each of the sensors.
         """
         self.timestep += 1 
         self.actions = action.ravel()
-        self.actions[np.nonzero(self.actions)] = 1.
-        self.acted = False
+
         # Figure out which action was taken
+        self.acted = False
         self.eat = False
         self.discard = False
         if action[0] > .5:
@@ -118,25 +132,29 @@ class World(BaseWorld):
         self.reward = -.1
         if ( (self.eat and self.edible) or 
              (self.discard and not self.edible)):
-            self.reward = self.REWARD
+            self.reward = self.reward
         elif ( (self.eat and not self.edible) or 
                (self.discard and self.edible)):
-            self.reward = -self.REWARD * .9
+            self.reward = -self.reward * .9
 
         if self.acted:
             self.grab_fruit()
 
         return self.sensors, self.reward
 
-    def visualize(self, agent=None):
+    def visualize_world(self):
         """ 
-        Show what's going on in the world 
+        Show what's going on in the world.
+
+        Note that this is the reward for the action based on the 
+        previous set of sensors. This visualizaion is called right after
+        the ``step()`` method is called, so the sensors have already 
+        been updated for the next loop.
         """
-        if self.verbose:
-            state_str = ' || '.join([ str(self.sensors),
-                                      str(self.actions), 
-                                      str(self.reward),
-                                      str(self.size),
-                                      str(self.color),
-                                      str(self.timestep) ])
-            print state_str
+        state_str = ' || '.join([ str(self.sensors),
+                                  str(self.actions), 
+                                  str(self.reward),
+                                  str(self.size),
+                                  str(self.color),
+                                  str(self.timestep) ])
+        print state_str

@@ -2,6 +2,7 @@
 The Ganglia class
 """
 import numpy as np
+import tools
 
 class Ganglia(object):
     """
@@ -10,11 +11,10 @@ class Ganglia(object):
     The ``Ganglia`` class is analogous to the basal ganglia in the human brain,
     a collection if fascinating structures and circuits deep in one of
     the oldest parts of the brain. No one understands exactly what they
-    do but when they are damaged by trauma or disease, people lose 
+    do, but when they are damaged by trauma or disease, people lose 
     the ability to choose and execute actions well. I'm going pretty far out
     on a neuroscientific limb by suggesting that basal ganglionic functions
-    include simulation, planning, selection, inhibition, and execution of
-    volitional activity, but it is my best guess right now and I'm going
+    work like this class, but it is my best guess right now and I'm going
     to run with it.
 
     Attributes
@@ -23,106 +23,113 @@ class Ganglia(object):
         The fraction by which goal magnitudes are decreased at each 
         time step.
     goals : array of floats
-        Goals cover the entire state, both actions and sensors. An action
+        Goals cover the entire state, both actions and features. An action
         goal is an intention to execute that action in the current
-        time step. A sensor goal temporarily boosts the reward 
-        associated with that sensor. This encourages making decisions
-        that activate that sensor.
-    num_actions, num_actions : int
+        time step. A feature goal temporarily boosts the reward 
+        associated with that feature. This encourages making decisions
+        that activate that feature.
+    goal_scale : float
+        The maximum value that can be assigned to goals.
+    num_actions, num_features : int
         See docstrings for ``brain.py``.    
+    num_elements : int
+        The combined number of features and actions.
     """
 
-    def __init__(self, num_sensors, num_actions):
+    def __init__(self, num_features, num_actions):
         """
         Configure the ``ganglia``.
         
         Parameters
         ----------
-        num_sensors, num_actions : int
+        num_features, num_actions : int
             See docstring for ``brain.py``.
         """
         self.num_actions = num_actions
-        self.num_sensors = num_sensors
-        self.num_elements = self.num_actions + self.num_sensors
-        self.goals = np.zeros(self.num_sensors)
+        self.num_features = num_features
+        self.num_elements = self.num_actions + self.num_features
+        self.goals = np.zeros(self.num_features)
         self.decay_rate = .01
+        self.goal_scale = .5
         
-    def decide(self, features, predicted_actions, decision_scores):
+    def decide(self, features, decision_values):
         """
         Choose which, if any, actions to take on this time step.
 
-        This is also an opportunity to prevent predicted_actions
-        from the cerebellum from becoming automatic reactions.
         Only one decision can be made per time step. A decision can be
         either to take an action or to set a feature as a goal.
 
         Parameters
         ----------
-        decision_scores : array of floats
+        decision_values : array of floats
             Scores representing the expected reward with taking each 
             action or choosing each feature as a goal.
         features : array of floats
             The current activity of each of the features. 
-        predicted_actions : array of floats
-            The predicted probability of the actions based on the
-            patterns learned by the cerebellum.
 
         Returns
         -------
         actions : array of floats
-            The collection of actions to be executed on the current time
-            step.
-        goal_index : int
-            The index of the feature element chosen as a goal.
+            The collection of actions to be executed on the current time step.
+        self.goals.copy() : array of floats
+            The goal values associated with each of the features.
         """
         # Decay goals with time.
         self.goals *= 1. - self.decay_rate
 
         # Let goals be fulfilled by their corresponding features.
-        # Only positive goals are considered. Negative goals are 
-        # avoidance and those remain in place.
-        pos = np.where(self.goals > 0.)
-        self.goals[pos] -= features[pos]
-        self.goals[pos] = np.maximum(0., self.goals[pos]) 
+        self.goals -= features
+        self.goals = np.maximum(0., self.goals) 
 
-        # Treat predicted actions as automatic actions.
-        decisions = np.zeros(self.num_elements)
-        # debug disable predicted actions. These are too high.
-        #decisions[:self.num_actions] += predicted_actions
-        
-        # Choose the decisions with the largest magnitude, whether it's 
-        # a reward or a punishment. If it's a reward, choose that 
-        # decision, but if it's a punishment, inhibit that decision.
-        decision_index = np.argmax(np.abs(decision_scores))
-        decision_sign = np.sign(decision_scores[decision_index])
-        decisions[decision_index] += decision_sign
+        # TODO: Another option is to set the most recently attended
+        # feature as the goal. This provides some value, which could
+        # be set as a constant.
 
-        #print 'di',decision_index
-        #print 'ds', decision_scores
-
-        # If an inhibition decision was made, then change the 
-        # decision index to be the final action, which is always 
-        # the 'do nothing' action. This will allow the hippocampus
-        # to stil learn appropriately from this time step.
-        if decision_sign < 0.:
-            #print(' '.join(['Inhibition of index', str(decision_index)]))
-            decision_index = self.num_actions - 1
-        
-        # In the state representation, actions come first.
-        actions = decisions[:self.num_actions].copy()
-        # Limit actions to the range [0., 1.]
-        actions = np.minimum(np.maximum(actions, 0.), 1.)
+        decision = np.zeros(decision_values.shape)
+        decision[np.argmax(decision_values)] = 1.
+        actions = decision[:self.num_actions]
+        # TODO: Pass through predictable (well-learned) actions and goals. 
 
         # Add the decisions to the ongoing set of goals.
-        self.goals += decisions[self.num_actions:]
-        # Limit feature goals to the range [-1., 1.]
-        # They can be negative because they represent estimated reward.
-        self.goals = np.minimum(np.maximum(self.goals, -1.), 1.)
+        self.goals = np.maximum(self.goals, 
+                                decision_values[self.num_actions:] *
+                                self.goal_scale)
 
-        # Choose a single random action 
+        # Choose a single random action. Used for debugging and testing.
         random_action = False
         if random_action:
+            decisions = np.zeros(decisions.shape)
             decision_index = np.random.randint(self.num_elements)
             decisions[decision_index] = 1. 
+            # In the state representation, actions come first.
+            actions = decisions[:self.num_actions].copy()
 
-        return actions, decision_index
+        return actions, self.goals.copy()
+
+    def grow(self, increment):
+        """
+        Grow the ``Ganglia``.
+
+        Parameters
+        ----------
+        increment : int
+            The number of features to add.
+        """
+        self.num_features += increment
+        self.num_elements += increment
+        self.goals = tools.pad(self.goals, self.num_features)
+
+    def visualize(self, brain_name, log_dir):
+        """
+        Make pictures that describe the state of the ``Ganglia``.
+
+        Parameters
+        ----------
+        brain_name : str
+            See docstring for ``brain.py``.
+        log_dir : str
+            See docstring for ``brain.py``.
+        """
+        print 'ganglia:'
+        print '    goals:'
+        print self.goals

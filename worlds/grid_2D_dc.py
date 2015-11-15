@@ -1,5 +1,5 @@
 """
-Decoupled two-dimensional grid task
+Decoupled two-dimensional grid task.
 
 This is just like the regular 2D grid task, except that it the rows
 and columns are sensed separately. This makes the task challenging.
@@ -12,16 +12,26 @@ from grid_2D import World as Grid_2D_World
 
 class World(Grid_2D_World):
     """ 
-    Decoupled two-dimensional grid world
+    Decoupled two-dimensional grid world.
     
     It's just like the grid_2D world except that the sensors
     array represents a row and a column separately, 
     rather than coupled together.
+
     Optimal performance is a reward of about 90 per time step.
+
+    Attributes
+    ----------
+    See ``Grid_2D_World`` for a full description of attributes.
     """
-    def __init__(self, lifespan=None, test=False):
+    def __init__(self, lifespan=None):
         """ 
-        Set up the world based on the grid_2D world
+        Set up the world based on the grid_2D world.
+
+        Parameters
+        ----------
+        lifespan : int 
+            The number of time steps to continue the world.
         """
         Grid_2D_World.__init__(self, lifespan)
         self.name = 'grid_2D_dc'
@@ -32,6 +42,11 @@ class World(Grid_2D_World):
     def assign_sensors(self):
         """
         Create an appropriate sensor array
+
+        Returns
+        -------
+        sensors : list of floats
+            The current state of the world, reflected in the sensors. 
         """
         # Sensors 0-4 represent the 5 rows of the 
         sensors = np.zeros(self.num_sensors)

@@ -5,7 +5,6 @@ Like the 1D visual servo task, this task gives BECCA a chance
 to build a comparatively large number of sensors into 
 a few informative features. 
 """
-import inspect
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -18,42 +17,114 @@ class World(BaseWorld):
     Two-dimensional visual servo world
     
     In this world, BECCA can direct its gaze up, down, left, and
-    right, saccading about an block_image_data of a black square on a white
+    right, saccading about an image_data of a black square on a white
     background. It is rewarded for directing it near the center.
     Optimal performance is a reward of around .8 reward per time step.
+
+    Attributes
+    ----------
+    action : array of floats
+        The most recent set of action commands received. 
+    block_width : int
+        The width of each superpixel, in number of columns.
+    brain_visualize_period : int
+        The number of time steps between creating a full visualization of
+        the ``brain``.
+    column_history : list if ints
+        A time series of the location (measured in column pixels) of the
+        center of the brain's field of view.
+    column_min, column_max : int
+        The low and high bounds on where the field of view can be centered.
+    column_position : int
+        The current location of the center of the field of view.
+    fov_fraction : float
+        The approximate fraction of the height and width of the image
+        that the field of view occupies.
+    fov_height, fov_width : float
+        The height and width (in number of pixel rows and columns) 
+        of the field of view.
+    fov_span : int
+        The world pixelizes its field of view into a superpixel array
+        that is ``fov_span`` X ``fov_span``. 
+    image_data : array of floats
+        The image, read in and stored as a 2D numpy array.
+    image_filename : str 
+        The file name of the image including the relative path.
+    jump_fraction : float
+        The fraction of time steps on which the agent jumps to 
+        a random position.
+    max_step_size : int
+        The largest step size allowed, in pixels in the original image.
+    name : str
+        A name associated with this world.
+    name_long : str
+        A longer name associated with this world.
+    noise_magnitude : float
+        A scaling factor that drives how much inaccurate each movement
+        will be. 
+    num_actions : int
+        The number of action commands this world expects. This should be 
+        the length of the action array received at each time step.
+    num_sensors : int
+        The number of sensor values the world returns to the brain 
+        at each time step.
+    reward_magnitude : float
+        The magnitude of the reward and punishment given at 
+        rewarded or punished positions.
+    reward_region_width : int
+        The width of the region, in number of columns, within which
+        the center of the field of view gets rewarded.
+    row_history : list if ints
+        A time series of the location (measured in row pixels) of the
+        center of the brain's field of view.
+    row_min, row_max : int
+        The low and high bounds on where the field of view can be centered.
+    row_position : int
+        The current location of the center of the field of view.
+    step_cost : float
+        The punishment per position step taken.
+    target_column, target_row : int
+        The row and column index that marks the center of the rewarded region.
+    world_visualize_period : int
+        The number of time steps between creating visualizations of 
+        the world.
+
     """
     def __init__(self, lifespan=None, test=False):
         """
-        Set up the world
+        Set up the world.
+
+        Parameters
+        ----------
+        lifespan : int 
+            The number of time steps to continue the world.
         """
         BaseWorld.__init__(self, lifespan)
-        self.REWARD_MAGNITUDE = 1.
-        self.JUMP_FRACTION = .1
-        self.print_feature_set = True
-        self.animate = False
+        self.reward_magnitude = 1.
+        self.jump_fraction = .1
         self.name = 'image_2D'
         self.name_long = 'two dimensional visual world'
         print "Entering", self.name_long
-        self.fov_span = 10
-        # Initialize the block_image_data to be used as the environment 
-        self.block_image_filename = os.path.join(mod_path, 'images', 
+        self.fov_span = 7
+        # Initialize the image_data to be used as the environment 
+        self.image_filename = os.path.join(mod_path, 'images', 
                                                  'block_test.png') 
-        self.block_image_data = plt.imread(self.block_image_filename)
+        self.image_data = plt.imread(self.image_filename)
         # Convert it to grayscale if it's in color
-        if self.block_image_data.shape[2] == 3:
+        if self.image_data.shape[2] == 3:
             # Collapse the three RGB matrices into one b/w value matrix
-            self.block_image_data = np.sum(self.block_image_data, axis=2) / 3.0
+            self.image_data = np.sum(self.image_data, axis=2) / 3.0
         # Define the size of the field of view, its range of 
         # allowable positions, and its initial position.
-        (im_height, im_width) = self.block_image_data.shape
+        (im_height, im_width) = self.image_data.shape
         im_size = np.minimum(im_height, im_width)
-        self.MAX_STEP_SIZE = im_size / 2
-        self.TARGET_COLUMN = im_width / 2
-        self.TARGET_ROW = im_height / 2
-        self.REWARD_REGION_WIDTH = im_size / 8
-        self.NOISE_MAGNITUDE = 0.1
-        self.FIELD_OF_VIEW_FRACTION = 0.5
-        self.fov_height =  im_size * self.FIELD_OF_VIEW_FRACTION
+        self.max_step_size = im_size / 2
+        self.target_column = im_width / 2
+        self.target_row = im_height / 2
+        self.reward_region_width = im_size / 8
+        self.noise_magnitude = 0.1
+        self.fov_fraction = 0.5
+        self.fov_height =  im_size * self.fov_fraction
         self.fov_width = self.fov_height
         self.column_min = np.ceil(self.fov_width / 2)
         self.column_max = np.floor(im_width - self.column_min)
@@ -68,65 +139,77 @@ class World(BaseWorld):
         self.sensors = np.zeros(self.num_sensors)
         self.column_history = []
         self.row_history = []
-        self.last_feature_vizualized = 0
-        self.step_counter = 0
         self.world_visualize_period = 1e6
         self.brain_visualize_period = 1e3
 
     def step(self, action): 
         """
-        Advance the world by one time step
+        Advance the world by one time step.
+
+        Parameters
+        ----------
+        action : array of floats
+            The set of action commands to execute.
+
+        Returns
+        -------
+        self.reward : float
+            The amount of reward or punishment given by the world.
+        self.sensors : array of floats
+            The values of each of the sensors.
         """
         self.timestep += 1
         self.action = action.ravel()
         self.action[np.nonzero(self.action)] = 1.
+
         # Actions 0-3 move the field of view to a higher-numbered 
-        # row (downward in the block_image_data) with varying magnitudes, 
+        # row (downward in the image_data) with varying magnitudes, 
         # and actions 4-7 do the opposite.
         # Actions 8-11 move the field of view to a higher-numbered 
-        # column (rightward in the block_image_data) with varying magnitudes, 
+        # column (rightward in the image_data) with varying magnitudes, 
         # and actions 12-15 do the opposite.
-        row_step    = np.round(action[0] * self.MAX_STEP_SIZE / 2 + 
-                               action[1] * self.MAX_STEP_SIZE / 4 + 
-                               action[2] * self.MAX_STEP_SIZE / 8 + 
-                               action[3] * self.MAX_STEP_SIZE / 16 - 
-                               action[4] * self.MAX_STEP_SIZE / 2 - 
-                               action[5] * self.MAX_STEP_SIZE / 4 - 
-                               action[6] * self.MAX_STEP_SIZE / 8 - 
-                               action[7] * self.MAX_STEP_SIZE / 16)
-        column_step = np.round(action[8] * self.MAX_STEP_SIZE / 2 + 
-                               action[9] * self.MAX_STEP_SIZE / 4 + 
-                               action[10] * self.MAX_STEP_SIZE / 8 + 
-                               action[11] * self.MAX_STEP_SIZE / 16 - 
-                               action[12] * self.MAX_STEP_SIZE / 2 - 
-                               action[13] * self.MAX_STEP_SIZE / 4 - 
-                               action[14] * self.MAX_STEP_SIZE / 8 - 
-                               action[15] * self.MAX_STEP_SIZE / 16)
+        row_step    = np.round(action[0] * self.max_step_size / 2 + 
+                               action[1] * self.max_step_size / 4 + 
+                               action[2] * self.max_step_size / 8 + 
+                               action[3] * self.max_step_size / 16 - 
+                               action[4] * self.max_step_size / 2 - 
+                               action[5] * self.max_step_size / 4 - 
+                               action[6] * self.max_step_size / 8 - 
+                               action[7] * self.max_step_size / 16)
+        column_step = np.round(action[8] * self.max_step_size / 2 + 
+                               action[9] * self.max_step_size / 4 + 
+                               action[10] * self.max_step_size / 8 + 
+                               action[11] * self.max_step_size / 16 - 
+                               action[12] * self.max_step_size / 2 - 
+                               action[13] * self.max_step_size / 4 - 
+                               action[14] * self.max_step_size / 8 - 
+                               action[15] * self.max_step_size / 16)
         
         row_step = np.round(row_step * (
-                1 + np.random.normal(scale=self.NOISE_MAGNITUDE)))
+                1 + np.random.normal(scale=self.noise_magnitude)))
         column_step = np.round(column_step * (
-                1 + np.random.normal(scale=self.NOISE_MAGNITUDE)))
+                1 + np.random.normal(scale=self.noise_magnitude)))
         self.row_position = self.row_position + int(row_step)
         self.column_position = self.column_position + int(column_step)
-        # Respect the boundaries of the block_image_data
+
+        # Respect the boundaries of the image_data
         self.row_position = max(self.row_position, self.row_min)
         self.row_position = min(self.row_position, self.row_max)
         self.column_position = max(self.column_position, self.column_min)
         self.column_position = min(self.column_position, self.column_max)
 
         # At random intervals, jump to a random position in the world
-        if np.random.random_sample() < self.JUMP_FRACTION:
+        if np.random.random_sample() < self.jump_fraction:
             self.column_position = np.random.random_integers(self.column_min, 
                                                              self.column_max)
             self.row_position = np.random.random_integers(self.row_min, 
                                                           self.row_max)
 
         # Create the sensory input vector
-        fov = self.block_image_data[self.row_position - self.fov_height / 2: 
-                                    self.row_position + self.fov_height / 2, 
-                                    self.column_position - self.fov_width / 2: 
-                                    self.column_position + self.fov_width / 2]
+        fov = self.image_data[self.row_position - self.fov_height / 2: 
+                              self.row_position + self.fov_height / 2, 
+                              self.column_position - self.fov_width / 2: 
+                              self.column_position + self.fov_width / 2]
         center_surround_pixels = wtools.center_surround(fov, self.fov_span, 
                                                              self.fov_span)
         unsplit_sensors = center_surround_pixels.ravel()
@@ -134,16 +217,17 @@ class World(BaseWorld):
                                        np.abs(np.minimum(unsplit_sensors, 0))))
 
         self.reward = 0
-        if ((np.abs(self.column_position - self.TARGET_COLUMN) < 
-             self.REWARD_REGION_WIDTH / 2) and 
-            (np.abs(self.row_position - self.TARGET_ROW) < 
-             self.REWARD_REGION_WIDTH / 2)):
-            self.reward += self.REWARD_MAGNITUDE
+        if ((np.abs(self.column_position - self.target_column) < 
+             self.reward_region_width / 2) and 
+            (np.abs(self.row_position - self.target_row) < 
+             self.reward_region_width / 2)):
+            self.reward += self.reward_magnitude
+
         return self.sensors, self.reward
      
     def visualize_world(self):
         """ 
-        Show what is going on in BECCA and in the world 
+        Show what is going on in BECCA and in the world.
         """
         self.row_history.append(self.row_position)
         self.column_history.append(self.column_position)
@@ -158,7 +242,6 @@ class World(BaseWorld):
         plt.ylabel('position (pixels)')
         fig.show()
         fig.canvas.draw()
-
         fig = plt.figure(12)
         plt.clf()
         plt.plot( self.column_history, 'k.')    
