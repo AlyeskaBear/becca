@@ -423,7 +423,6 @@ def cerebellum_learn(opportunities, observations, probabilities, curiosities,
     of ``opportunities``, ``observations``, ``probabilities``, and
     ``curiosities``.
     """
-    eps = 1e-10
     small = 1e-3
 
     # Note which curiosities have been satisified.

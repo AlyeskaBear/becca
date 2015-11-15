@@ -15,8 +15,6 @@ mathematically related to the XOR task, a challenge for
 many machine learning algorithms.
 """
 import numpy as np
-
-import core.tools as tools
 from worlds.base_world import World as BaseWorld
 
 class World(BaseWorld):

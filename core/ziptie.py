@@ -327,7 +327,7 @@ class ZipTie(object):
             self.bundle_map_cols[self.n_map_entries] = agglomerated_cable
             self.nucleation_energy[agglomerated_cable, :] = 0.
             self.nucleation_energy[:, agglomerated_cable] = 0.
-            print ''join(['            bundle grown', 
+            print ''.join(['            bundle grown', 
                           self.name, str(agglomerated_bundle), 
                           str(agglomerated_cable)])
 

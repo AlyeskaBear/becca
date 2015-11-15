@@ -330,7 +330,7 @@ def visualize_array(image_data, label='data_figure'):
     # Treat nan values like zeros for display purposes
     image_data = np.nan_to_num(np.copy(image_data))
      
-    fig = plt.figure(str_to_int(label))
+    plt.figure(str_to_int(label))
     # Diane made the brilliant suggestion to leave this plot in color. 
     # It looks much prettier.
     plt.summer()

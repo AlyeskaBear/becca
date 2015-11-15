@@ -3,7 +3,7 @@ The Brain class.
 """
 
 import cPickle as pickle
-import numpy as np
+#import numpy as np
 import os
 # Identify the full local path of the brain.py module.  
 # This trick is used to conveniently locate other BECCA resources.
@@ -13,7 +13,7 @@ import amygdala
 import cerebellum
 import ganglia
 import cortex
-import tools
+#import tools
 
 class Brain(object):
     """ 

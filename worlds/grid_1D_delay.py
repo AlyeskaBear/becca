@@ -6,10 +6,7 @@ correct cause. The reward is delayed by a variable amount, which
 makes the task challenging.
 """
 import numpy as np
-#import core.tools as tools
-from worlds.base_world import World as BaseWorld
 from worlds.grid_1D import World as Grid_1D_World
-
 
 class World(Grid_1D_World):
     """ 

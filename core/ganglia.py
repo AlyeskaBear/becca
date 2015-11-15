@@ -85,9 +85,9 @@ class Ganglia(object):
         # feature as the goal. This provides some value, which could
         # be set as a constant.
 
-        decision = np.zeros(decision_values.shape)
-        decision[np.argmax(decision_values)] = 1.
-        actions = decision[:self.num_actions]
+        decisions = np.zeros(decision_values.shape)
+        decisions[np.argmax(decision_values)] = 1.
+        actions = decisions[:self.num_actions]
         # TODO: Pass through predictable (well-learned) actions and goals. 
 
         # Add the decisions to the ongoing set of goals.
