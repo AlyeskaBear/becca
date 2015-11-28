@@ -58,6 +58,18 @@ class ZipTie(object):
         0 and 1.
     cable_activities : array of floats
         The current set of input actvities. 
+    cable_dev : array of floats
+        The magnitude of the typical deviation between a cable's activity
+        and its mean. This isn't the same as the standard deviation
+        of a Normal distribution.
+    cable_mean : array of floats
+        The mean of a cable's activity. Together with ``cable_dev`` it
+        characterizes the distribution of a cable's activity.
+    cable_warp : float
+        The exponent to which cable activity is raised. When 
+        ``cable_warp`` is greater than one, it helps to 
+        emphasize above-average activity in the cable. Below-average 
+        activity is compressed closer to zero.
     level : int
         The position of this ``ZipTie`` in the hierarchy. 
     max_num_bundles : int
@@ -66,6 +78,10 @@ class ZipTie(object):
         The maximum number of cable inputs allowed.
     name : str
         The name associated with the ``ZipTie``.
+    norm_time : float
+        The time constant over which normalization takes place. 
+        Estimates of ``cable_mean`` and ``cable_dev`` are updated
+        using leaky integration with a time constant of ``norm_time``.
     nucleation_energy : 2D array of floats
         The accumualted nucleation energy associated with each cable-cable pair.
     nucleation_threshold : float
@@ -100,15 +116,19 @@ class ZipTie(object):
         self.size = self.max_num_bundles
         self.num_bundles = 0
         # User-defined constants
-        self.nucleation_threshold = 10
+        self.nucleation_threshold = 1000
         self.agglomeration_threshold = .3 * self.nucleation_threshold
         self.activity_threshold = .01
-        self.min_scale = .1
-
         self.bundles_full = False        
         self.bundle_activities = np.zeros(self.max_num_bundles)
-        self.bundle_scale = self.min_scale * np.ones(self.max_num_bundles)
         self.cable_activities = np.zeros(self.max_num_cables)
+
+        # Normalization constants
+        self.cable_mean = np.zeros(self.max_num_cables)
+        self.cable_dev = np.zeros(self.max_num_cables)
+        self.cable_warp = 4.
+        self.norm_time = 1e3
+
         map_size = (self.max_num_bundles, self.max_num_cables)
         # To represent the sparse 2D bundle map, a pair of row and col 
         # arrays are used. Rows are bundle indices, and cols are 
@@ -121,7 +141,7 @@ class ZipTie(object):
         self.nucleation_energy = np.zeros((self.max_num_cables, 
                                            self.max_num_cables))
 
-    def step_up(self, new_cable_activities, modified_cables):
+    def step(self, new_cable_activities):
         """ 
         Update co-activity estimates and calculate bundle activity 
         
@@ -131,11 +151,6 @@ class ZipTie(object):
 
         Parameters
         ----------
-        modified_cables : list of ints
-            The indices of the cable inputs that were modified in
-            the prior ``ZipTie`` in the hierarchy. This can be used
-            to treat those cables different, such as to reset any
-            learning associated with them.
         new_cable_activities : array of floats
             The most recent set of cable activities.
 
@@ -148,27 +163,17 @@ class ZipTie(object):
         self.bundle_activities : array of floats
             The current activities of the bundles.
         modified_bundles : list of ints
-            The indices of the bundels that were either nucleated or 
+            The indices of the bundles that were either nucleated or 
             agglomerated in this time step.
         """
-        new_cable_activities = new_cable_activities.ravel()
-        if new_cable_activities.size < self.max_num_cables:
-            new_cable_activities = tools.pad(new_cable_activities, 
-                                             self.max_num_cables)
-        self.cable_activities = new_cable_activities
+        self.cable_activities = self._normalize(new_cable_activities)
+        # TODO: modify featurization to be mean, rather than min
+        # modify recreation to be something other than max
+        self._featurize()
+        self._learn()
+        #modified_cables, agglomerated_bundle = self._learn()
 
-        # For any modified cables, reset their energy accumulation
-        #if modified_cables is not None:
-        # debug: don't prevent higher levels from using modified cables
-        #if False:
-        #    self.nucleation_energy[modified_cables,:] = 0.
-        #    self.nucleation_energy[:,modified_cables] = 0.
-        #    self.agglomeration_energy[:,modified_cables] = 0.
 
-        #Find bundle activities by taking the minimum input value
-        #in the set of cables in the bundle.
-        threshold = np.max(self.cable_activities) * self.activity_threshold
-        nb.sparsify_array1d_threshold(self.cable_activities, threshold)
 
         '''
         # Calculate ``bundle_energies``, an estimate of how much
@@ -181,9 +186,72 @@ class ZipTie(object):
                     self.bundle_map_cols[:self.n_map_entries], 
                     self.cable_activities, self.bundle_energies)
         '''
+        return self.bundle_activities#, modified_cables, agglomerated_bundle
 
+    def _normalize(self, cable_activities):
+        """
+        Normalize activities so that they are predictably distrbuted.
+        
+        Normalization has several benefits. 
+        1. It makes for fewer constraints on worlds and sensors. 
+           Any sensor can return any range of values. 
+        2. Gradual changes in sensors and the world can be adapted to.
+        3. It makes the bundle creation heuristic more robust and
+           predictable. The approximate distribution of cable 
+           activities is known and can be designed for.
+        4. The particular normalization performed here, complete with
+           warping, emphasizes above-average activities. It drives
+           bundle creation between cables that aren't just co-active,
+           but abnormally active together.   
+
+        This normalization is done in several steps. For each cable:
+        1. Estimate the mean.
+        3. Estimate the typical deviation.
+        2. Shift the cable activity by the mean.
+        4. Scale by the deviation.
+        5. Shift so that the mean is at .5
+        6. Warp the activity to emphasize above-average activity.
+        7. Chop at [0,1]
+
+        Parameters
+        ----------
+        cable_activities : array of floats
+            The current activity levels of the cables. 
+
+        Returns
+        -------
+        normalized_cable_activities : array of floats
+            The normalized activity levels of the cables.
+        """
+        if cable_activities.size < self.max_num_cables:
+            cable_activities = tools.pad(cable_activities, self.max_num_cables)
+
+        self.cable_mean = (self.cable_mean * (1. - 1./self.norm_time) +
+                           cable_activities * (1./self.norm_time))
+        cable_dev = np.abs(cable_activities - self.cable_mean)
+        self.cable_dev = (self.cable_dev * (1. - 1./self.norm_time) +
+                          cable_dev * (1./self.norm_time))
+        cable_activities -= self.cable_mean
+        cable_activities /= 2. * (self.cable_dev + tools.epsilon)
+        cable_activities += .5
+        cable_activities = cable_activities ** self.cable_warp
+        cable_activities = np.maximum(0., cable_activities)
+        cable_activities = np.minimum(1., cable_activities)
+        
+        # Sparsify the cable activities to speed up processing.
+        #threshold = np.max(self.cable_activities) * self.activity_threshold
+        #nb.sparsify_array1d_threshold(self.cable_activities, threshold)
+        cable_activities[np.where(cable_activities < 
+                                  self.activity_threshold)] = 0.
+
+        normalized_cable_activities = cable_activities.copy()
+        return normalized_cable_activities
+
+    def _featurize(self):
         # Calculate ``bundle_activities``, an estimate of how much
         # the cables' activities contribute to each bundle. 
+        # Find bundle activities by taking the minimum input value
+        # in the set of cables in the bundle.
         self.bundle_activities = np.zeros(self.max_num_bundles)
         self.bundle_activities[:self.num_bundles] = 1.
         if self.n_map_entries > 0:
@@ -192,11 +260,7 @@ class ZipTie(object):
                     self.bundle_map_cols[:self.n_map_entries], 
                     self.cable_activities, self.bundle_activities)
 
-        # Scale the ``bundle_activities`` such that the highest value
-        # ever observed for each bundle is now 1.
-        self.bundle_scale = np.maximum(self.bundle_scale, 
-                                       self.bundle_activities)
-        self.bundle_activities /= self.bundle_scale
+    def _learn(self):
 
         # Attempt to reconstruct the original ``cable_activities``
         # using the ``bundle_activities``.
@@ -211,11 +275,14 @@ class ZipTie(object):
         # ``cable_activities`` that is not represented by the 
         # bundles' activities. This is what is used to train the ``ZipTie``.
         self.nonbundle_activities = self.cable_activities - self.reconstruction
-        nb.sparsify_array1d_threshold(
-                self.nonbundle_activities, self.activity_threshold)
+        self.nonbundle_activities[np.where(self.nonbundle_activities < 
+                                           self.activity_threshold)] = 0.
+        #nb.sparsify_array1d_threshold(
+        #        self.nonbundle_activities, self.activity_threshold)
 
         # As appropriate update the co-activity estimate and 
         # create new bundles.
+        # TODO: disable all reporting
         modified_cables = []
         nucleated_cables = None
         agglomerated_bundle = None
@@ -229,8 +296,7 @@ class ZipTie(object):
             #        modified_cables.append(cable)
             #if agglomerated_cable is not None:
             #    modified_cables.append(agglomerated_cable)
-
-        return self.bundle_activities, modified_cables, agglomerated_bundle
+        return #modified_cables, agglomerated_bundle
 
     def _create_new_bundles(self):
         """ 

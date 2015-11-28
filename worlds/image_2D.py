@@ -105,7 +105,7 @@ class World(BaseWorld):
         self.name = 'image_2D'
         self.name_long = 'two dimensional visual world'
         print "Entering", self.name_long
-        self.fov_span = 5
+        self.fov_span = 9
         # Initialize the image_data to be used as the environment 
         self.image_filename = os.path.join(mod_path, 'images', 
                                                  'block_test.png') 

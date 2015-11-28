@@ -122,9 +122,10 @@ class Brain(object):
         """
         self.timestep += 1
         # Calcuate activities of all the features.
-        (features, 
-         modified_features, 
-         grow) = self.cortex.featurize_and_learn(sensors, reward)
+        #(features, 
+        # modified_features, 
+        # grow) = self.cortex.featurize_and_learn(sensors, reward)
+        features, grow = self.cortex.featurize_and_learn(sensors, reward)
 
         # If the ``cortex`` just added a new level to its hierarchy, 
         # grow the rest of the components accordingly.
