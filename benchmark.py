@@ -44,8 +44,7 @@ def main():
     performance.append(tester.train_and_test(World_grid_1D_ms))
     performance.append(tester.train_and_test(World_grid_1D_noise))
     performance.append(tester.train_and_test(World_grid_2D))
-    performance.append(tester.train_and_test(World_grid_2D_dc,
-                                             training_period=2e4))
+    performance.append(tester.train_and_test(World_grid_2D_dc))
     performance.append(tester.train_and_test(World_image_1D))
     performance.append(tester.train_and_test(World_image_2D,
                                              training_period=2e4))

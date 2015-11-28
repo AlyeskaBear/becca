@@ -70,7 +70,7 @@ class Cortex(object):
         """
         self.num_zipties =  1
         # Choose size to allow for sensing reward and for feature proliferation.
-        self.size = (num_sensors + 2) * 2
+        self.size = (num_sensors) 
         first_ziptie_name = ''.join(('ziptie_', str(self.num_zipties - 1)))
         self.zipties = [ziptie.ZipTie(self.size, name=first_ziptie_name)]
 
@@ -114,6 +114,13 @@ class Cortex(object):
         cable_activities[:sensors.size] = sensors
         cable_activities[-2] = negative_reward
         cable_activities[-1] = positive_reward
+
+        # debug: Don't build features
+        skip = False
+        if skip:
+            feature_activities = np.zeros(self.size)
+            feature_activities[:cable_activities.size] = cable_activities
+            return feature_activities, [], False
 
         # Step through the ``ZipTie``s in ``self.zipties`` one at a 
         # time, starting at the bottom-most and proceeding upward.
@@ -239,13 +246,15 @@ class Cortex(object):
                             bundle_activities[bundle_index])
                     # Display the cable_contributions in text form if desired
                     if to_screen:
-                        print 'cable_contributions', \
-                            self.zipties[ziptie_index].name, \
-                            'feature', bundle_index
-                        for i in range(cable_contributions.shape[1]):
-                            print np.nonzero(cable_contributions)[0][
-                                    np.where(np.nonzero(
-                                    cable_contributions)[1] == i)]
+                        print ' '.join(['cable_contributions', 
+                                        self.zipties[ziptie_index].name,
+                                        'feature', str(bundle_index), 
+                                        'cables', str(list(
+                                        np.nonzero(cable_contributions)[0]))])
+                        #for i in range(cable_contributions.size):
+                        #    print np.nonzero(cable_contributions)[0][
+                        #            np.where(np.nonzero(
+                        #            cable_contributions)[1] == i)]
             # Assemble the final list.
             if len(ziptie_projections) > 0:
                 all_projections.append(ziptie_projections)

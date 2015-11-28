@@ -69,9 +69,11 @@ class Amygdala(object):
 
         # Keep a recent history of reward and active features 
         # to account for delayed reward.
+        # TODO: clean up Amygdala.
         self.time_constant = .5
         self.reward_learning_rate = 1e-2
         self.trace_length = int(12. * self.time_constant)
+        self.trace_length = 1
         self.recent_rewards = list(np.zeros(self.trace_length))
         self.recent_features = [np.zeros(num_features)] * self.trace_length
         """
@@ -135,6 +137,7 @@ class Amygdala(object):
         """
         self.reward_by_feature += ((reward_trace - self.reward_by_feature) * 
                                    features * self.reward_learning_rate)
+                                   #features ** 2 * self.reward_learning_rate)
 
         # Update the activity, action history, and reward.
         self.recent_rewards.append(reward)
@@ -223,7 +226,7 @@ class Amygdala(object):
         plt.gca().set_xlim((-1.05 * max_magnitude, 1.05 * max_magnitude))
         plt.gca().set_ylim((-1., self.reward_by_feature.size))
         plt.xlabel('Reward')
-        plt.ylabel('Sensor index')
+        plt.ylabel('Feature index')
         plt.title('{0} Amygdala'.format(brain_name))
         fig.show()
         fig.canvas.draw()

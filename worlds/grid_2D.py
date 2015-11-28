@@ -150,7 +150,7 @@ class World(BaseWorld):
                 self.world_state[1] * self.world_size] = 1
         return sensors
 
-    def visualize_world(self):
+    def visualize_world(self, brain):
         """ 
         Show the state of the world and the ``brain``.
         """

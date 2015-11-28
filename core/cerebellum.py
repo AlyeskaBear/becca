@@ -252,7 +252,7 @@ class Cerebellum(object):
         ax = fig.add_subplot(111, projection='3d')
         indices = np.where(self.probabilities > .4 * max_prob)
         ax.scatter(indices[0], indices[1], zs=indices[2], 
-                   zdir=u'z', s=5, c=tools.DARK_COPPER, depthshade=True) 
+                   zdir=u'z', s=5, c=tools.dark_copper, depthshade=True) 
         ax.set_xlabel('Past elements')
         ax.set_ylabel('Goals')
         ax.set_zlabel('Future elements')

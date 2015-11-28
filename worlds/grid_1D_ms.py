@@ -117,7 +117,7 @@ class World(BaseWorld):
         reward = np.max(reward, -1)
         return sensors, reward
 
-    def visualize_world(self):
+    def visualize_world(self, brain):
         """ 
         Show what's going on in the world.
         """

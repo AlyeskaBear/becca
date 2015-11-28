@@ -2,6 +2,8 @@
 The Ganglia class
 """
 import numpy as np
+import os
+import matplotlib.pyplot as plt
 import tools
 
 class Ganglia(object):
@@ -85,6 +87,10 @@ class Ganglia(object):
         # feature as the goal. This provides some value, which could
         # be set as a constant.
 
+        # DEBUG
+        #for i,dv in enumerate(decision_values):
+        #    print ' '.join(['    ', str(i), ':', '{0:.3}'.format(dv) ])
+
         decisions = np.zeros(decision_values.shape)
         decisions[np.argmax(decision_values)] = 1.
         actions = decisions[:self.num_actions]
@@ -130,6 +136,32 @@ class Ganglia(object):
         log_dir : str
             See docstring for ``brain.py``.
         """
-        print 'ganglia:'
-        print '    goals:'
-        print self.goals
+        #print 'ganglia:'
+        #print '    goals:'
+        #for i in np.arange(self.goals.size):
+        #    print ' '.join(['        ', str(i), 
+        #                    ': {0:.3}'.format(self.goals[i])]) 
+            
+        # Plot the learned reward value of each feature.
+        fig = plt.figure(21122)
+        fig.clf()
+        for i, value in enumerate(self.goals):
+            plt.plot([0., value], [i,i], color=tools.copper, linewidth=5.,
+                     solid_capstyle='butt')
+        plt.plot([0.,0.],[0., self.goals.size - 1.], 
+                 color=tools.copper_shadow, linewidth=1.)
+        plt.gca().set_axis_bgcolor(tools.copper_highlight)
+        max_magnitude = np.max(np.abs(self.goals))
+        plt.gca().set_xlim((-1.05 * max_magnitude, 1.05 * max_magnitude))
+        plt.gca().set_ylim((-1., self.goals.size))
+        plt.xlabel('Goals')
+        plt.ylabel('Feature index')
+        plt.title('{0} Ganglia'.format(brain_name))
+        fig.show()
+        fig.canvas.draw()
+
+        # Save a copy of the plot.
+        filename = 'reward_by_feature_{0}.png'.format(brain_name)
+        pathname = os.path.join(log_dir, filename)
+        plt.savefig(pathname, format='png')
+        

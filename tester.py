@@ -15,14 +15,14 @@ import pstats
 
 # Worlds from the benchmark
 #from worlds.base_world import World
-from worlds.grid_1D import World
+#from worlds.grid_1D import World
 #from worlds.grid_1D_delay import World
 #from worlds.grid_1D_ms import World
 #from worlds.grid_1D_noise import World
 #from worlds.grid_2D import World
 #from worlds.grid_2D_dc import World
 #from worlds.image_1D import World
-#from worlds.image_2D import World
+from worlds.image_2D import World
 #from worlds.fruit import World
 
 # If you want to run a world of your own, add the appropriate line here
@@ -58,9 +58,10 @@ def train_and_test(world_class, training_period=1e4, testing_period=1e4):
     world = world_class(lifespan=training_period)
     train_average = run(world)
     train_performance = train_average * training_period 
-    world = world_class(lifespan=testing_period, test=True)
+    #world = world_class(lifespan=testing_period, test=True)
+    world = world_class(lifespan=testing_period)
     # Test the brain on the world
-    total_average = run(world, restore=True, exploit=True)
+    total_average = run(world, restore=True)
     total_performance = total_average * (training_period + testing_period)
     test_performance = ((total_performance - train_performance) /
                         testing_period )
@@ -68,7 +69,7 @@ def train_and_test(world_class, training_period=1e4, testing_period=1e4):
     print('Test performance is: {0:.3}'.format(test_performance))
     return test_performance
 
-def run(world, restore=False, exploit=False):
+def run(world, restore=False):
     """ 
     Run BECCA with a world. 
 
@@ -81,9 +82,6 @@ def run(world, restore=False, exploit=False):
         If ``restore`` is True, try to restore the brain from a previously saved
         version, picking up where it left off. 
         Otherwise it create a new one. The default is False.
-    exploit : bool, optional
-        If ``exploit`` is True, 
-        The default is False.
 
     Returns
     -------

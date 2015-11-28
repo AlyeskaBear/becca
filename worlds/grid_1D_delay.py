@@ -66,7 +66,7 @@ class World(Grid_1D_World):
         new_reward = -sensors[8]
         new_reward += sensors[3]
         # Punish actions just a little
-        new_reward -= self.energy  * self.ENERGY_COST
+        new_reward -= self.energy  * self.energy_cost
         # Find the delay for the reward
         delay = np.random.randint(1, self.max_delay)
         #self.future_reward[delay] += 1. / float(self.max_delay)
@@ -77,7 +77,7 @@ class World(Grid_1D_World):
 
         return reward
         
-    def visualize_world(self):
+    def visualize_world(self, brain):
         """ 
         Show what's going on in the world 
         """

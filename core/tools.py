@@ -23,103 +23,6 @@ dark_copper = (132./255., 73./255., 36./255.)
 copper_shadow = (25./255., 22./255, 20./255.)
 oxide = (20./255., 120./255., 150./255.)
 
-'''
-def map_one_to_inf(a):
-    """ 
-    Map values from [0, 1] onto [0, inf) and from [-1, 0] onto (-inf, 0].
-
-    The mapping is done as follows:
-            
-                   1
-            a' = ------- - 1 , for a >= 0
-                 1 - |a|
-
-                   -1
-            a' = ------- + 1 , for a < 0
-                 1 - |a|
-
-    No error checking is performed. It is the user's responsibility to 
-    make sure that |a| <= 1.
-
-    Parameters
-    ----------
-    a : float or array of floats
-        Each element in ``a`` is on [-1, 1] and is mapped individually.
-
-    Returns
-    -------
-    a_prime : float or array of floats 
-        The same size as ``a``.
-    """
-    a_prime = np.sign(a) / (1 - np.abs(a) + epsilon) - np.sign(a)
-    return a_prime
-
-def map_inf_to_one(a_prime):
-    """ 
-    Map values from [0, inf) onto [0, 1] and from  (-inf, 0] onto [-1, 0].
-
-    The mapping is done as follows:
-            
-                       1
-            a = 1 - ------- , for a' >= 0
-                    |a'| + 1
-
-                        1
-            a = -1 + ------- , for a' < 0
-                     |a'| + 1
-
-    Parameters
-    ----------
-    a_prime : float or array of floats
-        Each element in ``a_prime`` is mapped individually.
-
-    Returns
-    -------
-    a : float or array of floats 
-        The same size as ``a_prime``, mapped to [-1,1].
-    """
-    a = np.sign(a_prime) * (1 - 1 / (np.abs(a_prime) + 1))
-    return a
-
-def bounded_sum(a, axis=0):
-    """ 
-    Sum elements nonlinearly, such that the total is less than 1.
-    
-    To be more precise, as long as all elements in a are between -1
-    and 1, their sum will also be between -1 and 1. i
-
-    Parameters
-    ----------
-    a : list of floats or n-dimensional array of floats
-        The elements to sum.
-    axis : int
-        The axis along which to sum the array, if ``a`` is an array.
-        Default is 0.
-    """ 
-    if type(a) is list:
-        total = map_one_to_inf(a[0])
-        for item in a[1:]:
-            total += map_one_to_inf(item)
-        return map_inf_to_one(total)
-    else:
-        # handle the case where a is a one-dimensional array
-        if len(a.shape) == 1:
-            a = a[:, np.newaxis]
-        bounded_total = map_inf_to_one(np.sum(map_one_to_inf(a), axis=axis))
-        return bounded_total[:,np.newaxis]
-
-def bounded_sum2(a, b):
-    """ 
-    Sum elements nonlinearly, such that the total is less than 1.
-    
-    This is the same as bounded_sum, except that it expects two arrays of
-    equal size as inputs. The arrays are summed element-wise.
-    """ 
-    total = map_one_to_inf(a)
-    total += map_one_to_inf(b)
-    return map_inf_to_one(total)
-'''
-
 def pad(a, shape, val=0., dtype=float):
     """
     Pad a numpy array to the specified shape.
@@ -329,8 +232,8 @@ def visualize_array(image_data, label='data_figure'):
     """
     # Treat nan values like zeros for display purposes
     image_data = np.nan_to_num(np.copy(image_data))
-     
-    plt.figure(str_to_int(label))
+
+    fig = plt.figure(str_to_int(label))
     # Diane made the brilliant suggestion to leave this plot in color. 
     # It looks much prettier.
     plt.summer()
@@ -339,3 +242,5 @@ def visualize_array(image_data, label='data_figure'):
     plt.title(label)
     plt.xlabel('Max = {0:.3}, Min = {1:.3}'.format(np.max(image_data), 
                                                    np.min(image_data)))
+    fig.show()
+    fig.canvas.draw()

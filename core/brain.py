@@ -66,7 +66,7 @@ class Brain(object):
         self.num_sensors = num_sensors + 2
         # Always include an extra action. The last is the 'do nothing' action.
         self.num_actions = num_actions + 1
-        self.backup_interval = 1e5
+        self.backup_interval = 1e8
         self.name = brain_name
         self.log_dir = os.path.normpath(os.path.join(mod_path, '..', 'log'))
         if not os.path.isdir(self.log_dir):
@@ -158,7 +158,7 @@ class Brain(object):
 
         self.amygdala.visualize(self.timestep, self.name, self.log_dir)
         #self.cerebellum.visualize(self.name, self.log_dir)
-        #self.ganglia.visualize(self.name, self.log_dir)
+        self.ganglia.visualize(self.name, self.log_dir)
         #self.cortex.visualize()
  
     def report_performance(self):

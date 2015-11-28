@@ -45,6 +45,7 @@ class World(BaseWorld):
         self.name_long = 'fruit selection world'
         print "Entering", self.name_long
         self.world_visualize_period = 1e3
+        self.brain_visualize_period = 1e3
         """
         Break out the sensors into
            0: large?
@@ -64,7 +65,7 @@ class World(BaseWorld):
         self.num_actions = 2
         self.action = np.zeros(self.num_actions)
         self.grab_fruit()
-        self.reward = 1.
+        self.reward_magnitude = 1.
         self.verbose =  False
 
     def grab_fruit(self):
@@ -130,17 +131,17 @@ class World(BaseWorld):
         self.reward = -.1
         if ( (self.eat and self.edible) or 
              (self.discard and not self.edible)):
-            self.reward = self.reward
+            self.reward = self.reward_magnitude
         elif ( (self.eat and not self.edible) or 
                (self.discard and self.edible)):
-            self.reward = -self.reward * .9
+            self.reward = -self.reward_magnitude * .9
 
         if self.acted:
             self.grab_fruit()
 
         return self.sensors, self.reward
 
-    def visualize_world(self):
+    def visualize_world(self, brain):
         """ 
         Show what's going on in the world.
 

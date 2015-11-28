@@ -77,10 +77,10 @@ class World(object):
             world. 
         """
         if (self.timestep % self.world_visualize_period) == 0:
-            self.visualize_world()
+            self.visualize_world(brain)
         if (self.timestep % self.brain_visualize_period) == 0:
             brain.visualize()
 
-    def visualize_world(self):
+    def visualize_world(self, brain):
         print('{0} is {1} time steps old.'.format(self.name, self.timestep))
 

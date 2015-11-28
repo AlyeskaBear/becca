@@ -101,11 +101,11 @@ class World(BaseWorld):
         """
         BaseWorld.__init__(self, lifespan)
         self.reward_magnitude = 1.
-        self.jump_fraction = .1
+        self.jump_fraction = .02
         self.name = 'image_2D'
         self.name_long = 'two dimensional visual world'
         print "Entering", self.name_long
-        self.fov_span = 7
+        self.fov_span = 5
         # Initialize the image_data to be used as the environment 
         self.image_filename = os.path.join(mod_path, 'images', 
                                                  'block_test.png') 
@@ -139,8 +139,9 @@ class World(BaseWorld):
         self.sensors = np.zeros(self.num_sensors)
         self.column_history = []
         self.row_history = []
-        self.world_visualize_period = 1e6
+        self.world_visualize_period = 1e3
         self.brain_visualize_period = 1e3
+        self.print_features = True
 
     def step(self, action): 
         """
@@ -204,6 +205,8 @@ class World(BaseWorld):
                                                              self.column_max)
             self.row_position = np.random.random_integers(self.row_min, 
                                                           self.row_max)
+        self.row_history.append(self.row_position)
+        self.column_history.append(self.column_position)
 
         # Create the sensory input vector
         fov = self.image_data[self.row_position - self.fov_height / 2: 
@@ -225,12 +228,20 @@ class World(BaseWorld):
 
         return self.sensors, self.reward
      
-    def visualize_world(self):
+    def visualize_world(self, brain):
         """ 
         Show what is going on in BECCA and in the world.
         """
-        self.row_history.append(self.row_position)
-        self.column_history.append(self.column_position)
+        #if self.print_features:
+        if True:
+            projections, activities = brain.cortex.get_index_projections()
+            wtools.print_pixel_array_features(
+                    projections, 
+                    self.fov_span ** 2 * 2, 
+                    0,#self.num_actions,
+                    self.fov_span, self.fov_span, 
+                    world_name=self.name)
+
         # Periodically display the history and inputs as perceived by BECCA
 
         print ' '.join(["world is", str(self.timestep), "timesteps old."])

@@ -52,6 +52,10 @@ class ZipTie(object):
         are zipped together to form which bundles. 
     bundle_map_size : int
         The maximum number of non-zero entries in the bundle map.
+    bundle_scale : array of floats
+        The maximum value observed for each bundle. This scales the
+        bundles' activities such that they use the whole range between 
+        0 and 1.
     cable_activities : array of floats
         The current set of input actvities. 
     level : int
@@ -96,12 +100,14 @@ class ZipTie(object):
         self.size = self.max_num_bundles
         self.num_bundles = 0
         # User-defined constants
-        self.nucleation_threshold = 3e1
+        self.nucleation_threshold = 10
         self.agglomeration_threshold = .3 * self.nucleation_threshold
-        self.activity_threshold = 1e-2
+        self.activity_threshold = .01
+        self.min_scale = .1
 
         self.bundles_full = False        
         self.bundle_activities = np.zeros(self.max_num_bundles)
+        self.bundle_scale = self.min_scale * np.ones(self.max_num_bundles)
         self.cable_activities = np.zeros(self.max_num_cables)
         map_size = (self.max_num_bundles, self.max_num_cables)
         # To represent the sparse 2D bundle map, a pair of row and col 
@@ -164,6 +170,7 @@ class ZipTie(object):
         threshold = np.max(self.cable_activities) * self.activity_threshold
         nb.sparsify_array1d_threshold(self.cable_activities, threshold)
 
+        '''
         # Calculate ``bundle_energies``, an estimate of how much
         # the cables' activities contribute to each bundle. 
         self.bundle_energies = np.zeros(self.max_num_bundles)
@@ -173,6 +180,7 @@ class ZipTie(object):
                     self.bundle_map_rows[:self.n_map_entries], 
                     self.bundle_map_cols[:self.n_map_entries], 
                     self.cable_activities, self.bundle_energies)
+        '''
 
         # Calculate ``bundle_activities``, an estimate of how much
         # the cables' activities contribute to each bundle. 
@@ -183,6 +191,12 @@ class ZipTie(object):
                     self.bundle_map_rows[:self.n_map_entries], 
                     self.bundle_map_cols[:self.n_map_entries], 
                     self.cable_activities, self.bundle_activities)
+
+        # Scale the ``bundle_activities`` such that the highest value
+        # ever observed for each bundle is now 1.
+        self.bundle_scale = np.maximum(self.bundle_scale, 
+                                       self.bundle_activities)
+        self.bundle_activities /= self.bundle_scale
 
         # Attempt to reconstruct the original ``cable_activities``
         # using the ``bundle_activities``.
@@ -256,7 +270,7 @@ class ZipTie(object):
             self.num_bundles += 1
             print ' '.join(['    ', self.name, 
                            'bundle', str(self.num_bundles), 
-                           'added with', str(cable_index_a), 
+                           'added with cables', str(cable_index_a), 
                            str(cable_index_b)]) 
 
             # Check whether the ``ZipTie``'s capacity has been reached.
@@ -269,8 +283,8 @@ class ZipTie(object):
             self.nucleation_energy[cable_index_b, :] = 0.
             self.nucleation_energy[:, cable_index_a] = 0.
             self.nucleation_energy[:, cable_index_b] = 0.
-            #self.agglomeration_energy[:, cable_index_a] = 0.
-            #self.agglomeration_energy[:, cable_index_b] = 0.
+            self.agglomeration_energy[:, cable_index_a] = 0.
+            self.agglomeration_energy[:, cable_index_b] = 0.
         return nucleated_cables
 
     def increment_n_map_entries(self):
@@ -281,9 +295,11 @@ class ZipTie(object):
         if self.n_map_entries >= self.bundle_map_size:
             self.bundle_map_size *= 2
             self.bundle_map_rows = tools.pad(self.bundle_map_rows, 
-                                             self.bundle_map_size, val=-1)
+                                             self.bundle_map_size, 
+                                             val=-1, dtype='int')
             self.bundle_map_cols = tools.pad(self.bundle_map_cols, 
-                                             self.bundle_map_size, val=-1)
+                                             self.bundle_map_size, 
+                                             val=-1, dtype='int')
         
     def _grow_bundles(self):
         """ 
@@ -325,10 +341,15 @@ class ZipTie(object):
             agglomerated_cable = cable_index
             self.bundle_map_rows[self.n_map_entries] = agglomerated_bundle
             self.bundle_map_cols[self.n_map_entries] = agglomerated_cable
+            self.increment_n_map_entries()
+
             self.nucleation_energy[agglomerated_cable, :] = 0.
             self.nucleation_energy[:, agglomerated_cable] = 0.
-            print ''.join(['            bundle grown', 
-                          self.name, str(agglomerated_bundle), 
+            #self.agglomeration_energy[agglomerated_bundle, :] = 0.
+            #self.agglomeration_energy[:, agglomerated_cable] = 0.
+            print ' '.join(['           ', 
+                          self.name, 'agglomerated bundle', 
+                          str(agglomerated_bundle), 'with cable',
                           str(agglomerated_cable)])
 
         return agglomerated_cable, agglomerated_bundle
@@ -357,11 +378,20 @@ class ZipTie(object):
         
     def visualize(self):
         """
-        Turn the state of teh ``ZipTie`` into an image.
+        Turn the state of the ``ZipTie`` into an image.
         """
-        print self.bundle_map_rows[:self.n_map_entries]
-        print self.bundle_map_cols[:self.n_map_entries]
-
+        print ' '.join(['ziptie', str(self.level)])
+        # First list the bundles andthe cables in each.
+        i_bundles = self.bundle_map_rows[:self.n_map_entries]
+        i_cables = self.bundle_map_cols[:self.n_map_entries]
+        i_bundles_unique = np.unique(i_bundles)
+        if i_bundles_unique is not None:
+            for i_bundle in i_bundles_unique:
+                b_cables = list(np.sort(i_cables[np.where(
+                        i_bundles == i_bundle)[0]]))
+                print ' '.join(['    bundle', str(i_bundle), 
+                                'cables:', str(b_cables)])
+        
         if self.n_map_entries > 0:
             # Render the bundle map.
             bundle_map = np.zeros((self.max_num_cables, self.max_num_bundles))

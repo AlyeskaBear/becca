@@ -66,6 +66,10 @@ class World(BaseWorld):
     num_sensors : int
         The number of sensor values the world returns to the brain 
         at each time step.
+    print_features : bool
+        If True, plot and save visualizations of each of the features
+        each time the world is visualized,
+        rendered so that they represent what they mean in this world.
     reward_magnitude : float
         The magnitude of the reward and punishment given at 
         rewarded or punished positions.
@@ -91,16 +95,17 @@ class World(BaseWorld):
         """
         BaseWorld.__init__(self, lifespan)
         self.reward_magnitude = 1.
-        self.jump_fraction = 1. / 10.
-        self.step_cost = 0.1 * self.reward_magnitude
+        self.jump_fraction = .1
+        self.step_cost = .1 * self.reward_magnitude
         self.name_long = 'one dimensional visual world'
         self.name = 'image_1D'
         print "Entering", self.name_long
-        self.fov_span = 7 
+        self.fov_span = 5
         self.num_sensors = 2 * self.fov_span ** 2
         self.num_actions = 8
-        self.world_visualize_period = 1e6
+        self.world_visualize_period = 1e3
         self.brain_visualize_period = 1e3
+        self.print_features = True
 
         # Initialize the image to be used as the environment
         self.image_filename = os.path.join(mod_path, 'images', 'bar_test.png') 
@@ -165,6 +170,7 @@ class World(BaseWorld):
         self.column_position = self.column_position + int(column_step)
         self.column_position = max(self.column_position, self.column_min)
         self.column_position = min(self.column_position, self.column_max)
+        self.column_history.append(self.column_position)
 
         # At random intervals, jump to a random position in the world
         if np.random.random_sample() < self.jump_fraction:
@@ -179,6 +185,7 @@ class World(BaseWorld):
         self.sensors = np.concatenate((np.maximum(unsplit_sensors, 0), 
                                        np.abs(np.minimum(unsplit_sensors, 0))))
         
+        
         # Calculate the reward
         self.reward = 0
         if (np.abs(self.column_position - self.target_column) < 
@@ -188,12 +195,20 @@ class World(BaseWorld):
                         self.max_step_size * self.step_cost)
         return self.sensors, self.reward
             
-    def visualize_world(self):
+    def visualize_world(self, brain):
         """ 
         Show what's going on in the world.
         """
+        if self.print_features:
+            projections, activities = brain.cortex.get_index_projections(to_screen=True)
+            wtools.print_pixel_array_features(
+                    projections, 
+                    self.fov_span ** 2 * 2, 
+                    0,#self.num_actions,
+                    self.fov_span, self.fov_span, 
+                    world_name=self.name)
+
         # Periodically show the state history and inputs as perceived by BECCA
-        self.column_history.append(self.column_position)
         print ''.join(["world is ", str(self.timestep), " timesteps old"])
         fig = plt.figure(11)
         plt.clf()

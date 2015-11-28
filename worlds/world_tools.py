@@ -83,7 +83,7 @@ def center_surround(fov, fov_horz_span, fov_vert_span, verbose=False):
 
 def print_pixel_array_features(projections, num_pixels_x2, start_index, 
                                fov_horz_span, fov_vert_span, 
-                               directory='log', world_name='', name='',
+                               directory='log', world_name='', 
                                interp='nearest'):
     """  
     Interpret an array of center-surround pixels as an image.
@@ -115,7 +115,13 @@ def print_pixel_array_features(projections, num_pixels_x2, start_index,
         for feature_index in range(len(projections[level_index])):
             plt.close(99)
             feature_fig = plt.figure(num=99)
-
+            """
+            print ' '.join(['lev', str(level_index),
+                          'feat', str(feature_index),
+                          'cables', str([projections[level_index]
+                          [feature_index]
+                          [start_index:start_index + num_pixels_x2] ])])
+            """
             # Get the pixel array for the projection image.
             projection_image = (visualize_pixel_array_feature(
                     projections[level_index][feature_index]
@@ -179,7 +185,7 @@ def visualize_pixel_array_feature(sensors,
         fov_horz_span = np.sqrt(n_pixels)
         fov_vert_span = np.sqrt(n_pixels)
     else:
-        n_pixels = fov_horz_span * fov_vert_span * 2
+        n_pixels = fov_horz_span * fov_vert_span
 
     # Maximize contrast
     sensors *= 1 / (np.max(sensors) + tools.epsilon)
