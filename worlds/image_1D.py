@@ -100,7 +100,7 @@ class World(BaseWorld):
         self.name_long = 'one dimensional visual world'
         self.name = 'image_1D'
         print "Entering", self.name_long
-        self.fov_span = 9
+        self.fov_span = 5
         self.num_sensors = 2 * self.fov_span ** 2
         self.num_actions = 8
         self.world_visualize_period = 1e3

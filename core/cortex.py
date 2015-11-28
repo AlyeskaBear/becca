@@ -96,10 +96,6 @@ class Cortex(object):
         -------
         feature_activities : array of floats
             The current activities (values) of all the features 
-        modified_features : list of ints
-            The indices of the features that were modified during
-            this time step of incremental training. This means that they
-            were either created (nucleated) or grown (agglomerated). 
         ziptie_added : bool
             If True, this indicates that another ``ZipTie`` was added to
             ``self.zipties``, another level added to the hierarchy.
@@ -126,18 +122,8 @@ class Cortex(object):
         # time, starting at the bottom-most and proceeding upward.
         # The output features (bundles) of each are the input features
         # (cables) of the next.
-        modified_features = []
-        modified_bundles = None
         for level, tie in enumerate(self.zipties):
-            #(cable_activities, 
-            # level_modified_features, 
-            # modified_bundles) = tie.step(cable_activities, 
-            #                                 modified_bundles) 
             cable_activities = tie.step(cable_activities) 
-
-            #if level_modified_features is not None:
-            #    for cable in level_modified_features:
-            #        modified_features.append(cable +  level * self.size)
 
         # If the top ziptie has created its first two bundles,
         # create a new one on top of that.
@@ -145,8 +131,6 @@ class Cortex(object):
         if tie.num_bundles > 1:
             self.add_ziptie()
             ziptie_added = True
-            #cable_activities = self.zipties[-1].step(
-            #        cable_activities, level_modified_features) 
             cable_activities = self.zipties[-1].step(cable_activities) 
 
         # Build the full feature activities array by appending the
@@ -159,7 +143,6 @@ class Cortex(object):
             feature_activities[start_index: end_index] = (
                     tie.cable_activities.copy())
 
-        #return feature_activities, modified_features, ziptie_added
         return feature_activities, ziptie_added
 
     def map_index(self, index):

@@ -14,6 +14,7 @@ when doing loops), the function will fail and throw an error.
 """
 from numba import jit 
 
+'''
 @jit(nopython=True)
 def sparsify_array1d_threshold(array1d, threshold):
     """
@@ -36,6 +37,7 @@ def sparsify_array1d_threshold(array1d, threshold):
     for row in range(array1d.size):
         if array1d[row] < threshold:
             array1d[row] = 0.
+'''
 
 @jit(nopython=True)
 def set_dense_val(array2d, i_rows, i_cols, val):
