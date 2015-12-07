@@ -105,7 +105,7 @@ class World(BaseWorld):
         self.num_actions = 8
         self.world_visualize_period = 1e3
         self.brain_visualize_period = 1e3
-        self.print_features = True
+        self.print_features = False
 
         # Initialize the image to be used as the environment
         self.image_filename = os.path.join(mod_path, 'images', 'bar_test.png') 

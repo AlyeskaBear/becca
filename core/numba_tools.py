@@ -14,31 +14,6 @@ when doing loops), the function will fail and throw an error.
 """
 from numba import jit 
 
-'''
-@jit(nopython=True)
-def sparsify_array1d_threshold(array1d, threshold):
-    """
-    Sparsify a one-dimensional array at a constant threshold
-    
-    In a one-dimensional array, find any values less than 
-    the threshold supplied and set them equal to zero.
-    
-    Parameters
-    ----------
-    array1d : 1D array of floats
-        The array to sparsify.
-    threshold : float
-        The positive threshold below which to set all values to zero.
-
-    Returns
-    -------
-    These occur indirectly by modifying ``array1d``.
-    """
-    for row in range(array1d.size):
-        if array1d[row] < threshold:
-            array1d[row] = 0.
-'''
-
 @jit(nopython=True)
 def set_dense_val(array2d, i_rows, i_cols, val):
     """
@@ -93,6 +68,7 @@ def max_dense(array2d, results):
     results[1] = i_row_max
     results[2] = i_col_max
 
+'''
 @jit(nopython=True)
 def min_sparse_row_weights(i_rows, i_cols, row_weights, col_min):
     """
@@ -123,7 +99,8 @@ def min_sparse_row_weights(i_rows, i_cols, row_weights, col_min):
         col = i_cols[i]
         if col_min[int(col)] > row_weights[int(row)]:
             col_min[int(col)] = row_weights[int(row)]
-
+'''
+'''
 @jit(nopython=True)
 def max_sparse_row_weights(i_rows, i_cols, row_weights, col_max):
     """
@@ -146,7 +123,8 @@ def max_sparse_row_weights(i_rows, i_cols, row_weights, col_max):
         col = i_cols[i]
         if col_max[int(col)] < row_weights[int(row)]:
             col_max[int(col)] = row_weights[int(row)]
-
+'''
+'''
 @jit(nopython=True)
 def sum_sparse_row_weights(i_rows, i_cols, row_weights, col_sum):
     """
@@ -188,7 +166,8 @@ def sum_sparse_col_weights(i_rows, i_cols, col_weights, row_sum):
         row = i_rows[i]
         col = i_cols[i]
         row_sum[int(row)] += col_weights[int(col)]
-
+'''
+'''
 @jit(nopython=True)
 def max_sparse_col_weights(i_rows, i_cols, col_weights, row_max):
     """
@@ -210,7 +189,8 @@ def max_sparse_col_weights(i_rows, i_cols, col_weights, row_max):
         col = i_cols[i]
         if row_max[int(row)] < col_weights[int(col)]:
             row_max[int(row)] = col_weights[int(col)]
-
+'''
+'''
 @jit(nopython=True)
 def min_sparse_col_weights(i_rows, i_cols, col_weights, row_min):
     """
@@ -233,6 +213,97 @@ def min_sparse_col_weights(i_rows, i_cols, col_weights, row_min):
         col = i_cols[i]
         if row_min[int(row)] > col_weights[int(col)]:
             row_min[int(row)] = col_weights[int(col)]
+'''
+'''
+# Array creation is supported in jit's object mode, but not its nopython mode.
+@jit
+#@jit(nopython=True)
+def mean_sparse_col_weights(i_rows, i_cols, col_weights, row_mean):
+    """
+    Find the mean of column weights along rows in a sparse 2D array 
+    
+    Parameters
+    ----------
+    Similar to ``mean_sparse_row_weights``
+    row_mean : 1D array of floats
+        The means by row of the weights listed in ``i_rows`` and ``i_cols``.
+        At least as long as the number of rows in the sparse array.
+
+    Results
+    -------
+    Returned indirectly by modifying ```row_mean``.
+    """
+    total = np.zeros(len(row_mean))
+    n = np.zeros(len(row_mean))
+    for i in range(len(i_rows)):
+        row = i_rows[i]
+        col = i_cols[i]
+        total[int(row)] += col_weights[int(col)]
+        n[int(row)] += 1.
+    for j in range(len(row_mean)):
+        if n[j] > 0.:
+            row_mean[j] = total[j] / n[j]
+'''
+
+@jit(nopython=True)
+def find_bundle_activities(i_rows, i_cols, cables, bundles):
+    """
+    Use a greedy method to sparsely translate cables to bundles.
+
+    Start at the last bundle added and work backward to the first. 
+    For each, calculate the bundle activity by finding the minimum
+    value of each of its constituent cables. Then subtract out
+    the bundle activity from each of its cables.
+     
+    Parameters
+    ----------
+    bundles : 1D array of floats
+        An array of bundle activity values. Initially it is all zeros.
+    cables : 1D array of floats
+        An array of cable activity values. 
+    i_rows : array of ints
+        The row indices for the non-zero sparse 2D array..
+    i_cols : array of ints
+        The column indices for the non-zero sparse 2D array elements.
+        All non-zero elements are assumed to be 1.
+        i_rows and i_cols must be the same length.
+        Each column represents a cable and each row represents a bundle.
+        The 2D array is a map from cables to bundles.
+
+    Results
+    -------
+    Returned indirectly by modifying ```cables``. These are the residual
+    cable activities that are not represented by any bundle activities.
+    """
+    large = 1e10
+    
+    # Iterate over each bundle, that is, over each row.
+    i = len(i_rows) - 1
+    row = i_rows[i]
+    while row > -1:
+
+        # For each bundle, find the minimum cable activity that 
+        # contribues to it.
+        min_val = large
+        i_bundle = i
+        while i_rows[i] == row and i > -1:
+            col = i_cols[i]
+            val = cables[col]
+            if val < min_val:
+                min_val = val  
+            i -= 1
+
+        # Set the bundle activity.
+        bundles[row] = min_val
+
+        # Subtract the bundle activity from each of the cables.
+        i = i_bundle
+        while row == i_rows[i] and i > -1:
+            col = i_cols[i]
+            cables[col] -= min_val
+            i -= 1
+        
+        row -= 1
 
 @jit(nopython=True)
 def nucleation_energy_gather(nonbundle_activities, nucleation_energy):
@@ -313,7 +384,19 @@ def get_decision_values(probabilities, curiosities, features,
     the current set of rewards and the learned transition model.
     The value function (or Q function, as it is often abbreviated in
     reinforcement learning) estimates the value to be gleaned from
-    each action, given a state. In this case, we are considering 
+    each action, given a state.
+    
+    The Q function is calculated by finding the expected reward and
+    goal reward associated with each outcome. For each
+    feature-decision-outcome transition, the reward is weighted
+    by the transition probability. For each feature-decision pair,
+    the value is the maximum of the transition-weighted rewards.
+    For each decision, the value is the maximum of the 
+    feature-decision values when each are weighted by the current 
+    feature activities. 
+    
+    '''
+     In this case, we are considering 
     each feature independently. This is a departure from the
     conventional notion of state, which is the combined set of 
     all features. By breaking this into a bunch of independent value
@@ -336,6 +419,7 @@ def get_decision_values(probabilities, curiosities, features,
     estimate the value for each decision by performing a weighted
     average over all the features. Only the values associated with
     features that are currently active are of interest.
+    '''
 
     Parameters
     ----------
@@ -358,47 +442,39 @@ def get_decision_values(probabilities, curiosities, features,
     -------
     This function returns its results by modifying ``decision_values``.
     """
-    eps = 1e-10
     small = 1e-3
+    low = 1e-10
     (I, J, K) = probabilities.shape
     for j in range(J):
         # Numerator and denominator for the decision value.
-        num_decision_value = 0.
-        den_decision_value = eps
+        best_decision_value = low
         for i in range(I):
             # Skipping the iteration for small values takes advantage of
             # any sparseness present and speeds up computation considerably.
             if features[i] > small:
-                # Numerator and denominator for the feature-decision 
-                # value function.
-                num_value = 0.
-                den_value = eps
+                best_Q_value = low
                 for k in range(K):
-                    if abs(reward[k]) > small:
-                        if probabilities[i,j,k] > small:
-                            # Add in the value of each transition, weighted
-                            # again by that transition's probability.
-                            num_value += (features[i] * 
-                                    reward[k] *
-                                    probabilities[i,j,k] * 
-                                    probabilities[i,j,k])
-                            # Sum the weights in the denominator.
-                            den_value += probabilities[i,j,k]
-                # Add in the value of each feature-decision pair (which
-                # also includes the curiosity associated with that pair)
-                # and weight it by the feature's activity.
-                num_decision_value += (num_value / 
-                                       den_value + 
-                                       curiosities[i,j]) * features[i] 
-                # Sum the weights in the denominator.
-                den_decision_value += features[i]
-        decision_values[j] = num_decision_value / den_decision_value
+                    #if abs(reward[k]) > small:
+                    # Find the highest value transition.
+                    q = (reward[k] *
+                         probabilities[i,j,k])
+                    if q > best_Q_value:
+                        best_Q_value = q
+
+                # Find the highest value feature-decision pair 
+                # for each decision. This
+                # also includes the curiosity associated with that pair,
+                # and is weighted by the feature's activity.
+                action_value = (best_Q_value + curiosities[i,j]) * features[i]
+                if action_value > best_decision_value:
+                    best_decision_value = action_value
+        decision_values[j] = best_decision_value
     return decision_values
                     
 @jit(nopython=True)
 def cerebellum_learn(opportunities, observations, probabilities, curiosities,
                      training_context, training_goals, training_results, 
-                     current_context, goals, curiosity_rate):
+                     current_context, goals, curiosity_rate, satisfaction):
     """
     Use this time step's information to help the ``Cerebellum`` learn.
     
@@ -413,6 +489,8 @@ def cerebellum_learn(opportunities, observations, probabilities, curiosities,
     goals : array of floats
         The concatenation of the actions commanded this time step and
         the array of unfulfilled feature goals.
+    satisfaction : float
+        The filtered reward history. 
     training_context, training_goals, training_results : arrays of floats
         The set of feature activities, goals, and results from a time step 
         in the recent past. These aren't entirely current, because it
@@ -461,9 +539,14 @@ def cerebellum_learn(opportunities, observations, probabilities, curiosities,
                 # Add an estimate of the uncertainty. It's conceptually 
                 # similar to standard error estimates for 
                 # the normal distribution: 1/sqrt(N)
-                uncertainty = 1. / (1. + opportunities[i,j])**.5
+                uncertainty = 1. / (1. + opportunities[i,j] ** 2)
+
                 # Increment the curiosities by the uncertainties, weighted
                 # by the feature activities.
+                # TODO: Weight by the how much reward has been 
+                # received recently.
                 curiosities[i,j] += (curiosity_rate * 
                                      uncertainty * 
-                                     training_context[i])
+                                     training_context[i] *
+                                     (1. - curiosities[i,j]) *
+                                     (1. - satisfaction) )

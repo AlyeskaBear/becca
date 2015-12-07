@@ -193,6 +193,26 @@ def timestr(timestep, s_per_step=.25, precise=True):
 
     return time_str
 
+def format(array):
+    """
+    Format and print an array as a list of fixed decimal numbers in a string.
+
+    Parameters
+    ----------
+    array : array of floats
+        The array to be formatted.
+    """
+    if len(array.shape) == 2:
+        for j in range(array.shape[1]):
+            formatted = (' '.join(['{0:.3}'.format(array[i,j]) 
+                                   for i in range(array.shape[0])]))
+            print formatted
+    else:
+        array = array.copy().ravel()
+        formatted = (' '.join(['{0:.3}'.format(array[i]) 
+                               for i in range(array.size)]))
+        print formatted
+
 def get_files_with_suffix(dir_name, suffixes):
     """ 
     Get all of the files with a given suffix in dir recursively.

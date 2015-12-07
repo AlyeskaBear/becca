@@ -46,12 +46,11 @@ def main():
     performance.append(tester.train_and_test(World_grid_2D))
     performance.append(tester.train_and_test(World_grid_2D_dc))
     performance.append(tester.train_and_test(World_image_1D))
-    performance.append(tester.train_and_test(World_image_2D,
-                                             training_period=2e4))
+    performance.append(tester.train_and_test(World_image_2D))
     performance.append(tester.train_and_test(World_fruit))
     print('Individual benchmark scores:')
     for score in performance:
-        print('    {0:.2}'.format(score))
+        print('    {0:.2}, {1}'.format(score[0], score[1]))
     print('Overall benchmark score: {0:.2}'.format(np.mean(performance))) 
     
     # Block the program, displaying all plots.

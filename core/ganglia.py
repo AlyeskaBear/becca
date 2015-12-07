@@ -98,7 +98,7 @@ class Ganglia(object):
 
         # Add the decisions to the ongoing set of goals.
         self.goals = np.maximum(self.goals, 
-                                decision_values[self.num_actions:] *
+                                decisions[self.num_actions:] *
                                 self.goal_scale)
 
         # Choose a single random action. Used for debugging and testing.

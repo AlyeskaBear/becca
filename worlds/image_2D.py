@@ -101,7 +101,7 @@ class World(BaseWorld):
         """
         BaseWorld.__init__(self, lifespan)
         self.reward_magnitude = 1.
-        self.jump_fraction = .02
+        self.jump_fraction = .05
         self.name = 'image_2D'
         self.name_long = 'two dimensional visual world'
         print "Entering", self.name_long
@@ -141,7 +141,7 @@ class World(BaseWorld):
         self.row_history = []
         self.world_visualize_period = 1e3
         self.brain_visualize_period = 1e3
-        self.print_features = True
+        self.print_features = False
 
     def step(self, action): 
         """
@@ -232,8 +232,7 @@ class World(BaseWorld):
         """ 
         Show what is going on in BECCA and in the world.
         """
-        #if self.print_features:
-        if True:
+        if self.print_features:
             projections, activities = brain.cortex.get_index_projections()
             wtools.print_pixel_array_features(
                     projections, 

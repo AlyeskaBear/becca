@@ -90,7 +90,7 @@ class Cerebellum(object):
         self.opportunities = np.ones(_2D_size) * tools.epsilon
         self.probabilities = np.zeros(_3D_size)
         self.curiosities = np.zeros(_2D_size)
-        self.curiosity_rate = 1e-1 / float(self.num_elements)
+        self.curiosity_rate = 1e-2
         self.time_constant = 1.
         self.trace_length = int(100. * self.time_constant)
         self.goal_magnitude = .3
@@ -144,19 +144,23 @@ class Cerebellum(object):
         # Decision_values should all be between 0 and 1.
         return decision_values
 
-
-    def learn(self, features, actions, feature_goals):
+    def learn(self, features, actions, feature_goals, satisfaction):
         """
         Update the transition model of the world.
 
         Parameters
         ----------
-        features : array of floats
-            The current activities of the features.
         actions : array of floats
             The most recent set of commanded actions.
+        features : array of floats
+            The current activities of the features.
         feature_goals : array of floats
             The current set of goal values associated with each feature.
+        satisfaction : float
+            A filtered version of the recent reward history.
+        Returns
+        -------
+        None
         """
         current_context = features.copy()
         goals = np.concatenate((actions, feature_goals))
@@ -187,8 +191,7 @@ class Cerebellum(object):
                                 self.probabilities, self.curiosities,
                                 training_context, training_goals,
                                 training_results, current_context, goals,
-                                self.curiosity_rate)
-
+                                self.curiosity_rate, satisfaction)
 
     '''
     # TODO: For multi-step planning simulate the likely effect of actions

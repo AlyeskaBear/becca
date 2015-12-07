@@ -13,7 +13,7 @@ import amygdala
 import cerebellum
 import ganglia
 import cortex
-#import tools
+import tools
 
 class Brain(object):
     """ 
@@ -66,7 +66,7 @@ class Brain(object):
         self.num_sensors = num_sensors + 2
         # Always include an extra action. The last is the 'do nothing' action.
         self.num_actions = num_actions + 1
-        self.backup_interval = 1e8
+        self.backup_interval = 1e6
         self.name = brain_name
         self.log_dir = os.path.normpath(os.path.join(mod_path, '..', 'log'))
         if not os.path.isdir(self.log_dir):
@@ -122,9 +122,6 @@ class Brain(object):
         """
         self.timestep += 1
         # Calcuate activities of all the features.
-        #(features, 
-        # modified_features, 
-        # grow) = self.cortex.featurize_and_learn(sensors, reward)
         features, grow = self.cortex.featurize_and_learn(sensors, reward)
 
         # If the ``cortex`` just added a new level to its hierarchy, 
@@ -133,20 +130,31 @@ class Brain(object):
             self.amygdala.grow(self.cortex.size)
             self.cerebellum.grow(self.cortex.size)
             self.ganglia.grow(self.cortex.size)
-
+        
         # Decide which actions to take.
         decision_values = self.cerebellum.get_decision_values(
                 features, self.amygdala.reward_by_feature, self.ganglia.goals)
         actions, goals = self.ganglia.decide(features, decision_values)
 
         # Learn from this new time step of experience.
-        self.amygdala.learn(features, reward) 
-        self.cerebellum.learn(features, actions, goals)
+        satisfaction = self.amygdala.learn(features, reward) 
+        self.cerebellum.learn(features, actions, goals, satisfaction)
 
         if (self.timestep % self.backup_interval) == 0:
             self.backup()  
         # Account for the fact that the last "do nothing" action 
         # was added by the ``brain``.   
+        verbose = False
+        if verbose:
+            print
+            print 'sensors'
+            tools.format(sensors)
+            print 'reward', reward
+            print features
+            tools.format(features)
+            print 'actions'
+            tools.format(actions)
+
         return actions[:-1]
 
     def visualize(self):
@@ -159,7 +167,7 @@ class Brain(object):
 
         self.amygdala.visualize(self.timestep, self.name, self.log_dir)
         #self.cerebellum.visualize(self.name, self.log_dir)
-        self.ganglia.visualize(self.name, self.log_dir)
+        #self.ganglia.visualize(self.name, self.log_dir)
         #self.cortex.visualize()
  
     def report_performance(self):
@@ -176,7 +184,7 @@ class Brain(object):
                                               self.name, 
                                               self.log_dir)
         print('Final performance is {0:.3}'.format(performance))
-        self.backup()
+        #self.backup()
         return performance
 
     def backup(self):

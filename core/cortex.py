@@ -70,7 +70,7 @@ class Cortex(object):
         """
         self.num_zipties =  1
         # Choose size to allow for sensing reward and for feature proliferation.
-        self.size = (num_sensors) 
+        self.size = 2 * num_sensors 
         first_ziptie_name = ''.join(('ziptie_', str(self.num_zipties - 1)))
         self.zipties = [ziptie.ZipTie(self.size, name=first_ziptie_name)]
 

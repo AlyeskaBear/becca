@@ -44,7 +44,7 @@ class World(Grid_1D_World):
         self.name = 'grid_1D_delay'
         self.name_long = 'one dimensional grid world with delay'
         print '--delayed'
-        self.max_delay = 4
+        self.max_delay = 9
         self.future_reward = [0.] * self.max_delay
         self.world_visualize_period = 1e6
     

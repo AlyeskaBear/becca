@@ -39,6 +39,9 @@ class Amygdala(object):
     reward_steps : list of ints
         A time series of the brain's age in time steps corresponding
         to each of the rewards in ``reward_history``.
+    satisfaction_time_constant : float
+        The time constant of the leaky integrator used to filter
+        reward into a rough average of the recent reward history.
     time_constant : float
         A value that scales the length of the trace. Adjust this if you
         believe the trace is too short or too long.
@@ -70,12 +73,13 @@ class Amygdala(object):
         # Keep a recent history of reward and active features 
         # to account for delayed reward.
         # TODO: clean up Amygdala.
-        self.time_constant = .5
-        self.reward_learning_rate = 1e-2
-        self.trace_length = int(12. * self.time_constant)
+        #self.time_constant = .5
+        self.reward_learning_rate = 1e-3
+        self.satisfaction_time_constant = 1e3
+        #self.trace_length = int(12. * self.time_constant)
         self.trace_length = 1
-        self.recent_rewards = list(np.zeros(self.trace_length))
-        self.recent_features = [np.zeros(num_features)] * self.trace_length
+        #self.recent_rewards = list(np.zeros(self.trace_length))
+        #self.recent_features = [np.zeros(num_features)] * self.trace_length
         """
         The trace magnitude is the sum of largest possible magnitudes
         of all the reward values in the trace. Having it pre-calcuated
@@ -97,12 +101,13 @@ class Amygdala(object):
                 time is the number of time steps between the feature
                     being active and the reward being received
         """
-        weights =  (1. / 
-                    (1. + np.arange(self.trace_length) * self.time_constant) )
-        self.trace_magnitude = np.sum(weights)
+        #weights =  (1. / 
+        #            (1. + np.arange(self.trace_length) * self.time_constant) )
+        #self.trace_magnitude = np.sum(weights)
         # Track the reward gathered over the lifetime of the ``brain``.
-        self.cumulative_reward = 0
-        self.time_since_reward_log = 0 
+        self.satisfaction = 0.
+        self.cumulative_reward = 0.
+        self.time_since_reward_log = 0.
         self.reward_history = []
         self.reward_steps = []
 
@@ -116,16 +121,21 @@ class Amygdala(object):
             The most recently observed set of feature activities.
         reward : float
             The most recently observed reward value.
+
+        Returns
+        -------
+        self.satisfaction : float
         """
         # Clip the reward so that it falls between -1 and 1.
         reward = np.maximum(np.minimum(reward, 1.), -1.)
-        weights =  (1. / 
-                    (1. + np.arange(self.trace_length) * self.time_constant) )
-        weighted_trace = np.array(self.recent_rewards) * weights
-        reward_trace = np.sum(weighted_trace)
-        reward_trace /= self.trace_magnitude
-        features = self.recent_features[0]
-
+        #weights =  (1. / 
+        #            (1. + np.arange(self.trace_length) * self.time_constant) )
+        #weighted_trace = np.array(self.recent_rewards) * weights
+        #reward_trace = np.sum(weighted_trace)
+        #reward_trace /= self.trace_magnitude
+        reward_trace = reward
+        #features = self.recent_features[0]
+        features = new_features
         """
         Increment the expected reward value associated with each feature.
         The size of the increment is larger when:
@@ -139,15 +149,21 @@ class Amygdala(object):
                                    features * self.reward_learning_rate)
                                    #features ** 2 * self.reward_learning_rate)
 
-        # Update the activity, action history, and reward.
-        self.recent_rewards.append(reward)
-        self.recent_rewards.pop(0)
-        self.recent_features.append(np.copy(new_features))
-        self.recent_features.pop(0)
+        # Update the activity and reward.
+        #self.recent_rewards.append(reward)
+        #self.recent_rewards.pop(0)
+        #self.recent_features.append(np.copy(new_features))
+        #self.recent_features.pop(0)
+
+        # Update the satisfaction, a filtered version of the reward.
+        rate = 1. / self.satisfaction_time_constant
+        self.satisfaction = self.satisfaction * (1. - rate) + reward * rate
 
         # Log the reward.
         self.cumulative_reward += reward
         self.time_since_reward_log += 1
+
+        return self.satisfaction
 
     def grow(self, increment):
         """
@@ -159,10 +175,10 @@ class Amygdala(object):
             The number of features to add.
         """
         self.reward_by_feature = tools.pad(self.reward_by_feature, -increment)
-        new_recent_features = []
-        for recent_features in self.recent_features:
-            new_recent_features.append(tools.pad(recent_features, -increment))
-        self.recent_features = new_recent_features
+        #new_recent_features = []
+        #for recent_features in self.recent_features:
+        #    new_recent_features.append(tools.pad(recent_features, -increment))
+        #self.recent_features = new_recent_features
 
     def visualize(self, timestep, brain_name, log_dir):
         """
@@ -213,27 +229,28 @@ class Amygdala(object):
         pathname = os.path.join(log_dir, filename)
         plt.savefig(pathname, format='png')
 
-        # Plot the learned reward value of each feature.
-        fig = plt.figure(11112)
-        fig.clf()
-        for i, value in enumerate(self.reward_by_feature):
-            plt.plot([0., value], [i,i], color=tools.copper, linewidth=5.,
-                     solid_capstyle='butt')
-        plt.plot([0.,0.],[0., self.reward_by_feature.size - 1.], 
-                 color=tools.copper_shadow, linewidth=1.)
-        plt.gca().set_axis_bgcolor(tools.copper_highlight)
-        max_magnitude = np.max(np.abs(self.reward_by_feature))
-        plt.gca().set_xlim((-1.05 * max_magnitude, 1.05 * max_magnitude))
-        plt.gca().set_ylim((-1., self.reward_by_feature.size))
-        plt.xlabel('Reward')
-        plt.ylabel('Feature index')
-        plt.title('{0} Amygdala'.format(brain_name))
-        fig.show()
-        fig.canvas.draw()
+        if False:
+            # Plot the learned reward value of each feature.
+            fig = plt.figure(11112)
+            fig.clf()
+            for i, value in enumerate(self.reward_by_feature):
+                plt.plot([0., value], [i,i], color=tools.copper, linewidth=5.,
+                         solid_capstyle='butt')
+            plt.plot([0.,0.],[0., self.reward_by_feature.size - 1.], 
+                     color=tools.copper_shadow, linewidth=1.)
+            plt.gca().set_axis_bgcolor(tools.copper_highlight)
+            max_magnitude = np.max(np.abs(self.reward_by_feature))
+            plt.gca().set_xlim((-1.05 * max_magnitude, 1.05 * max_magnitude))
+            plt.gca().set_ylim((-1., self.reward_by_feature.size))
+            plt.xlabel('Reward')
+            plt.ylabel('Feature index')
+            plt.title('{0} Amygdala'.format(brain_name))
+            fig.show()
+            fig.canvas.draw()
 
-        # Save a copy of the plot.
-        filename = 'reward_by_feature_{0}.png'.format(brain_name)
-        pathname = os.path.join(log_dir, filename)
-        plt.savefig(pathname, format='png')
+            # Save a copy of the plot.
+            filename = 'reward_by_feature_{0}.png'.format(brain_name)
+            pathname = os.path.join(log_dir, filename)
+            plt.savefig(pathname, format='png')
         
         return performance
