@@ -14,7 +14,7 @@ when doing loops), the function will fail and throw an error.
 """
 from numba import jit 
 
-@jit(nopython=True)
+#@jit(nopython=True)
 def set_dense_val(array2d, i_rows, i_cols, val):
     """
     Set values in a dense 2D array using a list of indices.
@@ -243,10 +243,9 @@ def mean_sparse_col_weights(i_rows, i_cols, col_weights, row_mean):
     for j in range(len(row_mean)):
         if n[j] > 0.:
             row_mean[j] = total[j] / n[j]
-'''
 
 @jit(nopython=True)
-def find_bundle_activities(i_rows, i_cols, cables, bundles):
+def find_bundle_activities(i_rows, i_cols, cables, bundles, threshold):
     """
     Use a greedy method to sparsely translate cables to bundles.
 
@@ -269,6 +268,8 @@ def find_bundle_activities(i_rows, i_cols, cables, bundles):
         i_rows and i_cols must be the same length.
         Each column represents a cable and each row represents a bundle.
         The 2D array is a map from cables to bundles.
+    threshold : float
+        The amount of bundle activity below which, we just don't care.
 
     Results
     -------
@@ -304,6 +305,105 @@ def find_bundle_activities(i_rows, i_cols, cables, bundles):
             i -= 1
         
         row -= 1
+'''
+
+@jit(nopython=True)
+def find_bundle_activities(i_rows, i_cols, cables, bundles, threshold):
+    """
+    Use a greedy method to sparsely translate cables to bundles.
+
+    Start at the last bundle added and work backward to the first. 
+    For each, calculate the bundle activity by finding the minimum
+    value of each of its constituent cables. Then subtract out
+    the bundle activity from each of its cables.
+     
+    Parameters
+    ----------
+    bundles : 1D array of floats
+        An array of bundle activity values. Initially it is all zeros.
+    cables : 1D array of floats
+        An array of cable activity values. 
+    i_rows : array of ints
+        The row indices for the non-zero sparse 2D array..
+    i_cols : array of ints
+        The column indices for the non-zero sparse 2D array elements.
+        All non-zero elements are assumed to be 1.
+        i_rows and i_cols must be the same length.
+        Each column represents a cable and each row represents a bundle.
+        The 2D array is a map from cables to bundles.
+    threshold : float
+        The amount of bundle activity below which, we just don't care.
+
+    Results
+    -------
+    Returned indirectly by modifying ```cables``. These are the residual
+    cable activities that are not represented by any bundle activities.
+    """
+    large = 1e10
+    max_vote = large
+
+    # Repeat this process until the residual cable activities don't match
+    # any bundles well.
+    while max_vote > threshold:
+        # Initialize the loop that greedily looks for the most strongly
+        # activated bundle.
+        max_vote = 0.
+        best_val = 0.
+        best_bundle = 0
+        # This is the index in ``i_row`` and ``i_col`` where the 
+        # current bundle's cable constituents are listed. Cable indices
+        # are assumed to be contiguous and bundles are assumed to be
+        # listed in ascending order of index.
+        i_best_bundle = 0
+
+        # Iterate over each bundle, that is, over each row.
+        i = len(i_rows) - 1
+        row = i_rows[i]
+        while row > -1:
+
+            # For each bundle, find the minimum cable activity that 
+            # contribues to it.
+            min_val = large
+            n_cables = 0.
+            i_bundle = i
+            while i_rows[i] == row and i > -1:
+                col = i_cols[i]
+                val = cables[col]
+                if val < min_val:
+                    min_val = val  
+                n_cables += 1.
+                i -= 1
+    
+            # The strength of the vote for the bundle is the minimum cable
+            # activity multiplied by the number of cables. This weights
+            # bundles with many member cables more highly than bundles
+            # with few cables. It is a way to encourage sparsity and to 
+            # avoid creating more bundles than necessary.
+            vote = min_val * n_cables
+
+            # Update the winning bundle if appropriate.
+            if vote > max_vote:
+                max_vote = vote
+                best_val = min_val
+                i_best_bundle = i_bundle
+                best_bundle = row
+
+            # Move on to the next bundle.
+            row -= 1
+
+        if best_val > 0.:
+            # Set the bundle activity.
+            bundles[best_bundle] = best_val
+
+            # Subtract the bundle activity from each of the cables.
+            # Using ``i_best_bundle`` lets us jump right to the place in 
+            # the list of indices where the cables for the winning bundle
+            # are listed.
+            i = i_best_bundle
+            while i_rows[i] == best_bundle and i > -1:
+                col = i_cols[i]
+                cables[col] -= best_val
+                i -= 1
 
 @jit(nopython=True)
 def nucleation_energy_gather(nonbundle_activities, nucleation_energy):
@@ -538,8 +638,14 @@ def cerebellum_learn(opportunities, observations, probabilities, curiosities,
 
                 # Add an estimate of the uncertainty. It's conceptually 
                 # similar to standard error estimates for 
-                # the normal distribution: 1/sqrt(N)
-                uncertainty = 1. / (1. + opportunities[i,j] ** 2)
+                # the normal distribution: 1/sqrt(N), except that this
+                # estimate is far more liberal: 1/N**2.
+                # This allows BECCA to pretend it is more confident than
+                # it really is, and explore less. BECCA can get away with 
+                # this because its purpose is not to fully characterize its
+                # world, but rather the narrower goal of accumulating as much
+                # reward as possible.
+                uncertainty = 1. / (1. + opportunities[i,j]**.5)
 
                 # Increment the curiosities by the uncertainties, weighted
                 # by the feature activities.
@@ -548,5 +654,5 @@ def cerebellum_learn(opportunities, observations, probabilities, curiosities,
                 curiosities[i,j] += (curiosity_rate * 
                                      uncertainty * 
                                      training_context[i] *
-                                     (1. - curiosities[i,j]) *
-                                     (1. - satisfaction) )
+                                     (1. - curiosities[i,j])**4 *
+                                     (1. - satisfaction)**2 )

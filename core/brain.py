@@ -135,7 +135,7 @@ class Brain(object):
         decision_values = self.cerebellum.get_decision_values(
                 features, self.amygdala.reward_by_feature, self.ganglia.goals)
         actions, goals = self.ganglia.decide(features, decision_values)
-
+       
         # Learn from this new time step of experience.
         satisfaction = self.amygdala.learn(features, reward) 
         self.cerebellum.learn(features, actions, goals, satisfaction)
@@ -168,7 +168,7 @@ class Brain(object):
         self.amygdala.visualize(self.timestep, self.name, self.log_dir)
         #self.cerebellum.visualize(self.name, self.log_dir)
         #self.ganglia.visualize(self.name, self.log_dir)
-        #self.cortex.visualize()
+        self.cortex.visualize()
  
     def report_performance(self):
         """

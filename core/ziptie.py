@@ -60,6 +60,10 @@ class ZipTie(object):
         The current set of input actvities. 
     cable_max : array of floats
         The maximum of each cable's activity.
+    cable_max_decay_time, cable_max_grow_time : float
+        The time constant over which maximum estimates are 
+        decreased/increased. Growing time being lower allows the 
+        estimate to be weighted toward the maximum value.
     level : int
         The position of this ``ZipTie`` in the hierarchy. 
     max_num_bundles : int
@@ -68,10 +72,6 @@ class ZipTie(object):
         The maximum number of cable inputs allowed.
     name : str
         The name associated with the ``ZipTie``.
-    norm_time : float
-        The time constant over which normalization takes place. 
-        Estimates of ``cable_mean`` and ``cable_dev`` are updated
-        using leaky integration with a time constant of ``norm_time``.
     nucleation_energy : 2D array of floats
         The accumualted nucleation energy associated with each cable-cable pair.
     nucleation_threshold : float
@@ -106,7 +106,7 @@ class ZipTie(object):
         self.size = self.max_num_bundles
         self.num_bundles = 0
         # User-defined constants
-        self.nucleation_threshold = 10. * 5 ** self.level
+        self.nucleation_threshold = 100. * 5 ** self.level
         self.agglomeration_threshold = .5 * self.nucleation_threshold
         self.activity_threshold = .1
         self.bundles_full = False        
@@ -115,7 +115,8 @@ class ZipTie(object):
 
         # Normalization constants
         self.cable_max = np.zeros(self.max_num_cables)
-        self.norm_time = 1e3
+        self.cable_max_grow_time = 1e2
+        self.cable_max_decay_time = self.cable_max_grow_time * 1e2
 
         map_size = (self.max_num_bundles, self.max_num_cables)
         # To represent the sparse 2D bundle map, a pair of row and col 
@@ -181,10 +182,12 @@ class ZipTie(object):
         if cable_activities.size < self.max_num_cables:
             cable_activities = tools.pad(cable_activities, self.max_num_cables)
 
-        self.cable_max += (cable_activities - self.cable_max) * 1e-4 
+        self.cable_max += ( (cable_activities - self.cable_max) / 
+                            self.cable_max_decay_time ) 
         i_lo = np.where(cable_activities > self.cable_max)
-        self.cable_max[i_lo] += (cable_activities[i_lo] - 
-                                 self.cable_max[i_lo]) * 1e-2
+        self.cable_max[i_lo] += ( (cable_activities[i_lo] - 
+                                   self.cable_max[i_lo]) /
+                                 self.cable_max_grow_time )  
         cable_activities = cable_activities / (self.cable_max + tools.epsilon)
         cable_activities = np.maximum(0., cable_activities)
         cable_activities = np.minimum(1., cable_activities)
@@ -208,7 +211,8 @@ class ZipTie(object):
             nb.find_bundle_activities(
                     self.bundle_map_rows[:self.n_map_entries], 
                     self.bundle_map_cols[:self.n_map_entries], 
-                    self.cable_activities, self.bundle_activities)
+                    self.cable_activities, self.bundle_activities, 
+                    self.activity_threshold)
         # The residual ``cable_activities`` after calculating 
         # ``bundle_activities`` are the ``nonbundle_activities``.
         self.nonbundle_activities = self.cable_activities.copy()
@@ -270,7 +274,6 @@ class ZipTie(object):
             self.nucleation_energy[:, cable_index_b] = 0.
             self.agglomeration_energy[:, cable_index_a] = 0.
             self.agglomeration_energy[:, cable_index_b] = 0.
-        return 
 
     def increment_n_map_entries(self):
         """
@@ -313,6 +316,28 @@ class ZipTie(object):
 
         # Add a new bundle if appropriate
         if max_energy > self.agglomeration_threshold:
+            # Find which cables are in the new bundle.
+            cables = [cable_index]
+            for i in range(self.n_map_entries):
+                if self.bundle_map_rows[i] == bundle_index:
+                    cables.append(self.bundle_map_cols[i])
+            # Check whether the agglomeration is already in the bundle map.
+            in_map = False
+            candidate_bundles = np.arange(self.num_bundles)
+            for cable in cables:
+                matches = np.where(self.bundle_map_cols == cable)[0]
+                candidate_bundles = np.intersect1d(
+                        candidate_bundles, 
+                        self.bundle_map_rows[matches], 
+                        assume_unique=True)
+            if candidate_bundles.size != 0:
+                # The agglomeration has already been used to create a 
+                # bundle. Ignore and reset they count. This can happen
+                # under normal circumstances, because of how nonbundle
+                # activities are calculated.
+                self.agglomeration_energy[bundle_index, cable_index] = 0.
+                return
+
             # Make a copy of the growing bundle.
             for i in range(self.n_map_entries):
                 if self.bundle_map_rows[i] == bundle_index:
@@ -342,11 +367,8 @@ class ZipTie(object):
             self.nucleation_energy[:, cable_index] = 0.
             self.nucleation_energy[:, cable_index] = 0.
             self.agglomeration_energy[:, cable_index] = 0.
-            self.agglomeration_energy[:, cable_index] = 0.
             self.agglomeration_energy[bundle_index, :] = 0.
-            self.agglomeration_energy[bundle_index, :] = 0.
-        return
-        
+
     def get_index_projection(self, bundle_index):
         """ 
         Project ``bundle_index`` down to its cable indices.
@@ -384,6 +406,7 @@ class ZipTie(object):
                         i_bundles == i_bundle)[0]]))
                 print ' '.join(['    bundle', str(i_bundle), 
                                 'cables:', str(b_cables)])
+
         plot = False
         if plot: 
             if self.n_map_entries > 0:

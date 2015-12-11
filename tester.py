@@ -18,11 +18,11 @@ import pstats
 #from worlds.grid_1D import World
 #from worlds.grid_1D_delay import World
 #from worlds.grid_1D_ms import World
-from worlds.grid_1D_noise import World
+#from worlds.grid_1D_noise import World
 #from worlds.grid_2D import World
 #from worlds.grid_2D_dc import World
 #from worlds.image_1D import World
-#from worlds.image_2D import World
+from worlds.image_2D import World
 #from worlds.fruit import World
 
 # If you want to run a world of your own, add the appropriate line here
@@ -32,7 +32,7 @@ from worlds.grid_1D_noise import World
 
 from core.brain import Brain 
 
-def train_and_test(world_class, training_period=1e4, testing_period=1e4):
+def train_and_test(world_class, training_period=30e4, testing_period=1e4):
     """
     First train the brain on a world, then test the brain's performance. 
     

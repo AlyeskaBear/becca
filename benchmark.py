@@ -49,9 +49,11 @@ def main():
     performance.append(tester.train_and_test(World_image_2D))
     performance.append(tester.train_and_test(World_fruit))
     print('Individual benchmark scores:')
+    scores = []
     for score in performance:
         print('    {0:.2}, {1}'.format(score[0], score[1]))
-    print('Overall benchmark score: {0:.2}'.format(np.mean(performance))) 
+        scores.append(score[0])
+    print('Overall benchmark score: {0:.2}'.format(np.mean(scores))) 
     
     # Block the program, displaying all plots.
     # When the plot windows are closed, the program closes.
