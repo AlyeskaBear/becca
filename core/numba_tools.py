@@ -243,7 +243,7 @@ def mean_sparse_col_weights(i_rows, i_cols, col_weights, row_mean):
     for j in range(len(row_mean)):
         if n[j] > 0.:
             row_mean[j] = total[j] / n[j]
-
+'''
 @jit(nopython=True)
 def find_bundle_activities(i_rows, i_cols, cables, bundles, threshold):
     """
@@ -305,10 +305,10 @@ def find_bundle_activities(i_rows, i_cols, cables, bundles, threshold):
             i -= 1
         
         row -= 1
-'''
 
 @jit(nopython=True)
-def find_bundle_activities(i_rows, i_cols, cables, bundles, threshold):
+def find_sparse_bundle_activities(i_rows, i_cols, cables, bundles, 
+                                  weights, threshold):
     """
     Use a greedy method to sparsely translate cables to bundles.
 
@@ -333,6 +333,9 @@ def find_bundle_activities(i_rows, i_cols, cables, bundles, threshold):
         The 2D array is a map from cables to bundles.
     threshold : float
         The amount of bundle activity below which, we just don't care.
+    weights : array of floats
+        A multiplier for how strongly the activity of each bundle should
+        be considered when greedily selecting the next one to activate.
 
     Results
     -------
@@ -379,7 +382,7 @@ def find_bundle_activities(i_rows, i_cols, cables, bundles, threshold):
             # bundles with many member cables more highly than bundles
             # with few cables. It is a way to encourage sparsity and to 
             # avoid creating more bundles than necessary.
-            vote = min_val * n_cables
+            vote = min_val * (1. + .1 * (n_cables - 1.)) * (1. + weights[row])
 
             # Update the winning bundle if appropriate.
             if vote > max_vote:
@@ -475,8 +478,9 @@ def agglomeration_energy_gather(bundle_activities, nonbundle_activities,
                     agglomeration_energy[i_row, i_col] += coactivity 
 
 @jit(nopython=True)
-def get_decision_values(probabilities, curiosities, features, 
-                        reward, decision_values):
+def get_decision_values(probabilities, observations, opportunities,
+                        curiosities, features, 
+                        reward, decision_values, feature_importance):
     """
     Estimate the value associated with each potential decision.
 
@@ -492,34 +496,15 @@ def get_decision_values(probabilities, curiosities, features,
     by the transition probability. For each feature-decision pair,
     the value is the maximum of the transition-weighted rewards.
     For each decision, the value is the maximum of the 
-    feature-decision values when each are weighted by the current 
-    feature activities. 
+    feature-decision values over all features
+    when each are weighted by the current feature activities. 
     
-    '''
-     In this case, we are considering 
-    each feature independently. This is a departure from the
-    conventional notion of state, which is the combined set of 
-    all features. By breaking this into a bunch of independent value
-    estimation problems, we avoid the problem of combinatorial explosion
-    and the curse of dimensionality.
-    
-    The value function for each feature-decision pair is calculated by
-    first estimating the value associated with each transition
-    (feature-decision-outcome triple). This is done by multiplying the
-    current feature activity by the outcome reward by the 
-    observed probability that a given transition will occur. After 
-    each transition value is estimated, they are combined across
-    outcomes using a weighted average. The weights used are the 
-    transition probabilities again. This trick ensures that more
-    probable transitions (i.e. those that are most repeatable
-    and predictable) are relied on more heavily than transitions
-    that are uncertain.
-
-    After calculating the value function for each feature-decision pair,
-    estimate the value for each decision by performing a weighted
-    average over all the features. Only the values associated with
-    features that are currently active are of interest.
-    '''
+    Feature importance is used to focus attention on features that are
+    most likely to result in a reward or are relevant to current goals.
+    For each feature, the value is the maximum of the
+    feature-decision values over all possible decisions. It is a way
+    to measure how much a particular feature allows reward or goals
+    to be achieved.
 
     Parameters
     ----------
@@ -531,6 +516,11 @@ def get_decision_values(probabilities, curiosities, features,
         ganglia could make. It should be initialized to a one-dimensional
         array of all zeros, before being passed in. Its length should 
         be equal to the number of actions plus the number of features. 
+    feature_importance : 1D array of floats
+        Weights associated with each feature, reflecting how much 
+        reward that feature can help BECCA find. It should be initialized
+        as a one-dimensional array of large negative values. Its length
+        should be equal to the number of features.
     features : array of floats
         The current set of feature activities.
     reward : array of floats
@@ -540,41 +530,48 @@ def get_decision_values(probabilities, curiosities, features,
 
     Returns
     -------
-    This function returns its results by modifying ``decision_values``.
+    This function returns its results by modifying ``decision_values``
+    and ``feature_importance``.
     """
     small = 1e-3
     low = 1e-10
     (I, J, K) = probabilities.shape
     for j in range(J):
-        # Numerator and denominator for the decision value.
-        best_decision_value = low
         for i in range(I):
             # Skipping the iteration for small values takes advantage of
             # any sparseness present and speeds up computation considerably.
             if features[i] > small:
                 best_Q_value = low
                 for k in range(K):
-                    #if abs(reward[k]) > small:
                     # Find the highest value transition.
-                    q = (reward[k] *
-                         probabilities[i,j,k])
+                    #weighted_observations = observations[i,j,k]
+                    probability = observations[i,j,k] / opportunities[i,j]
+                    #weighted_observations = observations[i,j,k] * (1. - 1./
+                    #     (1. + observations[i,j,k] ** 2))
+                    q = reward[k] * probability
+                         #probabilities[i,j,k])
+                         #weighted_observations / (opportunities[i,j] + low))
                     if q > best_Q_value:
                         best_Q_value = q
 
-                # Find the highest value feature-decision pair 
-                # for each decision. This
-                # also includes the curiosity associated with that pair,
-                # and is weighted by the feature's activity.
+                # Find the highest value feature-decision pair for each 
+                # decision. This also includes the curiosity associated with 
+                # that pair, and is weighted by the feature's activity.
                 action_value = (best_Q_value + curiosities[i,j]) * features[i]
-                if action_value > best_decision_value:
-                    best_decision_value = action_value
-        decision_values[j] = best_decision_value
-    return decision_values
+                if action_value > decision_values[j]:
+                    decision_values[j] = action_value
+
+                # Find the highest value feature-decision pair for each 
+                # feature.
+                if best_Q_value > feature_importance[i]:
+                    feature_importance[i] = best_Q_value
+    return 
                     
 @jit(nopython=True)
 def cerebellum_learn(opportunities, observations, probabilities, curiosities,
                      training_context, training_goals, training_results, 
-                     current_context, goals, curiosity_rate, satisfaction):
+                     current_context, goals, curiosity_rate, satisfaction,
+                     live_elements):
     """
     Use this time step's information to help the ``Cerebellum`` learn.
     
@@ -612,47 +609,53 @@ def cerebellum_learn(opportunities, observations, probabilities, curiosities,
         # any sparseness present and speeds up computation considerably.
         if current_context[i] > small:
             for j in range(J):
-                if abs(goals[j]) > small:
-                    curiosities[i,j] *= 1. - current_context[i] * goals[j]
+                if live_elements[j] == 1.:
+                    if abs(goals[j]) > small:
+                        curiosities[i,j] = curiosities[i,j] * ( 
+                                1. - (current_context[i] * abs(goals[j])))
 
     for i in range(I):
         if training_context[i] > small:
             for j in range(J):
-                if abs(training_goals[j]) > small:
-                    # Update opportunities, an upper bound on how many 
-                    # times a given outcome could have occurred.
-                    opportunities[i,j] += (training_context[i] * 
-                                           training_goals[j])
+                if live_elements[j] == 1.:
+                    if abs(training_goals[j]) > small:
+                        # Update opportunities, an upper bound on how many 
+                        # times a given outcome could have occurred.
+                        opportunities[i,j] += (training_context[i] * 
+                                               training_goals[j])
 
-                    for k in range(K):
-                        if training_results[k] > small:
-                            # Update observations, the actual number of times
-                            # each outcome has occurred.
-                            observations[i,j,k] += ( training_context[i] * 
-                                                     training_goals[j] *
-                                                     training_results[k] )
-                        # Use a strict frequentist interpretation 
-                        # of probability: observations over opportunities.
-                        probabilities[i,j,k] = (observations[i,j,k] / 
-                                                opportunities[i,j])
+                        for k in range(K):
+                            if training_results[k] > small:
+                                # Update observations, the actual 
+                                # number of times
+                                # each outcome has occurred.
+                                observations[i,j,k] += ( training_context[i] * 
+                                                         training_goals[j] *
+                                                         training_results[k] )
+                            # Use a strict frequentist interpretation 
+                            # of probability: observations over opportunities.
+                            probabilities[i,j,k] = (observations[i,j,k] / 
+                                                    opportunities[i,j])
 
-                # Add an estimate of the uncertainty. It's conceptually 
-                # similar to standard error estimates for 
-                # the normal distribution: 1/sqrt(N), except that this
-                # estimate is far more liberal: 1/N**2.
-                # This allows BECCA to pretend it is more confident than
-                # it really is, and explore less. BECCA can get away with 
-                # this because its purpose is not to fully characterize its
-                # world, but rather the narrower goal of accumulating as much
-                # reward as possible.
-                uncertainty = 1. / (1. + opportunities[i,j]**.5)
+                    # Add an estimate of the uncertainty. It's conceptually 
+                    # similar to standard error estimates for 
+                    # the normal distribution: 1/sqrt(N), except that this
+                    # estimate is far more liberal: 1/N**2.
+                    # This allows BECCA to pretend it is more confident than
+                    # it really is, and explore less. BECCA can get away with 
+                    # this because its purpose is not to fully characterize its
+                    # world, but rather the narrower goal of accumulating as much
+                    # reward as possible.
+                    uncertainty = 1. / (1. + opportunities[i,j]**2.)
 
-                # Increment the curiosities by the uncertainties, weighted
-                # by the feature activities.
-                # TODO: Weight by the how much reward has been 
-                # received recently.
-                curiosities[i,j] += (curiosity_rate * 
-                                     uncertainty * 
-                                     training_context[i] *
-                                     (1. - curiosities[i,j])**4 *
-                                     (1. - satisfaction)**2 )
+                    # Increment the curiosities by the uncertainties, weighted
+                    # by the feature activities.
+                    # TODO: Weight by the how much reward has been 
+                    # received recently.
+                    curiosities[i,j] += (curiosity_rate * 
+                                         uncertainty**2 * 
+                                         training_context[i] *
+                                         (1. - curiosities[i,j])**2 *
+                                         (1. - satisfaction)**2 )
+                    #if curiosities[i,j] > .3:
+                    #    curiosities[i,j] = .3

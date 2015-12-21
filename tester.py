@@ -17,24 +17,24 @@ import pstats
 #from worlds.base_world import World
 #from worlds.grid_1D import World
 #from worlds.grid_1D_delay import World
+#from worlds.grid_1D_chase import World
 #from worlds.grid_1D_ms import World
 #from worlds.grid_1D_noise import World
 #from worlds.grid_2D import World
-#from worlds.grid_2D_dc import World
+from worlds.grid_2D_dc import World
 #from worlds.image_1D import World
-from worlds.image_2D import World
+#from worlds.image_2D import World
 #from worlds.fruit import World
 
 # If you want to run a world of your own, add the appropriate line here
 #from worlds.hello import World
 #from becca_world_chase_ball.chase import World
-#from worlds.grid_1D_chase import World
 
 from core.brain import Brain 
 
-def train_and_test(world_class, training_period=30e4, testing_period=1e4):
+def test(world_class, testing_period=2e4):
     """
-    First train the brain on a world, then test the brain's performance. 
+    Test the brain's performance on a world. 
     
     Parameters
     ----------
@@ -42,8 +42,8 @@ def train_and_test(world_class, training_period=30e4, testing_period=1e4):
         The class containing the BECCA-compatible world that the 
         brain will be receiving sensor and reward information from and 
         sending action commands to.
-    training_period, testing_period : int, optional
-        The number of time steps to train or test the brain
+    testing_period : int, optional
+        The number of time steps to test the brain
         on the current world.  The default is 10,000.
 
     Returns
@@ -51,19 +51,7 @@ def train_and_test(world_class, training_period=30e4, testing_period=1e4):
     test_performance : float
         The average reward per time step during the testing period.
     """
-    '''
-    # Train the brain on the world
-    world = world_class(lifespan=training_period)
-    train_average = run(world)
-    train_performance = train_average * training_period 
     world = world_class(lifespan=testing_period)
-    # Test the brain on the world
-    total_average = run(world, restore=True)
-    total_performance = total_average * (training_period + testing_period)
-    test_performance = ((total_performance - train_performance) /
-                        testing_period )
-    '''
-    world = world_class(lifespan=training_period + testing_period)
     performance = run(world)
     print('Performance is: {0:.3}'.format(performance))
     return performance, world.name

@@ -130,30 +130,6 @@ class ZipTie(object):
         self.nucleation_energy = np.zeros((self.max_num_cables, 
                                            self.max_num_cables))
 
-    def step(self, new_cable_activities):
-        """ 
-        Update co-activity estimates and calculate bundle activity 
-        
-        This step combines the projection of cables activities
-        to bundle activities together with using the cable activities 
-        to incrementally train the ``ZipTie``.
-
-        Parameters
-        ----------
-        new_cable_activities : array of floats
-            The most recent set of cable activities.
-
-        Returns
-        -------
-        self.bundle_activities : array of floats
-            The current activities of the bundles.
-        """
-        self.cable_activities = self._normalize(new_cable_activities)
-        self._featurize()
-        self._learn()
-
-        return self.bundle_activities
-
     def _normalize(self, cable_activities):
         """
         Normalize activities so that they are predictably distrbuted.
@@ -199,31 +175,84 @@ class ZipTie(object):
         normalized_cable_activities = cable_activities.copy()
         return normalized_cable_activities
 
-    def _featurize(self):
+    def featurize(self, new_cable_activities):
+        """ 
+        Update co-activity estimates and calculate bundle activity 
+        
+        This step combines the projection of cables activities
+        to bundle activities together with using the cable activities 
+        to incrementally train the ``ZipTie``.
+
+        Parameters
+        ----------
+        new_cable_activities : array of floats
+            The most recent set of cable activities.
+
+        Returns
+        -------
+        self.bundle_activities : array of floats
+            The current activities of the bundles.
+        """
         """
         Calculate how much the cables' activities contribute to each bundle. 
 
         Find bundle activities by taking the minimum input value
         in the set of cables in the bundle.
         """
+        self.cable_activities = self._normalize(new_cable_activities)
         self.bundle_activities = np.zeros(self.max_num_bundles)
         if self.n_map_entries > 0:
             nb.find_bundle_activities(
                     self.bundle_map_rows[:self.n_map_entries], 
                     self.bundle_map_cols[:self.n_map_entries], 
-                    self.cable_activities, self.bundle_activities, 
+                    self.cable_activities.copy(), self.bundle_activities, 
                     self.activity_threshold)
+
+        return self.bundle_activities
+
+    def sparse_featurize(self, new_cable_activities, bundle_weights=None):
+        """
+        Calculate how much the cables' activities contribute to each bundle. 
+
+        Find bundle activities by taking the minimum input value
+        in the set of cables in the bundle.
+        """
+        self.sparse_cable_activities = self._normalize(new_cable_activities)
+        self.nonbundle_activities = self.sparse_cable_activities.copy()
+        self.sparse_bundle_activities = np.zeros(self.max_num_bundles)
+        if bundle_weights is None:
+            bundle_weights = np.ones(self.max_num_bundles)
+        if self.n_map_entries > 0:
+            nb.find_sparse_bundle_activities(
+                    self.bundle_map_rows[:self.n_map_entries], 
+                    self.bundle_map_cols[:self.n_map_entries], 
+                    self.nonbundle_activities, 
+                    self.sparse_bundle_activities, 
+                    bundle_weights, self.activity_threshold)
         # The residual ``cable_activities`` after calculating 
         # ``bundle_activities`` are the ``nonbundle_activities``.
-        self.nonbundle_activities = self.cable_activities.copy()
         self.nonbundle_activities[np.where(self.nonbundle_activities < 
                                            self.activity_threshold)] = 0.
+        return self.sparse_bundle_activities
 
-    def _learn(self):
+    def learn(self):
+        """ 
+        Update co-activity estimates and calculate bundle activity 
+        
+        This step combines the projection of cables activities
+        to bundle activities together with using the cable activities 
+        to incrementally train the ``ZipTie``.
+
+        Parameters
+        ----------
+        new_cable_activities : array of floats
+            The most recent set of cable activities.
+
+        Returns
+        -------
+        self.bundle_activities : array of floats
+            The current activities of the bundles.
         """
-        Update energies and the ``bundle_map``.
-        """
-        # As appropriate update the energies and create new bundles.
         if not self.bundles_full:
             self._create_new_bundles()
             self._grow_bundles()
@@ -240,6 +269,21 @@ class ZipTie(object):
         # Don't accumulate nucleation energy between a cable and itself
         ind = np.arange(self.cable_activities.size).astype(int)
         self.nucleation_energy[ind,ind] = 0.
+
+        # Don't accumulate nucleation energy between cables already 
+        # in the same bundle 
+        for i in range(self.n_map_entries):
+            i_bundle = self.bundle_map_rows[i]
+            i_cable = self.bundle_map_cols[i]
+            j = 1
+            j_bundle = self.bundle_map_rows[i + j]
+            j_cable = self.bundle_map_cols[i + j]
+            while j_bundle == i_bundle:
+                self.nucleation_energy[i_cable, j_cable] = 0.
+                self.nucleation_energy[j_cable, i_cable] = 0.
+                j += 1
+                j_bundle = self.bundle_map_rows[i + j]
+                j_cable = self.bundle_map_cols[i + j]
 
         results = -np.ones(3)
         nb.max_dense(self.nucleation_energy, results)
@@ -275,20 +319,6 @@ class ZipTie(object):
             self.agglomeration_energy[:, cable_index_a] = 0.
             self.agglomeration_energy[:, cable_index_b] = 0.
 
-    def increment_n_map_entries(self):
-        """
-        Add one to ``n_map`` entries and grow the bundle map as needed.
-        """
-        self.n_map_entries += 1
-        if self.n_map_entries >= self.bundle_map_size:
-            self.bundle_map_size *= 2
-            self.bundle_map_rows = tools.pad(self.bundle_map_rows, 
-                                             self.bundle_map_size, 
-                                             val=-1, dtype='int')
-            self.bundle_map_cols = tools.pad(self.bundle_map_cols, 
-                                             self.bundle_map_size, 
-                                             val=-1, dtype='int')
-        
     def _grow_bundles(self):
         """ 
         Update an estimate of co-activity between all cables.
@@ -322,7 +352,6 @@ class ZipTie(object):
                 if self.bundle_map_rows[i] == bundle_index:
                     cables.append(self.bundle_map_cols[i])
             # Check whether the agglomeration is already in the bundle map.
-            in_map = False
             candidate_bundles = np.arange(self.num_bundles)
             for cable in cables:
                 matches = np.where(self.bundle_map_cols == cable)[0]
@@ -369,6 +398,20 @@ class ZipTie(object):
             self.agglomeration_energy[:, cable_index] = 0.
             self.agglomeration_energy[bundle_index, :] = 0.
 
+    def increment_n_map_entries(self):
+        """
+        Add one to ``n_map`` entries and grow the bundle map as needed.
+        """
+        self.n_map_entries += 1
+        if self.n_map_entries >= self.bundle_map_size:
+            self.bundle_map_size *= 2
+            self.bundle_map_rows = tools.pad(self.bundle_map_rows, 
+                                             self.bundle_map_size, 
+                                             val=-1, dtype='int')
+            self.bundle_map_cols = tools.pad(self.bundle_map_cols, 
+                                             self.bundle_map_size, 
+                                             val=-1, dtype='int')
+        
     def get_index_projection(self, bundle_index):
         """ 
         Project ``bundle_index`` down to its cable indices.

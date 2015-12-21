@@ -66,7 +66,7 @@ class Brain(object):
         self.num_sensors = num_sensors + 2
         # Always include an extra action. The last is the 'do nothing' action.
         self.num_actions = num_actions + 1
-        self.backup_interval = 1e6
+        self.backup_interval = 1e5
         self.name = brain_name
         self.log_dir = os.path.normpath(os.path.join(mod_path, '..', 'log'))
         if not os.path.isdir(self.log_dir):
@@ -122,7 +122,18 @@ class Brain(object):
         """
         self.timestep += 1
         # Calcuate activities of all the features.
-        features, grow = self.cortex.featurize_and_learn(sensors, reward)
+        features = self.cortex.featurize(sensors, reward)
+         
+        # Decide which actions to take.
+        (decision_values, 
+         feature_importance) = self.cerebellum.get_decision_values(
+                features, self.amygdala.reward_by_feature, self.ganglia.goals)
+        actions, goals = self.ganglia.decide(features, decision_values)
+       
+        # Learn from this new time step of experience.
+        grow = self.cortex.learn(feature_importance)
+        satisfaction = self.amygdala.learn(features, reward) 
+        self.cerebellum.learn(features, actions, goals, satisfaction)
 
         # If the ``cortex`` just added a new level to its hierarchy, 
         # grow the rest of the components accordingly.
@@ -130,15 +141,6 @@ class Brain(object):
             self.amygdala.grow(self.cortex.size)
             self.cerebellum.grow(self.cortex.size)
             self.ganglia.grow(self.cortex.size)
-        
-        # Decide which actions to take.
-        decision_values = self.cerebellum.get_decision_values(
-                features, self.amygdala.reward_by_feature, self.ganglia.goals)
-        actions, goals = self.ganglia.decide(features, decision_values)
-       
-        # Learn from this new time step of experience.
-        satisfaction = self.amygdala.learn(features, reward) 
-        self.cerebellum.learn(features, actions, goals, satisfaction)
 
         if (self.timestep % self.backup_interval) == 0:
             self.backup()  
@@ -167,7 +169,7 @@ class Brain(object):
 
         self.amygdala.visualize(self.timestep, self.name, self.log_dir)
         #self.cerebellum.visualize(self.name, self.log_dir)
-        #self.ganglia.visualize(self.name, self.log_dir)
+        self.ganglia.visualize(self.name, self.log_dir)
         self.cortex.visualize()
  
     def report_performance(self):

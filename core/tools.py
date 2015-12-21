@@ -204,12 +204,12 @@ def format(array):
     """
     if len(array.shape) == 2:
         for j in range(array.shape[1]):
-            formatted = (' '.join(['{0:.3}'.format(array[i,j]) 
+            formatted = (' '.join(['{0},{1}:{2:.3}'.format(i, j, array[i,j]) 
                                    for i in range(array.shape[0])]))
             print formatted
     else:
         array = array.copy().ravel()
-        formatted = (' '.join(['{0:.3}'.format(array[i]) 
+        formatted = (' '.join(['{0}:{1:.3}'.format(i, array[i]) 
                                for i in range(array.size)]))
         print formatted
 

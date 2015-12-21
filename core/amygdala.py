@@ -229,7 +229,7 @@ class Amygdala(object):
         pathname = os.path.join(log_dir, filename)
         plt.savefig(pathname, format='png')
 
-        if False:
+        if True:
             # Plot the learned reward value of each feature.
             fig = plt.figure(11112)
             fig.clf()

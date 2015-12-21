@@ -64,6 +64,9 @@ class Cerebellum(object):
         The rate at which curiosities are accumulated each time step.
     goals : array of floats
         A history of the index of the state element chose as a goal. 
+    live_elements : array of floats
+        An indicator array showing which elements have ever shown 
+        any activity. All actions are live by default.
     time_constant : float
         The number of time steps into the pats or future in which 
         the perceived magnitude decreases to half of its original value.
@@ -90,6 +93,8 @@ class Cerebellum(object):
         self.opportunities = np.ones(_2D_size) * tools.epsilon
         self.probabilities = np.zeros(_3D_size)
         self.curiosities = np.zeros(_2D_size)
+        self.live_elements = np.zeros(self.num_elements)
+        self.live_elements[:self.num_actions] = 1.
         self.curiosity_rate = 1e-2
         self.time_constant = 1.
         self.trace_length = int(100. * self.time_constant)
@@ -130,19 +135,37 @@ class Cerebellum(object):
         """
         # Add together the observed reward associated with each feature
         # with the goal reward associated with each feature.
-        total_reward = feature_reward + goal_reward
+        total_reward = feature_reward #+ goal_reward
         # We're only interested in pursuing positive rewards.
         total_reward[np.where(total_reward < 0.)] = 0.
                          
-        decision_values = np.zeros(self.num_elements)
+        decision_values = -10. * np.ones(self.num_elements)
+        feature_importance = -10. * np.ones(self.num_features)
         # Call a numba routine to make this calculation fast.
         nb.get_decision_values(self.probabilities, 
+                               self.observations,
+                               self.opportunities,
                                self.curiosities, 
                                features, 
                                total_reward, 
-                               decision_values)
+                               decision_values,
+                               feature_importance)
+        if False:
+            print 'feature reward'
+            tools.format(feature_reward)
+            print 'goal reward'
+            tools.format(goal_reward)
+            decision_index = np.argmax(decision_values)
+            print 'decision index', decision_index
+            print 'curiosities of di'
+            tools.format(self.curiosities[:,decision_index])
+            print 'opportunities of di'
+            tools.format(self.opportunities[:,decision_index])
+            #print 'observations of di'
+            #tools.format(self.observations[:,decision_index,:])
+
         # Decision_values should all be between 0 and 1.
-        return decision_values
+        return decision_values, feature_importance
 
     def learn(self, features, actions, feature_goals, satisfaction):
         """
@@ -163,6 +186,12 @@ class Cerebellum(object):
         None
         """
         current_context = features.copy()
+        live_indices = np.where(current_context > tools.epsilon)[0]
+        self.live_elements[live_indices + self.num_actions] = 1.
+
+        #live_indices = np.where(self.live_elements > tools.epsilon)[0]
+        #print live_indices
+
         goals = np.concatenate((actions, feature_goals))
 
         # Add the newest features and goal to the trace history.
@@ -191,7 +220,8 @@ class Cerebellum(object):
                                 self.probabilities, self.curiosities,
                                 training_context, training_goals,
                                 training_results, current_context, goals,
-                                self.curiosity_rate, satisfaction)
+                                self.curiosity_rate, satisfaction,
+                                self.live_elements)
 
     '''
     # TODO: For multi-step planning simulate the likely effect of actions
@@ -229,6 +259,7 @@ class Cerebellum(object):
                                        val=tools.epsilon)
         self.probabilities = tools.pad(self.probabilities, _3D_size)
         self.curiosities = tools.pad(self.curiosities, _2D_size)
+        self.live_elements = tools.pad(self.live_elements, self.num_elements)
 
         for i in np.arange(len(self.features_history)):
             self.features_history[i] = tools.pad(self.features_history[i], 
@@ -249,7 +280,10 @@ class Cerebellum(object):
         log_dir : str
             See docstring for ``brain.py``.
         """
-        max_prob = np.max(self.probabilities)
+        #max_prob = np.max(self.probabilities)
+        probabilities = self.observations / (self.opportuniities + 
+                                             tools.epsilon)
+        max_prob = np.max(probabilities)
         fig = plt.figure(num=777777)
         plt.clf()
         ax = fig.add_subplot(111, projection='3d')

@@ -51,8 +51,9 @@ class Ganglia(object):
         self.num_features = num_features
         self.num_elements = self.num_actions + self.num_features
         self.goals = np.zeros(self.num_features)
-        self.decay_rate = .01
-        self.goal_scale = .5
+        self.decay_rate = .3
+        self.goal_scale = 1.
+        self.goal_threshold = .01
         
     def decide(self, features, decision_values):
         """
@@ -82,6 +83,7 @@ class Ganglia(object):
         # Let goals be fulfilled by their corresponding features.
         self.goals -= features
         self.goals = np.maximum(0., self.goals) 
+        self.goals[np.where(self.goals < self.goal_threshold)] = 0.
 
         # TODO: Another option is to set the most recently attended
         # feature as the goal. This provides some value, which could
@@ -92,7 +94,17 @@ class Ganglia(object):
         #    print ' '.join(['    ', str(i), ':', '{0:.3}'.format(dv) ])
 
         decisions = np.zeros(decision_values.shape)
-        decisions[np.argmax(decision_values)] = 1.
+        if True:
+            decision_index = np.argmax(decision_values)
+        else:
+            rectified_values = np.maximum(decision_values, 0.) ** 8
+            probabilities = rectified_values / np.sum(rectified_values)
+            decision_index = np.random.choice(np.arange(decisions.size), 
+                                              p=probabilities)
+        #print 'decision values'
+        #tools.format(decision_values)
+        decisions[decision_index] = 1.
+        #print 'di', decision_index
         actions = decisions[:self.num_actions]
         # TODO: Pass through predictable (well-learned) actions and goals. 
 
@@ -100,7 +112,6 @@ class Ganglia(object):
         self.goals = np.maximum(self.goals, 
                                 decisions[self.num_actions:] *
                                 self.goal_scale)
-
         # Choose a single random action. Used for debugging and testing.
         random_action = False
         if random_action:

@@ -26,6 +26,7 @@ import tester
 # Import all the world classes that are in the benchmark collection
 from worlds.grid_1D import World as World_grid_1D
 from worlds.grid_1D_delay import World as World_grid_1D_delay
+from worlds.grid_1D_chase import World as World_grid_1D_chase
 from worlds.grid_1D_ms import World as World_grid_1D_ms
 from worlds.grid_1D_noise import World as World_grid_1D_noise
 from worlds.grid_2D import World as World_grid_2D
@@ -39,15 +40,16 @@ def main():
     Run all the worlds in the benchmark and tabulate their performance.
     """
     performance = []
-    performance.append(tester.train_and_test(World_grid_1D))
-    performance.append(tester.train_and_test(World_grid_1D_delay))
-    performance.append(tester.train_and_test(World_grid_1D_ms))
-    performance.append(tester.train_and_test(World_grid_1D_noise))
-    performance.append(tester.train_and_test(World_grid_2D))
-    performance.append(tester.train_and_test(World_grid_2D_dc))
-    performance.append(tester.train_and_test(World_image_1D))
-    performance.append(tester.train_and_test(World_image_2D))
-    performance.append(tester.train_and_test(World_fruit))
+    performance.append(tester.test(World_grid_1D))
+    performance.append(tester.test(World_grid_1D_delay))
+    performance.append(tester.test(World_grid_1D_chase))
+    performance.append(tester.test(World_grid_1D_ms))
+    performance.append(tester.test(World_grid_1D_noise))
+    performance.append(tester.test(World_grid_2D))
+    performance.append(tester.test(World_grid_2D_dc))
+    performance.append(tester.test(World_image_1D))
+    performance.append(tester.test(World_image_2D))
+    performance.append(tester.test(World_fruit))
     print('Individual benchmark scores:')
     scores = []
     for score in performance:

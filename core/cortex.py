@@ -70,11 +70,11 @@ class Cortex(object):
         """
         self.num_zipties =  1
         # Choose size to allow for sensing reward and for feature proliferation.
-        self.size = 2 * num_sensors 
+        self.size = 3 * num_sensors 
         first_ziptie_name = ''.join(('ziptie_', str(self.num_zipties - 1)))
         self.zipties = [ziptie.ZipTie(self.size, name=first_ziptie_name)]
 
-    def featurize_and_learn(self, sensors, reward):
+    def featurize(self, sensors, reward):
         """ 
         Take in new sensor values and find the corresponding feature values.
         
@@ -106,24 +106,72 @@ class Cortex(object):
         # and helps the brain to make plans to reach it.
         negative_reward = np.maximum(-reward, 0)
         positive_reward = np.maximum(reward, 0) 
-        cable_activities = np.zeros(sensors.size + 2)
-        cable_activities[:sensors.size] = sensors
-        cable_activities[-2] = negative_reward
-        cable_activities[-1] = positive_reward
-
-        # debug: Don't build features
-        skip = False
-        if skip:
-            feature_activities = np.zeros(self.size)
-            feature_activities[:cable_activities.size] = cable_activities
-            return feature_activities, [], False
-
+        self.sensors = np.zeros(sensors.size + 2)
+        self.sensors[:sensors.size] = sensors
+        self.sensors[-2] = negative_reward
+        self.sensors[-1] = positive_reward
+        cable_activities = self.sensors.copy()
         # Step through the ``ZipTie``s in ``self.zipties`` one at a 
         # time, starting at the bottom-most and proceeding upward.
         # The output features (bundles) of each are the input features
         # (cables) of the next.
         for level, tie in enumerate(self.zipties):
-            cable_activities = tie.step(cable_activities) 
+            cable_activities = tie.featurize(cable_activities) 
+
+        # Build the full feature activities array by appending the
+        # feature inputs from all the ``ZipTie``s.
+        num_features = self.size * len(self.zipties)
+        feature_activities = np.zeros(num_features)
+        for (ziptie_index, tie) in enumerate(self.zipties):
+            self.level_scale = .6
+            scale = self.level_scale ** (len(self.zipties) - ziptie_index - 1)
+            start_index = self.size * ziptie_index
+            end_index = self.size * (ziptie_index + 1)
+            feature_activities[start_index: end_index] = (
+                    tie.cable_activities.copy() * scale)
+
+        #print feature_activities
+        return feature_activities
+
+    def learn(self, feature_importance):
+        """ 
+        Take in new sensor values and find the corresponding feature values.
+        
+        At each time step, pass the sensor values up through the 
+        hierarchy of ``zipties`` and find the feature values that result.
+        Also, use the new sensor values to incrementally train the 
+        ``ziptie``s.
+
+        Parameters
+        ----------
+        feature_importance : array of floats
+
+        Returns
+        -------
+        ziptie_added : bool
+            If True, this indicates that another ``ZipTie`` was added to
+            ``self.zipties``, another level added to the hierarchy.
+        -------
+
+        """
+        # debug: Don't build features
+        skip = False
+        if skip:
+            feature_activities = np.zeros(self.size)
+            feature_activities[:self.sensors.size] = self.sensors
+            return False
+
+        # Step through the ``ZipTie``s in ``self.zipties`` one at a 
+        # time, starting at the bottom-most and proceeding upward.
+        # The output features (bundles) of each are the input features
+        # (cables) of the next.
+        sparse_activities = self.sensors.copy()
+        for level, tie in enumerate(self.zipties):
+            importance = feature_importance[self.size * level:
+                                            self.size * (level + 1)]
+            sparse_activities = tie.sparse_featurize(sparse_activities,
+                                                     importance)
+            tie.learn() 
 
         # If the top ziptie has created its first two bundles,
         # create a new one on top of that.
@@ -131,19 +179,24 @@ class Cortex(object):
         if tie.num_bundles > 1:
             self.add_ziptie()
             ziptie_added = True
-            cable_activities = self.zipties[-1].step(cable_activities) 
+            sparse_activities = self.zipties[-1].sparse_featurize(
+                    sparse_activities) 
 
         # Build the full feature activities array by appending the
         # feature inputs from all the ``ZipTie``s.
         num_features = self.size * len(self.zipties)
-        feature_activities = np.zeros(num_features)
+        sparse_feature_activities = np.zeros(num_features)
         for (ziptie_index, tie) in enumerate(self.zipties):
             start_index = self.size * ziptie_index
             end_index = self.size * (ziptie_index + 1)
-            feature_activities[start_index: end_index] = (
+            sparse_feature_activities[start_index: end_index] = (
                     tie.cable_activities.copy())
-
-        return feature_activities, ziptie_added
+        #print 's', sparse_feature_activities
+        return ziptie_added
+        # Debug: I don't think that any other parts of BECCA need the sparse
+        # feature activities yet, but I'll keep them available
+        # in case they become useful for cognition.
+        #return sparse_feature_activities, ziptie_added
 
     def map_index(self, index):
         """ 
