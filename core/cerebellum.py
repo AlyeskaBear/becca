@@ -91,7 +91,7 @@ class Cerebellum(object):
         _3D_size = (self.num_features, self.num_elements, self.num_features)
         self.observations = np.zeros(_3D_size)
         self.opportunities = np.ones(_2D_size) * tools.epsilon
-        self.probabilities = np.zeros(_3D_size)
+        #self.probabilities = np.zeros(_3D_size)
         self.curiosities = np.zeros(_2D_size)
         self.live_elements = np.zeros(self.num_elements)
         self.live_elements[:self.num_actions] = 1.
@@ -142,14 +142,18 @@ class Cerebellum(object):
         decision_values = -10. * np.ones(self.num_elements)
         feature_importance = -10. * np.ones(self.num_features)
         # Call a numba routine to make this calculation fast.
-        nb.get_decision_values(self.probabilities, 
+        #nb.get_decision_values(self.probabilities, 
+        nb.get_decision_values(
                                self.observations,
                                self.opportunities,
                                self.curiosities, 
                                features, 
                                total_reward, 
                                decision_values,
-                               feature_importance)
+                               #feature_importance)
+                               feature_importance,
+                               self.live_elements, 
+                               self.live_elements[self.num_actions:])
         if False:
             print 'feature reward'
             tools.format(feature_reward)
@@ -217,11 +221,13 @@ class Cerebellum(object):
 
             # Call a numba routine to make this calculation fast.
             nb.cerebellum_learn(self.opportunities, self.observations,
-                                self.probabilities, self.curiosities,
+                                #self.probabilities, self.curiosities,
+                                self.curiosities,
                                 training_context, training_goals,
                                 training_results, current_context, goals,
                                 self.curiosity_rate, satisfaction,
-                                self.live_elements)
+                                self.live_elements, 
+                                self.live_elements[self.num_actions:])
 
     '''
     # TODO: For multi-step planning simulate the likely effect of actions
@@ -257,7 +263,7 @@ class Cerebellum(object):
         self.observations = tools.pad(self.observations, _3D_size)
         self.opportunities = tools.pad(self.opportunities, _2D_size, 
                                        val=tools.epsilon)
-        self.probabilities = tools.pad(self.probabilities, _3D_size)
+        #self.probabilities = tools.pad(self.probabilities, _3D_size)
         self.curiosities = tools.pad(self.curiosities, _2D_size)
         self.live_elements = tools.pad(self.live_elements, self.num_elements)
 

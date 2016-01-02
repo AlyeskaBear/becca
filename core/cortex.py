@@ -129,6 +129,8 @@ class Cortex(object):
             end_index = self.size * (ziptie_index + 1)
             feature_activities[start_index: end_index] = (
                     tie.cable_activities.copy() * scale)
+            #feature_activities[start_index: end_index] = (
+            #        tie.cable_activities.copy())
 
         #print feature_activities
         return feature_activities
@@ -192,11 +194,11 @@ class Cortex(object):
             sparse_feature_activities[start_index: end_index] = (
                     tie.cable_activities.copy())
         #print 's', sparse_feature_activities
-        return ziptie_added
+        #return ziptie_added
         # Debug: I don't think that any other parts of BECCA need the sparse
         # feature activities yet, but I'll keep them available
         # in case they become useful for cognition.
-        #return sparse_feature_activities, ziptie_added
+        return sparse_feature_activities, ziptie_added
 
     def map_index(self, index):
         """ 

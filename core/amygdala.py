@@ -77,7 +77,7 @@ class Amygdala(object):
         self.reward_learning_rate = 1e-3
         self.satisfaction_time_constant = 1e3
         #self.trace_length = int(12. * self.time_constant)
-        self.trace_length = 1
+        #self.trace_length = 1
         #self.recent_rewards = list(np.zeros(self.trace_length))
         #self.recent_features = [np.zeros(num_features)] * self.trace_length
         """
@@ -133,7 +133,7 @@ class Amygdala(object):
         #weighted_trace = np.array(self.recent_rewards) * weights
         #reward_trace = np.sum(weighted_trace)
         #reward_trace /= self.trace_magnitude
-        reward_trace = reward
+        #reward_trace = reward
         #features = self.recent_features[0]
         features = new_features
         """
@@ -145,7 +145,8 @@ class Amygdala(object):
         Another way to say that is if either the discrepancy is very small
         or the feature activity is very small, there is no change.
         """
-        self.reward_by_feature += ((reward_trace - self.reward_by_feature) * 
+        #self.reward_by_feature += ((reward_trace - self.reward_by_feature) * 
+        self.reward_by_feature += ((reward - self.reward_by_feature) * 
                                    features * self.reward_learning_rate)
                                    #features ** 2 * self.reward_learning_rate)
 
@@ -215,8 +216,15 @@ class Amygdala(object):
 
         # Plot the lifetime record of the reward.
         fig = plt.figure(11111)
-        plt.plot(self.reward_steps, self.reward_history, color=tools.copper,
-                 linewidth=2.5)
+        color = (np.array(tools.copper) + 
+                 np.random.normal(size=3, scale=.1) )
+        color = np.maximum(np.minimum(color, 1.), 0.)
+        color = tuple(color)
+        linewidth = np.random.normal(loc=2.5)
+        linewidth = 2
+        linewidth = np.maximum(1., linewidth)
+        plt.plot(self.reward_steps, self.reward_history, color=color,
+                 linewidth=linewidth)
         plt.gca().set_axis_bgcolor(tools.copper_highlight)
         plt.xlabel('Time step')
         plt.ylabel('Average reward')
@@ -229,7 +237,7 @@ class Amygdala(object):
         pathname = os.path.join(log_dir, filename)
         plt.savefig(pathname, format='png')
 
-        if True:
+        if False:
             # Plot the learned reward value of each feature.
             fig = plt.figure(11112)
             fig.clf()

@@ -101,10 +101,7 @@ class Ganglia(object):
             probabilities = rectified_values / np.sum(rectified_values)
             decision_index = np.random.choice(np.arange(decisions.size), 
                                               p=probabilities)
-        #print 'decision values'
-        #tools.format(decision_values)
         decisions[decision_index] = 1.
-        #print 'di', decision_index
         actions = decisions[:self.num_actions]
         # TODO: Pass through predictable (well-learned) actions and goals. 
 

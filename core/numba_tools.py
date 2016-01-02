@@ -478,9 +478,12 @@ def agglomeration_energy_gather(bundle_activities, nonbundle_activities,
                     agglomeration_energy[i_row, i_col] += coactivity 
 
 @jit(nopython=True)
-def get_decision_values(probabilities, observations, opportunities,
+#def get_decision_values(probabilities, observations, opportunities,
+def get_decision_values(observations, opportunities,
                         curiosities, features, 
-                        reward, decision_values, feature_importance):
+                        #reward, decision_values, feature_importance):
+                        reward, decision_values, feature_importance,
+                        live_elements, live_features):
     """
     Estimate the value associated with each potential decision.
 
@@ -523,6 +526,11 @@ def get_decision_values(probabilities, observations, opportunities,
         should be equal to the number of features.
     features : array of floats
         The current set of feature activities.
+    live_elements, live_features : array of floats
+        Indicator arrays showing which elements and features have ever 
+        been active. Elements and features that have never been active
+        are assumed to be unused. Indexing them allows the loops to skip them 
+        and run much faster.
     reward : array of floats
         The current set of reward values placed on each of the feature
         activities. This includes both learned reward and temporarily 
@@ -535,43 +543,49 @@ def get_decision_values(probabilities, observations, opportunities,
     """
     small = 1e-3
     low = 1e-10
-    (I, J, K) = probabilities.shape
+    #(I, J, K) = probabilities.shape
+    (I, J, K) = observations.shape
     for j in range(J):
-        for i in range(I):
-            # Skipping the iteration for small values takes advantage of
-            # any sparseness present and speeds up computation considerably.
-            if features[i] > small:
-                best_Q_value = low
-                for k in range(K):
-                    # Find the highest value transition.
-                    #weighted_observations = observations[i,j,k]
-                    probability = observations[i,j,k] / opportunities[i,j]
-                    #weighted_observations = observations[i,j,k] * (1. - 1./
-                    #     (1. + observations[i,j,k] ** 2))
-                    q = reward[k] * probability
-                         #probabilities[i,j,k])
-                         #weighted_observations / (opportunities[i,j] + low))
-                    if q > best_Q_value:
-                        best_Q_value = q
+        if live_elements[j] == 1.:
+            for i in range(I):
+                # Skipping the iteration for small values takes advantage of
+                # any sparseness present and speeds up computation considerably.
+                if live_features[i] == 1. and features[i] > small:
+                    best_Q_value = low
+                    for k in range(K):
+                        if live_features[k] == 1.:
+                            # Find the highest value transition.
+                            #weighted_observations = observations[i,j,k]
+                            probability = (observations[i,j,k] / 
+                                           opportunities[i,j])
+                            #weighted_observations = observations[i,j,k] * (1. - 1./
+                            #     (1. + observations[i,j,k] ** 2))
+                            q = reward[k] * probability
+                                 #probabilities[i,j,k])
+                                 #weighted_observations / (opportunities[i,j] + low))
+                            if q > best_Q_value:
+                                best_Q_value = q
 
-                # Find the highest value feature-decision pair for each 
-                # decision. This also includes the curiosity associated with 
-                # that pair, and is weighted by the feature's activity.
-                action_value = (best_Q_value + curiosities[i,j]) * features[i]
-                if action_value > decision_values[j]:
-                    decision_values[j] = action_value
+                    # Find the highest value feature-decision pair for each 
+                    # decision. This also includes the curiosity associated with 
+                    # that pair, and is weighted by the feature's activity.
+                    action_value = ( (best_Q_value + curiosities[i,j]) * 
+                                     features[i])
+                    if action_value > decision_values[j]:
+                        decision_values[j] = action_value
 
-                # Find the highest value feature-decision pair for each 
-                # feature.
-                if best_Q_value > feature_importance[i]:
-                    feature_importance[i] = best_Q_value
+                    # Find the highest value feature-decision pair for each 
+                    # feature.
+                    if best_Q_value > feature_importance[i]:
+                        feature_importance[i] = best_Q_value
     return 
                     
 @jit(nopython=True)
-def cerebellum_learn(opportunities, observations, probabilities, curiosities,
+#def cerebellum_learn(opportunities, observations, probabilities, curiosities,
+def cerebellum_learn(opportunities, observations, curiosities,
                      training_context, training_goals, training_results, 
                      current_context, goals, curiosity_rate, satisfaction,
-                     live_elements):
+                     live_elements, live_features):
     """
     Use this time step's information to help the ``Cerebellum`` learn.
     
@@ -586,6 +600,11 @@ def cerebellum_learn(opportunities, observations, probabilities, curiosities,
     goals : array of floats
         The concatenation of the actions commanded this time step and
         the array of unfulfilled feature goals.
+    live_elements, live_features : array of floats
+        Indicator arrays showing which elements and features have ever 
+        been active. Elements and features that have never been active
+        are assumed to be unused. Indexing them allows the loops to skip them 
+        and run much faster.
     satisfaction : float
         The filtered reward history. 
     training_context, training_goals, training_results : arrays of floats
@@ -603,19 +622,19 @@ def cerebellum_learn(opportunities, observations, probabilities, curiosities,
     small = 1e-3
 
     # Note which curiosities have been satisified.
-    (I, J, K) = probabilities.shape
+    #(I, J, K) = probabilities.shape
+    (I, J, K) = observations.shape
     for i in range(I):
         # Skipping the iteration for small values takes advantage of
         # any sparseness present and speeds up computation considerably.
-        if current_context[i] > small:
+        if live_features[i] == 1. and current_context[i] > small:
             for j in range(J):
-                if live_elements[j] == 1.:
-                    if abs(goals[j]) > small:
-                        curiosities[i,j] = curiosities[i,j] * ( 
-                                1. - (current_context[i] * abs(goals[j])))
+                if live_elements[j] == 1. and abs(goals[j]) > small:
+                    curiosities[i,j] = curiosities[i,j] * ( 
+                            1. - (current_context[i] * abs(goals[j])))
 
     for i in range(I):
-        if training_context[i] > small:
+        if live_features[i] == 1. and training_context[i] > small:
             for j in range(J):
                 if live_elements[j] == 1.:
                     if abs(training_goals[j]) > small:
@@ -625,7 +644,8 @@ def cerebellum_learn(opportunities, observations, probabilities, curiosities,
                                                training_goals[j])
 
                         for k in range(K):
-                            if training_results[k] > small:
+                            if (live_features[k] == 1. and 
+                                training_results[k] > small):
                                 # Update observations, the actual 
                                 # number of times
                                 # each outcome has occurred.
@@ -634,8 +654,8 @@ def cerebellum_learn(opportunities, observations, probabilities, curiosities,
                                                          training_results[k] )
                             # Use a strict frequentist interpretation 
                             # of probability: observations over opportunities.
-                            probabilities[i,j,k] = (observations[i,j,k] / 
-                                                    opportunities[i,j])
+                            #probabilities[i,j,k] = (observations[i,j,k] / 
+                            #                        opportunities[i,j])
 
                     # Add an estimate of the uncertainty. It's conceptually 
                     # similar to standard error estimates for 
@@ -646,16 +666,14 @@ def cerebellum_learn(opportunities, observations, probabilities, curiosities,
                     # this because its purpose is not to fully characterize its
                     # world, but rather the narrower goal of accumulating as much
                     # reward as possible.
-                    uncertainty = 1. / (1. + opportunities[i,j]**2.)
+                    uncertainty = 1. / (1. + opportunities[i,j])
 
                     # Increment the curiosities by the uncertainties, weighted
                     # by the feature activities.
                     # TODO: Weight by the how much reward has been 
                     # received recently.
                     curiosities[i,j] += (curiosity_rate * 
-                                         uncertainty**2 * 
+                                         uncertainty * 
                                          training_context[i] *
-                                         (1. - curiosities[i,j])**2 *
-                                         (1. - satisfaction)**2 )
-                    #if curiosities[i,j] > .3:
-                    #    curiosities[i,j] = .3
+                                         (1. - curiosities[i,j]) *
+                                         (1. - satisfaction) )

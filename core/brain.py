@@ -131,16 +131,17 @@ class Brain(object):
         actions, goals = self.ganglia.decide(features, decision_values)
        
         # Learn from this new time step of experience.
-        grow = self.cortex.learn(feature_importance)
-        satisfaction = self.amygdala.learn(features, reward) 
-        self.cerebellum.learn(features, actions, goals, satisfaction)
-
+        sparse_features, grow = self.cortex.learn(feature_importance)
         # If the ``cortex`` just added a new level to its hierarchy, 
         # grow the rest of the components accordingly.
         if grow:
             self.amygdala.grow(self.cortex.size)
             self.cerebellum.grow(self.cortex.size)
             self.ganglia.grow(self.cortex.size)
+
+        satisfaction = self.amygdala.learn(sparse_features, reward) 
+        self.cerebellum.learn(sparse_features, actions, goals, satisfaction)
+
 
         if (self.timestep % self.backup_interval) == 0:
             self.backup()  
@@ -169,7 +170,7 @@ class Brain(object):
 
         self.amygdala.visualize(self.timestep, self.name, self.log_dir)
         #self.cerebellum.visualize(self.name, self.log_dir)
-        self.ganglia.visualize(self.name, self.log_dir)
+        #self.ganglia.visualize(self.name, self.log_dir)
         self.cortex.visualize()
  
     def report_performance(self):
