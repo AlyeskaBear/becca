@@ -129,10 +129,6 @@ class Cortex(object):
             end_index = self.size * (ziptie_index + 1)
             feature_activities[start_index: end_index] = (
                     tie.cable_activities.copy() * scale)
-            #feature_activities[start_index: end_index] = (
-            #        tie.cable_activities.copy())
-
-        #print feature_activities
         return feature_activities
 
     def learn(self, feature_importance):
@@ -156,7 +152,7 @@ class Cortex(object):
         -------
 
         """
-        # debug: Don't build features
+        # Debug: Don't build features
         skip = False
         if skip:
             feature_activities = np.zeros(self.size)
@@ -193,11 +189,6 @@ class Cortex(object):
             end_index = self.size * (ziptie_index + 1)
             sparse_feature_activities[start_index: end_index] = (
                     tie.cable_activities.copy())
-        #print 's', sparse_feature_activities
-        #return ziptie_added
-        # Debug: I don't think that any other parts of BECCA need the sparse
-        # feature activities yet, but I'll keep them available
-        # in case they become useful for cognition.
         return sparse_feature_activities, ziptie_added
 
     def map_index(self, index):
@@ -293,10 +284,6 @@ class Cortex(object):
                                         'feature', str(bundle_index), 
                                         'cables', str(list(
                                         np.nonzero(cable_contributions)[0]))])
-                        #for i in range(cable_contributions.size):
-                        #    print np.nonzero(cable_contributions)[0][
-                        #            np.where(np.nonzero(
-                        #            cable_contributions)[1] == i)]
             # Assemble the final list.
             if len(ziptie_projections) > 0:
                 all_projections.append(ziptie_projections)

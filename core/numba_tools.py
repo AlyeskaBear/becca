@@ -14,7 +14,7 @@ when doing loops), the function will fail and throw an error.
 """
 from numba import jit 
 
-#@jit(nopython=True)
+@jit(nopython=True)
 def set_dense_val(array2d, i_rows, i_cols, val):
     """
     Set values in a dense 2D array using a list of indices.
@@ -478,10 +478,8 @@ def agglomeration_energy_gather(bundle_activities, nonbundle_activities,
                     agglomeration_energy[i_row, i_col] += coactivity 
 
 @jit(nopython=True)
-#def get_decision_values(probabilities, observations, opportunities,
 def get_decision_values(observations, opportunities,
                         curiosities, features, 
-                        #reward, decision_values, feature_importance):
                         reward, decision_values, feature_importance,
                         live_elements, live_features):
     """
@@ -543,7 +541,6 @@ def get_decision_values(observations, opportunities,
     """
     small = 1e-3
     low = 1e-10
-    #(I, J, K) = probabilities.shape
     (I, J, K) = observations.shape
     for j in range(J):
         if live_elements[j] == 1.:
@@ -555,19 +552,15 @@ def get_decision_values(observations, opportunities,
                     for k in range(K):
                         if live_features[k] == 1.:
                             # Find the highest value transition.
-                            #weighted_observations = observations[i,j,k]
                             probability = (observations[i,j,k] / 
                                            opportunities[i,j])
-                            #weighted_observations = observations[i,j,k] * (1. - 1./
-                            #     (1. + observations[i,j,k] ** 2))
                             q = reward[k] * probability
-                                 #probabilities[i,j,k])
-                                 #weighted_observations / (opportunities[i,j] + low))
                             if q > best_Q_value:
                                 best_Q_value = q
 
                     # Find the highest value feature-decision pair for each 
-                    # decision. This also includes the curiosity associated with 
+                    # decision. This also includes the 
+                    # curiosity associated with 
                     # that pair, and is weighted by the feature's activity.
                     action_value = ( (best_Q_value + curiosities[i,j]) * 
                                      features[i])
@@ -578,10 +571,8 @@ def get_decision_values(observations, opportunities,
                     # feature.
                     if best_Q_value > feature_importance[i]:
                         feature_importance[i] = best_Q_value
-    return 
                     
 @jit(nopython=True)
-#def cerebellum_learn(opportunities, observations, probabilities, curiosities,
 def cerebellum_learn(opportunities, observations, curiosities,
                      training_context, training_goals, training_results, 
                      current_context, goals, curiosity_rate, satisfaction,
@@ -616,13 +607,11 @@ def cerebellum_learn(opportunities, observations, curiosities,
     Returns
     -------
     This function returns its results indirectly by modifying the contents
-    of ``opportunities``, ``observations``, ``probabilities``, and
-    ``curiosities``.
+    of ``opportunities``, ``observations`` and ``curiosities``.
     """
     small = 1e-3
 
     # Note which curiosities have been satisified.
-    #(I, J, K) = probabilities.shape
     (I, J, K) = observations.shape
     for i in range(I):
         # Skipping the iteration for small values takes advantage of
@@ -652,26 +641,20 @@ def cerebellum_learn(opportunities, observations, curiosities,
                                 observations[i,j,k] += ( training_context[i] * 
                                                          training_goals[j] *
                                                          training_results[k] )
-                            # Use a strict frequentist interpretation 
-                            # of probability: observations over opportunities.
-                            #probabilities[i,j,k] = (observations[i,j,k] / 
-                            #                        opportunities[i,j])
 
                     # Add an estimate of the uncertainty. It's conceptually 
                     # similar to standard error estimates for 
                     # the normal distribution: 1/sqrt(N), except that this
-                    # estimate is far more liberal: 1/N**2.
+                    # estimate is far more liberal: 1/N.
                     # This allows BECCA to pretend it is more confident than
                     # it really is, and explore less. BECCA can get away with 
                     # this because its purpose is not to fully characterize its
-                    # world, but rather the narrower goal of accumulating as much
-                    # reward as possible.
+                    # world, but rather the narrower goal of 
+                    # accumulating as much reward as possible.
                     uncertainty = 1. / (1. + opportunities[i,j])
 
                     # Increment the curiosities by the uncertainties, weighted
                     # by the feature activities.
-                    # TODO: Weight by the how much reward has been 
-                    # received recently.
                     curiosities[i,j] += (curiosity_rate * 
                                          uncertainty * 
                                          training_context[i] *

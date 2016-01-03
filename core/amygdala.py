@@ -19,12 +19,6 @@ class Amygdala(object):
     ----------
     cumulative_reward : float
         The total reward amassed since the last visualization.
-    recent_features : list of arrays of floats
-        This is the list of length ``trace_length`` containing the 
-        most recently observed arrays of feature activities.
-    recent_rewards : list of floats
-        This is the list of length ``trace_length`` containing the 
-        most recently observed reward values.
     reward_by_feature : array of floats
         The reward typically associated with each feature. The array has
         as many elements as there are features.
@@ -39,20 +33,11 @@ class Amygdala(object):
     reward_steps : list of ints
         A time series of the brain's age in time steps corresponding
         to each of the rewards in ``reward_history``.
+    satisfaction : float
+        A filtered average of the reward.
     satisfaction_time_constant : float
         The time constant of the leaky integrator used to filter
         reward into a rough average of the recent reward history.
-    time_constant : float
-        A value that scales the length of the trace. Adjust this if you
-        believe the trace is too short or too long.
-    trace_length : int
-        The length of the window over which reward is integrated 
-        in time steps. The weight of the rewards decay exponentially
-        the older they are. 
-    trace_magnitude : float
-        The maximum magnitude of integrated reward. This is used to scale
-        the reward trace such that the highest it can get is 1 and the
-        lowest it can get is -1. 
     time_since_reward_log : int
         Number of time steps since reward was last logged. It gets
         logged every time the ``Amygdala`` is visualized.
@@ -69,42 +54,8 @@ class Amygdala(object):
             learn the reward associated with each of these.
         """    
         self.reward_by_feature = np.zeros(num_features)
-
-        # Keep a recent history of reward and active features 
-        # to account for delayed reward.
-        # TODO: clean up Amygdala.
-        #self.time_constant = .5
         self.reward_learning_rate = 1e-3
         self.satisfaction_time_constant = 1e3
-        #self.trace_length = int(12. * self.time_constant)
-        #self.trace_length = 1
-        #self.recent_rewards = list(np.zeros(self.trace_length))
-        #self.recent_features = [np.zeros(num_features)] * self.trace_length
-        """
-        The trace magnitude is the sum of largest possible magnitudes
-        of all the reward values in the trace. Having it pre-calcuated
-        helps to condense the trace into a single value. 
-        Trace is calculated by working from the beginning of the list
-        (the oldest) to the end (the most recent). Reward values are 
-        decayed the further they are away in time from when the
-        feature was active, up to ``trace_length`` time steps ago. 
-        The decay function here is hyperbolic, rather than exponential. 
-        It has a basis in both experimental psychology and economics 
-        as representing typical human behavior.
-
-        The math behind the function is just a fraction
-        where time is on the bottom:
-            decay = c / (c + time)
-            where 
-                decay is a fraction
-                c is a time constant, typically a few time steps
-                time is the number of time steps between the feature
-                    being active and the reward being received
-        """
-        #weights =  (1. / 
-        #            (1. + np.arange(self.trace_length) * self.time_constant) )
-        #self.trace_magnitude = np.sum(weights)
-        # Track the reward gathered over the lifetime of the ``brain``.
         self.satisfaction = 0.
         self.cumulative_reward = 0.
         self.time_since_reward_log = 0.
@@ -128,13 +79,6 @@ class Amygdala(object):
         """
         # Clip the reward so that it falls between -1 and 1.
         reward = np.maximum(np.minimum(reward, 1.), -1.)
-        #weights =  (1. / 
-        #            (1. + np.arange(self.trace_length) * self.time_constant) )
-        #weighted_trace = np.array(self.recent_rewards) * weights
-        #reward_trace = np.sum(weighted_trace)
-        #reward_trace /= self.trace_magnitude
-        #reward_trace = reward
-        #features = self.recent_features[0]
         features = new_features
         """
         Increment the expected reward value associated with each feature.
@@ -145,16 +89,8 @@ class Amygdala(object):
         Another way to say that is if either the discrepancy is very small
         or the feature activity is very small, there is no change.
         """
-        #self.reward_by_feature += ((reward_trace - self.reward_by_feature) * 
         self.reward_by_feature += ((reward - self.reward_by_feature) * 
                                    features * self.reward_learning_rate)
-                                   #features ** 2 * self.reward_learning_rate)
-
-        # Update the activity and reward.
-        #self.recent_rewards.append(reward)
-        #self.recent_rewards.pop(0)
-        #self.recent_features.append(np.copy(new_features))
-        #self.recent_features.pop(0)
 
         # Update the satisfaction, a filtered version of the reward.
         rate = 1. / self.satisfaction_time_constant
@@ -176,10 +112,6 @@ class Amygdala(object):
             The number of features to add.
         """
         self.reward_by_feature = tools.pad(self.reward_by_feature, -increment)
-        #new_recent_features = []
-        #for recent_features in self.recent_features:
-        #    new_recent_features.append(tools.pad(recent_features, -increment))
-        #self.recent_features = new_recent_features
 
     def visualize(self, timestep, brain_name, log_dir):
         """

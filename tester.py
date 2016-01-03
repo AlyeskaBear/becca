@@ -15,7 +15,7 @@ import pstats
 
 # Worlds from the benchmark
 #from worlds.base_world import World
-#from worlds.grid_1D import World
+from worlds.grid_1D import World
 #from worlds.grid_1D_delay import World
 #from worlds.grid_1D_chase import World
 #from worlds.grid_1D_ms import World
@@ -28,7 +28,7 @@ import pstats
 
 # If you want to run a world of your own, add the appropriate line here
 #from worlds.hello import World
-from becca_world_chase_ball.chase import World
+#from becca_world_chase_ball.chase import World
 
 from core.brain import Brain 
 
@@ -48,8 +48,10 @@ def test(world_class, testing_period=2e4):
 
     Returns
     -------
-    test_performance : float
+    performance : float
         The average reward per time step during the testing period.
+    world.name : str
+        The name of the world that was run.
     """
     world = world_class(lifespan=testing_period)
     performance = run(world)
@@ -108,7 +110,7 @@ def profile():
     
 if __name__ == '__main__':
     # To profile BECCA's performance with world, set profile_flag to True.
-    profile_flag = True
+    profile_flag = False
     if profile_flag:
         profile()
     else:

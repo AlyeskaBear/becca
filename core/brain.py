@@ -40,6 +40,9 @@ class Brain(object):
     num_actions : int
         The number of distinct actions that the ``brain`` can choose to 
         execute in the world.
+    num_features : int
+        The total number of features, including sensors and all features
+        derived from them. 
     num_sensors : int
         The number of distinct sensors that the world will be passing in 
         to the ``brain``.
@@ -147,17 +150,6 @@ class Brain(object):
             self.backup()  
         # Account for the fact that the last "do nothing" action 
         # was added by the ``brain``.   
-        verbose = False
-        if verbose:
-            print
-            print 'sensors'
-            tools.format(sensors)
-            print 'reward', reward
-            print features
-            tools.format(features)
-            print 'actions'
-            tools.format(actions)
-
         return actions[:-1]
 
     def visualize(self):
@@ -187,7 +179,6 @@ class Brain(object):
                                               self.name, 
                                               self.log_dir)
         print('Final performance is {0:.3}'.format(performance))
-        #self.backup()
         return performance
 
     def backup(self):

@@ -14,14 +14,11 @@ performance of an agent on the tasks.
 Run at the command line as a script with no argmuments:
 > python benchmark.py
 
-Becca 0.7.0 performance:
-Individual benchmark scores:  []
-Overall benchmark score: 
+Becca 0.7.0 typical benchmark scores are .63 to .64
 """
 import matplotlib.pyplot as plt
 import numpy as np
 import tester
-#from core.brain import Brain
 
 # Import all the world classes that are in the benchmark collection
 from worlds.grid_1D import World as World_grid_1D

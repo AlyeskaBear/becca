@@ -32,6 +32,8 @@ class Ganglia(object):
         that activate that feature.
     goal_scale : float
         The maximum value that can be assigned to goals.
+    goal_threshold : float
+        The value below which goals are ignored and set to zero.
     num_actions, num_features : int
         See docstrings for ``brain.py``.    
     num_elements : int
@@ -85,14 +87,6 @@ class Ganglia(object):
         self.goals = np.maximum(0., self.goals) 
         self.goals[np.where(self.goals < self.goal_threshold)] = 0.
 
-        # TODO: Another option is to set the most recently attended
-        # feature as the goal. This provides some value, which could
-        # be set as a constant.
-
-        # DEBUG
-        #for i,dv in enumerate(decision_values):
-        #    print ' '.join(['    ', str(i), ':', '{0:.3}'.format(dv) ])
-
         decisions = np.zeros(decision_values.shape)
         if True:
             decision_index = np.argmax(decision_values)
@@ -144,12 +138,6 @@ class Ganglia(object):
         log_dir : str
             See docstring for ``brain.py``.
         """
-        #print 'ganglia:'
-        #print '    goals:'
-        #for i in np.arange(self.goals.size):
-        #    print ' '.join(['        ', str(i), 
-        #                    ': {0:.3}'.format(self.goals[i])]) 
-            
         # Plot the learned reward value of each feature.
         fig = plt.figure(21122)
         fig.clf()
