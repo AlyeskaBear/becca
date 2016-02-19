@@ -77,7 +77,7 @@ class World(BaseWorld):
         self.num_actions = 8
         self.world_size = 5
         self.num_sensors = self.world_size ** 2
-        self.world_state = np.array([1, 1])
+        self.world_state = np.array([1., 1.])
         # Reward positions (2,2) and (4,4)
         self.targets = [(1,1), (3,3)]
         # Punish positions (2,4) and (4,2)
@@ -117,7 +117,7 @@ class World(BaseWorld):
         # At random intervals, jump to a random position in the world.
         if np.random.random_sample() < self.jump_fraction:
             self.world_state = np.random.randint(
-                    0, self.world_size, size=self.world_state.size)
+                    0, self.world_size, size=self.world_state.size).astype(float)
 
         # Enforce lower and upper limits on the grid world 
         # by looping them around.

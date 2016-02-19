@@ -660,3 +660,8 @@ def cerebellum_learn(opportunities, observations, curiosities,
                                          training_context[i] *
                                          (1. - curiosities[i,j]) *
                                          (1. - satisfaction) )
+
+@jit(nopython=True)
+def x_test(x):
+    x = x + 1.
+    print x

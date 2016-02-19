@@ -15,7 +15,7 @@ import pstats
 
 # Worlds from the benchmark
 #from worlds.base_world import World
-#from worlds.grid_1D import World
+from worlds.grid_1D import World
 #from worlds.grid_1D_delay import World
 #from worlds.grid_1D_chase import World
 #from worlds.grid_1D_ms import World
@@ -28,7 +28,7 @@ import pstats
 
 # If you want to run a world of your own, add the appropriate line here
 #from worlds.hello import World
-from becca_world_chase_ball.chase import World
+#from becca_world_chase_ball.chase import World
 
 from core.brain import Brain 
 
@@ -98,7 +98,7 @@ def profile():
     """
     Profile the brain's performance on the selected world.
     """
-    profiling_lifespan = 1e3
+    profiling_lifespan = 1e4
     print('Profiling BECCA\'s performance...')
     command = 'run(World(lifespan={0}), restore=True)'.format(
             profiling_lifespan)

@@ -101,7 +101,7 @@ class Cerebellum(object):
         self.curiosities = np.zeros(_2D_size)
         self.live_elements = np.zeros(self.num_elements)
         self.live_elements[:self.num_actions] = 1.
-        self.curiosity_rate = 1e-2
+        self.curiosity_rate = 1e-3
         self.time_constant = 1.
         self.trace_length = int(100. * self.time_constant)
 
