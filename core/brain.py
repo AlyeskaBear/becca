@@ -9,6 +9,7 @@ import os
 # This trick is used to conveniently locate other BECCA resources.
 mod_path = os.path.dirname(os.path.abspath(__file__))
 
+from affect import Affect
 from level import Level
 
 class Brain(object):
@@ -17,6 +18,8 @@ class Brain(object):
     
     Attributes
     ----------
+    affect : Affect
+        See the pydocs in the module ``affect.py`` for the class ``Affect``.
     backup_interval : int
         The number of time steps between saving a copy of the ``brain``
         out to a pickle file for easy recovery.
@@ -40,9 +43,11 @@ class Brain(object):
         to the ``brain``.
     pickle_filename : str
         Relative path and filename of the backup pickle file.
+    satisfaction : float
+        The level of contentment experienced by the brain. Higher contentment
+        dampens curiosity and the drive to explore. 
     timestep : int
-        The age of the ``brain`` in discrete time stpes.
-
+        The age of the ``brain`` in discrete time steps.
     """
 
     def __init__(self, num_sensors, num_actions, brain_name='test_brain'):
@@ -64,6 +69,8 @@ class Brain(object):
         self.pickle_filename = os.path.join(self.log_dir, 
                                             '{0}.pickle'.format(brain_name))
         
+        self.affect = Affect()
+
         # Initialize the first ``Level``
         num_elements = self.num_sensors + self.num_actions
         num_sequences = 3 * num_elements
@@ -111,6 +118,9 @@ class Brain(object):
             with the world to obtain more reward. 
         """
         self.timestep += 1
+
+        # Calculate the "mood" of the agent.
+        self.satisfaction = self.affect.update(reward)
 
         # Calcuate activities of all the sequences in the hierarchy.
         elements = sensors
@@ -164,6 +174,7 @@ class Brain(object):
         """
         print('{0} is {1} time steps old'.format(self.name, self.timestep))
 
+        self.affect.visualize(self.timestep, self.name, self.log_dir)
  
     def report_performance(self):
         """
@@ -175,7 +186,7 @@ class Brain(object):
             The average reward per time step collected by
             the ``brain`` over its lifetime.
         """
-        return 0.
+        return self.affect.visualize(self.timestep, self.name, self.log_dir)
 
     def backup(self):
         """ 
