@@ -2,36 +2,28 @@
 The Brain class. 
 """
 
+import numpy as np
 import cPickle as pickle
-#import numpy as np
 import os
 # Identify the full local path of the brain.py module.  
 # This trick is used to conveniently locate other BECCA resources.
 mod_path = os.path.dirname(os.path.abspath(__file__))
 
-import amygdala
-import cerebellum
-import ganglia
-import cortex
-import tools
+from level import Level
 
 class Brain(object):
     """ 
     A biologically motivated learning algorithm.
     
-    The components are described as brain regions, but beware that any such
-    description is highly controversial among functional and computational
-    neuroscientists. This model is a collection of my own best guesses
-    at this point in time and doesn't represent any kind 
-    of consensus or orthodoxy in the field.
-
     Attributes
     ----------
-    amygdala, cerebellum, cortex, ganglia: 
-        Refer the documentation in each of these respective modules.
     backup_interval : int
         The number of time steps between saving a copy of the ``brain``
         out to a pickle file for easy recovery.
+    levels : list of ``Level``
+        Collectively, the levels form a hierarchy with ``levels[0]``
+        on the bottom.
+        Refer to ``level.py`` for a detailed description of a level.
     log_dir : str
         Relative path to the ``log`` directory. This is where backups
         and images of the ``brain``'s state and performance are kept.
@@ -50,6 +42,7 @@ class Brain(object):
         Relative path and filename of the backup pickle file.
     timestep : int
         The age of the ``brain`` in discrete time stpes.
+
     """
 
     def __init__(self, num_sensors, num_actions, brain_name='test_brain'):
@@ -58,17 +51,11 @@ class Brain(object):
 
         Parameters
         ----------
-        num_sensors, num_actions : int
-            Value for ``self.num_sensors`` and ``self.num_actions``.
-        brain_name : str, optional
-            A unique identifying name for the brain. 
-            The default is 'test_brain'.
         """
-        # Include two extra sensors. These are for explicitly sensing reward
-        # and punshment.
-        self.num_sensors = num_sensors + 2
+        self.num_sensors = num_sensors
         # Always include an extra action. The last is the 'do nothing' action.
         self.num_actions = num_actions + 1
+
         self.backup_interval = 1e5
         self.name = brain_name
         self.log_dir = os.path.normpath(os.path.join(mod_path, '..', 'log'))
@@ -76,16 +63,16 @@ class Brain(object):
             os.makedirs(self.log_dir)
         self.pickle_filename = os.path.join(self.log_dir, 
                                             '{0}.pickle'.format(brain_name))
+        
+        # Initialize the first ``Level``
+        num_elements = self.num_sensors + self.num_actions
+        num_sequences = 3 * num_elements
+        level_index = 0
+        level_0 = Level(level_index, num_elements, num_sequences)
+        self.levels = [level_0]
+        self.actions = np.zeros(self.num_actions)
 
-        self.cortex = cortex.Cortex(self.num_sensors)
-        self.num_features = self.cortex.size
         self.timestep = 0
-
-        # Initialize all the components of the ``brain``.
-        self.amygdala = amygdala.Amygdala(self.num_features)
-        self.cerebellum = cerebellum.Cerebellum(self.num_features, 
-                                                self.num_actions)
-        self.ganglia = ganglia.Ganglia(self.num_features, self.num_actions)
 
     def sense_act_learn(self, sensors, reward):
         """
@@ -124,33 +111,50 @@ class Brain(object):
             with the world to obtain more reward. 
         """
         self.timestep += 1
-        # Calcuate activities of all the features.
-        features = self.cortex.featurize(sensors, reward)
-         
+
+        # Calcuate activities of all the sequences in the hierarchy.
+        elements = sensors
+        for level in self.levels:
+            level.update_elements(elements)
+            sequences = level.get_sequence_activities()
+
+            # For the next level 
+            elements = sequences
+             
         # Decide which actions to take.
-        (decision_values, 
-         feature_importance) = self.cerebellum.get_decision_values(
-                features, self.amygdala.reward_by_feature, self.ganglia.goals)
-        actions, goals = self.ganglia.decide(features, decision_values)
+        self.actions = self.random_actions()
+
+        # Update level 0 with selected ``actions``.
+        start_index = self.num_sensors
+        self.levels[0].update_elements(self.actions, start_index)
        
         # Learn from this new time step of experience.
-        sparse_features, grow = self.cortex.learn(feature_importance)
-        # If the ``cortex`` just added a new level to its hierarchy, 
-        # grow the rest of the components accordingly.
-        if grow:
-            self.amygdala.grow(self.cortex.size)
-            self.cerebellum.grow(self.cortex.size)
-            self.ganglia.grow(self.cortex.size)
-
-        satisfaction = self.amygdala.learn(sparse_features, reward) 
-        self.cerebellum.learn(sparse_features, actions, goals, satisfaction)
-
-
+        for level in self.levels:
+            level.age() 
+         
+        # Periodically back up the ``brain``.
         if (self.timestep % self.backup_interval) == 0:
             self.backup()  
+
         # Account for the fact that the last "do nothing" action 
         # was added by the ``brain``.   
-        return actions[:-1]
+        return self.actions[:-1]
+
+
+    def random_actions(self):
+        """
+        Generate a random set of actions.
+
+        Returns
+        -------
+        actions : array of floats
+            See ``sense_act_learn.actions``.
+        """
+        threshold = 1. / float(self.num_actions)
+        action_strength = np.random.random_sample(self.num_actions)
+        actions = np.zeros(self.num_actions)
+        actions[np.where(action_strength < threshold)] = 1.
+        return actions
 
     def visualize(self):
         """ 
@@ -160,10 +164,6 @@ class Brain(object):
         """
         print('{0} is {1} time steps old'.format(self.name, self.timestep))
 
-        self.amygdala.visualize(self.timestep, self.name, self.log_dir)
-        #self.cerebellum.visualize(self.name, self.log_dir)
-        #self.ganglia.visualize(self.name, self.log_dir)
-        self.cortex.visualize()
  
     def report_performance(self):
         """
@@ -175,11 +175,7 @@ class Brain(object):
             The average reward per time step collected by
             the ``brain`` over its lifetime.
         """
-        performance = self.amygdala.visualize(self.timestep, 
-                                              self.name, 
-                                              self.log_dir)
-        print('Final performance is {0:.3}'.format(performance))
-        return performance
+        return 0.
 
     def backup(self):
         """ 
