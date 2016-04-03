@@ -15,14 +15,14 @@ import pstats
 
 # Worlds from the benchmark
 #from worlds.base_world import World
-from worlds.grid_1D import World
+#from worlds.grid_1D import World
 #from worlds.grid_1D_delay import World
 #from worlds.grid_1D_chase import World
 #from worlds.grid_1D_ms import World
 #from worlds.grid_1D_noise import World
 #from worlds.grid_2D import World
 #from worlds.grid_2D_dc import World
-#from worlds.image_1D import World
+from worlds.image_1D import World
 #from worlds.image_2D import World
 #from worlds.fruit import World
 

@@ -125,8 +125,7 @@ class Brain(object):
         # Calcuate activities of all the sequences in the hierarchy.
         elements = sensors
         for level in self.levels:
-            level.update_elements(elements)
-            sequences = level.get_sequence_activities()
+            sequences = level.update_elements(elements)
 
             # For the next level 
             elements = sequences
@@ -140,6 +139,9 @@ class Brain(object):
        
         # Learn from this new time step of experience.
         for level in self.levels:
+            level.learn_sequence_membership()
+            level.learn_sequence_transitions()
+            level.update_sequence_reward(reward)
             level.age() 
          
         # Periodically back up the ``brain``.
@@ -149,7 +151,6 @@ class Brain(object):
         # Account for the fact that the last "do nothing" action 
         # was added by the ``brain``.   
         return self.actions[:-1]
-
 
     def random_actions(self):
         """
@@ -166,16 +167,6 @@ class Brain(object):
         actions[np.where(action_strength < threshold)] = 1.
         return actions
 
-    def visualize(self):
-        """ 
-        Show the current state and some history of the brain 
-        
-        This is typically called from a world's ``visualize`` method.
-        """
-        print('{0} is {1} time steps old'.format(self.name, self.timestep))
-
-        self.affect.visualize(self.timestep, self.name, self.log_dir)
- 
     def report_performance(self):
         """
         Make a report of how the brain did over its lifetime.
@@ -258,3 +249,16 @@ class Brain(object):
         except pickle.PickleError, e:
             print('Error unpickling world: {0}'.format(e))
         return restored_brain
+
+    def visualize(self):
+        """ 
+        Show the current state and some history of the brain 
+        
+        This is typically called from a world's ``visualize`` method.
+        """
+        print
+        print('{0} is {1} time steps old'.format(self.name, self.timestep))
+
+        self.affect.visualize(self.timestep, self.name, self.log_dir)
+        for level in self.levels:
+            level.visualize()
