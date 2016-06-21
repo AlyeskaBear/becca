@@ -1,10 +1,12 @@
 BECCA is a general learning program for use in any robot or embodied system. When using BECCA, a robot learns to do whatever it is rewarded to do, and continues learning throughout its lifetime.
 
-Install BECCA
+####Install BECCA
+
+Make sure you have a current version of Anaconda, then
 
     pip install --pre becca
 
-Test BECCA
+####Test BECCA
 
     python
     import becca.benchmark
@@ -14,5 +16,7 @@ The [wiki](https://github.com/brohrer/becca/wiki) has tutorials on how to use BE
 Some [videos](http://youtu.be/4kPoU8eZvio?list=PLF861CC4C40439EEB) show BECCA in action. 
 
 Until we can get a becca tag on StackOverflow, the [BECCA_users group](https://groups.google.com/forum/?fromgroups#!forum/becca_users) provides a forum for users to share questions, solutions, and experiences. 
+
+
 
 <a href="url"><img src="https://github.com/brohrer/becca-docs/raw/master/figs/logo_plate.png" align="center" height="80" width="240" ></a>
