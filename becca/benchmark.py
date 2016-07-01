@@ -34,6 +34,7 @@ from becca.worlds.image_1D import World as World_image_1D
 from becca.worlds.image_2D import World as World_image_2D
 from becca.worlds.fruit import World as World_fruit
 
+
 def main():
     """
     Run all the worlds in the benchmark and tabulate their performance.
@@ -59,6 +60,7 @@ def main():
     # Block the program, displaying all plots.
     # When the plot windows are closed, the program closes.
     plt.show()
+
 
 if __name__ == '__main__':
     main()

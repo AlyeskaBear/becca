@@ -1,17 +1,20 @@
 """
 One-dimensional grid delay task.
 
-This task tests an agent's ability to properly ascribe reward to the 
-correct cause. The reward is delayed by a variable amount, which 
+This task tests an agent's ability to properly ascribe reward to the
+correct cause. The reward is delayed by a variable amount, which
 makes the task challenging.
 """
+from __future__ import print_function
 import numpy as np
-from worlds.grid_1D import World as Grid_1D_World
+
+from becca.worlds.grid_1D import World as Grid_1D_World
+
 
 class World(Grid_1D_World):
-    """ 
+    """
     One-dimensional grid task with delayed reward
-    
+
     This task is identical to the grid_1D task with the
     exception that reward is randomly delayed a few time steps.
 
@@ -28,7 +31,7 @@ class World(Grid_1D_World):
     name_long : str
         A longer name associated with this world.
     world_visualize_period : int
-        The number of time steps between creating visualizations of 
+        The number of time steps between creating visualizations of
         the world.
     """
     def __init__(self, lifespan=None):
@@ -37,17 +40,18 @@ class World(Grid_1D_World):
 
         Parameters
         ----------
-        lifespan : int 
+        lifespan : int
             The number of time steps to continue the world.
         """
         Grid_1D_World.__init__(self, lifespan)
         self.name = 'grid_1D_delay'
         self.name_long = 'one dimensional grid world with delay'
-        print '--delayed'
+        print('--delayed')
         self.max_delay = 9
         self.future_reward = [0.] * self.max_delay
         self.world_visualize_period = 1e6
-    
+
+
     def assign_reward(self, sensors):
         """
         Calcuate the reward corresponding to the current state and assign
@@ -76,10 +80,11 @@ class World(Grid_1D_World):
         reward = self.future_reward.pop(0)
 
         return reward
-        
+
+
     def visualize_world(self, brain):
-        """ 
-        Show what's going on in the world 
+        """
+        Show what's going on in the world.
         """
         state_image = ['.'] * (self.num_sensors + self.num_actions + 2)
         state_image[self.simple_state] = 'O'

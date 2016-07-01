@@ -7,8 +7,11 @@ of sensors that are pure noise distractors. Many learning methods
 make the implicit assumption that all sensors are informative.
 This task is intended to break them.
 """
+from __future__ import print_function
 import numpy as np
-from base_world import World as BaseWorld
+
+from becca.worlds.base_world import World as BaseWorld
+
 
 class World(BaseWorld):
     """ 
@@ -57,7 +60,6 @@ class World(BaseWorld):
         The number of time steps between creating visualizations of 
         the world.
     """
-    
     def __init__(self, lifespan=None, test=False):
         """
         Set up the world 
@@ -68,7 +70,7 @@ class World(BaseWorld):
         self.jump_fraction = 0.1
         self.name = 'grid_1D_noise'
         self.name_long = 'noisy one dimensional grid world'
-        print "Entering", self.name_long
+        print("Entering", self.name_long)
         self.num_real_sensors = 3
         # Number of sensors that have no basis in the world. 
         # These are noise meant to distract.
@@ -80,6 +82,7 @@ class World(BaseWorld):
         self.simple_state = 0       
         self.world_visualize_period = 1e6
         self.brain_visualize_period = 1e3
+
 
     def step(self, action): 
         """ 
@@ -124,7 +127,7 @@ class World(BaseWorld):
 
         # Generate a set of noise sensors
         noise_sensors = np.round(np.random.random_sample(
-                self.num_noise_sensors))
+            self.num_noise_sensors))
         sensors = np.hstack((real_sensors, noise_sensors))
         reward = -self.reward_magnitude
         if self.simple_state == 1:
@@ -132,6 +135,7 @@ class World(BaseWorld):
         reward -= energy * self.energy_cost        
 
         return sensors, reward
+
 
     def visualize_world(self, brain):
         """ 

@@ -3,10 +3,10 @@ The Level class.
 """
 
 from __future__ import print_function
-#import numba
 import numpy as np
 
-from becca.core.node import Node
+import becca.core.node as node
+
 
 class Level(object):
     """
@@ -41,8 +41,10 @@ class Level(object):
         The maximum number of sequences that this level can create.
     num_sequences : int
         The number of sequences that this level has already created.
-    """
 
+    Node-specific
+    TODO: add node-specific parameters here
+    """
     def __init__(self, level_index, max_num_elements, max_num_sequences):
         """
         Configure the ``Level``.
@@ -56,34 +58,64 @@ class Level(object):
         max_num_sequences : int
             See ``Level.max_num_sequences``.
         """
+        self.level_index = level_index
+        self.name = "_".join(["level", str(self.level_index)])
+
         self.max_num_elements = max_num_elements
         self.max_num_sequences = max_num_sequences
         self.num_sequences = 0
-        self.level_index = level_index
-        self.name = "_".join(["level", str(self.level_index)])
+        # This limit on number of nodes accounts for the fact that the
+        # root node and all its first generation branches
+        # (sequences of length 1) are the only nodes
+        # not assigned to sequences.
+        self.max_num_nodes = self.max_num_sequences + self.max_num_elements + 1
+        self.num_nodes = 1
 
         # Normalization constants
         self.input_max = np.zeros(self.max_num_elements)
         self.input_max_grow_time = 1e2
         self.input_max_decay_time = self.input_max_grow_time * 1e2
 
-        self.activity_decay_rate = 1. - 1. / (2. ** self.level_index)
-        self.reward_learning_rate = 1e-3
+        self.activity_decay_rate = 1. / (2. ** self.level_index)
         self.activity_threshold = .1
 
-        self.nodes = []
-        for index in range(self.max_num_elements):
-            self.nodes.append(Node(self.max_num_elements, index,
-                                   activity_rate=self.activity_decay_rate))
-
         self.element_activities = np.zeros(self.max_num_elements)
-        #self.last_element_activities = np.zeros(self.max_num_elements)
-        #self.last_element_surplus = np.zeros(self.max_num_elements)
         self.sequence_activities = np.zeros(self.max_num_sequences)
-        #self.last_sequence_activities = np.zeros(self.max_num_sequences)
-        #self.sequence_rewards = np.zeros(self.max_num_sequences)
         self.element_goals = np.zeros(self.max_num_elements)
         self.sequence_goals = np.zeros(self.max_num_sequences)
+
+        # Initialize nodes and their related data structures.
+        self.node_activity = np.zeros(self.max_num_nodes)
+        self.node_prev_activity = np.zeros(self.max_num_nodes)
+        self.node_activity_threshold = 1e-2
+        self.node_activity_rate = self.activity_decay_rate
+        self.node_cumulative_activity = 1e-3 * np.ones(self.max_num_nodes)
+        self.node_curiosity_rate = 1e-3
+        self.node_curiosity = np.zeros(self.max_num_nodes)
+        self.node_reward_rate = 1e-2
+        self.node_reward = np.zeros(self.max_num_nodes)
+        self.node_total_value = np.zeros(self.max_num_nodes)
+        self.node_value_rate = self.activity_decay_rate
+        self.node_element_index = -np.ones(self.max_num_nodes, 'int32')
+        self.node_sequence_index = -np.ones(self.max_num_nodes, 'int32')
+        self.node_buds = np.zeros((self.max_num_nodes,
+                                   self.max_num_elements))
+        self.node_bud_threshold = 1e1
+        self.node_num_branches = np.zeros(self.max_num_nodes, 'int32')
+        # The node index of each child branch
+        self.node_branch_indices = -np.ones((self.max_num_nodes,
+                                             self.max_num_elements), 'int32')
+        # Node 0 is the root.
+        # Give it one branch for each element.
+        # Don't assign sequences to these nodes. They represent sequences
+        # of length 1 which aren't interesting. They're already represented
+        # in this level's input elements.
+        for i_element in range(self.max_num_elements):
+            node_index = self.num_nodes
+            self.node_branch_indices[0, i_element] = node_index
+            self.node_element_index[node_index] = i_element
+            self.node_num_branches[0] += 1
+            self.num_nodes += 1
 
 
     def step(self, inputs, reward, satisfaction):
@@ -104,18 +136,49 @@ class Level(object):
             from the recent reward history. If it hasn't received much
             reward recently, it won't be very satisfied.
         """
+        node_index = 0
         self.update_elements(inputs)
         upstream_activity = 1.
-        for node in self.nodes:
-            node.step(self.element_activities,
+        self.num_nodes, self.num_sequences = (
+            node.step(node_index, # node parameters
+                      self.node_activity,
+                      self.node_prev_activity,
+                      self.node_activity_threshold,
+                      self.node_activity_rate,
+                      self.node_cumulative_activity,
+                      self.node_curiosity_rate,
+                      self.node_curiosity,
+                      self.node_reward_rate,
+                      self.node_reward,
+                      self.node_total_value,
+                      self.node_value_rate,
+                      self.node_element_index,
+                      self.node_sequence_index,
+                      self.node_buds,
+                      self.node_bud_threshold,
+                      self.node_num_branches,
+                      self.node_branch_indices,
+                      self.element_activities, # level parameters
                       upstream_activity,
                       self.sequence_activities,
+                      self.num_nodes,
                       self.num_sequences,
                       self.max_num_sequences,
                       self.element_goals,
                       self.sequence_goals,
                       reward,
-                      satisfaction)
+                      satisfaction))
+
+        #for node in self.nodes:
+        #    self.num_sequences = node.step(self.element_activities,
+        #                                   upstream_activity,
+        #                                   self.sequence_activities,
+        #                                   self.num_sequences,
+        #                                   self.max_num_sequences,
+        #                                   self.element_goals,
+        #                                   self.sequence_goals,
+        #                                   reward,
+        #                                   satisfaction)
 
         return self.sequence_activities
 
@@ -187,7 +250,8 @@ class Level(object):
                 val = 0.
 
             self.element_activities[i] = np.maximum(
-                self.element_activities[i], val)
+                val,
+                self.element_activities[i] * (1. - self.activity_decay_rate))
             j += 1
 
 
@@ -197,53 +261,79 @@ class Level(object):
         """
         print(self.name)
 
-'''
-        self.element_surplus = self.element_activities.copy()
+        print("Element_activities")
+        for i_element, activity in enumerate(self.element_activities):
+            if activity > self.activity_threshold:
+                print(" ".join(["element", str(i_element), ":",
+                                "activity ", str(activity)]))
 
-        # Calculate and return the activities of each of the sequences.
-        for i_sequence in np.arange(self.ziptie.num_bundles - 1, -1, -1):
+        print("Sequence activities")
+        for i_sequence, activity in enumerate(self.sequence_activities):
+            if activity > self.activity_threshold:
+                print(" ".join(["sequence", str(i_sequence), ":",
+                                "activity ", str(activity)]))
 
-            # Get the set of elements that contribute to the sequence.
-            i_elements = self.ziptie.get_elements(i_sequence)
+        # Enumerate all sequences.
+        # Use the format
+        #   q: i - j - k - l
+        # where q is the sequence index and
+        # i, j, k, l are the element indices of each sequence
+        # First, descend all the trees.
+        def descend(node_index,
+                    prefix,
+                    sequence_indices,
+                    sequence_lists,
+                    sequence_nodes):
+            """
+            Recursively descend the node trees and enumerate the sequences.
+            """
+            # If the current node index has a corresponding sequence,
+            # add it to the list.
+            if self.node_sequence_index[node_index] != -1:
+                sequence_indices.append(self.node_sequence_index[node_index])
+                sequence_lists.append(prefix)
+                sequence_nodes.append(node_index)
 
-            # Calculate the activity of each sequence.
-            new_activity = self.sequences[i_sequence].update(
-                    self.last_element_surplus[i_elements],
-                    self.element_surplus[i_elements])
+            # If this is a terminal node, backtrack up the tree.
+            if self.node_num_branches[node_index] == 0:
+                return
 
-            # Update the level's record of sequence activities,
-            # including decay dynamics.
-            self.sequence_activities[i_sequence] = np.maximum(
-                    self.sequence_activities[i_sequence], new_activity) 
+            # If this isn't a terminal node, descend through all the
+            # child branches.
+            for branch_index in self.node_branch_indices[
+                    node_index, :self.node_num_branches[node_index]]:
+                new_prefix = prefix + [self.node_element_index[branch_index]]
+                descend(branch_index,
+                        new_prefix,
+                        sequence_indices,
+                        sequence_lists,
+                        sequence_nodes)
 
-            # Subtract the sequence activities from the surplus 
-            # that contributed to it.
-            self.element_surplus[i_elements] -= (
-                    self.sequence_activities[i_sequence])
-            self.element_surplus[i_elements] = np.maximum(
-                    self.element_surplus[i_elements], 0.)
+        root_index = 0
+        prefix = []
+        sequence_indices = []
+        sequence_lists = []
+        sequence_nodes = []
+        descend(root_index,
+                prefix,
+                sequence_indices,
+                sequence_lists,
+                sequence_nodes)
 
-        return self.sequence_activities
+        for i, seq_index in enumerate(sequence_indices):
+            print("  sequence", seq_index, ': ', sequence_lists[i])
+            j = sequence_nodes[i]
 
-    def visualize(self):
-        """
-        Show the current state of the ``Level``.
-        """
-        print self.name
-        print("element activities")
-        for i_element, activity in enumerate(self.last_element_activities):
-            print(" ".join(["element", str(i_element), ":", 
-                            "activity ", str(activity), ",",
-                            "surplus ", 
-                            str(self.last_element_surplus[i_element]), ",",
-                            "last surplus ", 
-                            str(self.last_last_element_surplus[i_element])
-                            ]))
+            #Show the transitions within the sequence.
+            print("    curiosity: {0:.4f}".format(self.node_curiosity[j]))
+            print("    reward: {0:.4f}".format(self.node_reward[j]))
 
-        for i_sequence in range(self.ziptie.num_bundles):
-            i_elements = self.ziptie.get_elements(i_sequence)
-            print(" ".join(["    sequence", str(i_sequence), ":", 
-                            str(self.last_sequence_activities[i_sequence]), 
-                            ":", str(i_elements)]))
-            self.sequences[i_sequence].visualize()
-    '''
+            print("    buds")
+            row_string = "        "
+            for k, bud in enumerate(self.node_buds[j, :]):
+                if bud > self.activity_threshold:
+                    bud_string = "    {0}: {1:.2f}".format(k, bud)
+                    row_string += bud_string
+            print(row_string)
+
+        print("======================================================")

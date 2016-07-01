@@ -9,30 +9,33 @@ A small purple fruit is a ripe plum. It is good to eat.
 A large yellow fruit is a ripe peach. It is good to eat.
 A large purple fruit is a rotten peach. It is not good to eat.
 
-To succeed in this task, the robot has to consider the combination 
+To succeed in this task, the robot has to consider the combination
 of its sensors, rather than each one individually. This is
-mathematically related to the XOR task, a challenge for 
+mathematically related to the XOR task, a challenge for
 many machine learning algorithms.
 """
+from __future__ import print_function
 import numpy as np
-from worlds.base_world import World as BaseWorld
+
+from becca.worlds.base_world import World as BaseWorld
+
 
 class World(BaseWorld):
-    """ 
+    """
     The Fruit selection world.
-    
+
     In this world, the robot has only two sensors,
     large/small and yellow/purple
     and two actions
     eat or don't eat.
-    
-    The robot gets rewarded for eating good fruit and 
+
+    The robot gets rewarded for eating good fruit and
     punished for eating raw or rotten fruit. This world
-    is designed to force the robot to create features 
+    is designed to force the robot to create feature
     from its sensors.
     """
     def __init__(self, lifespan=None):
-        """ 
+        """
         Set up the world.
 
         Parameters
@@ -43,7 +46,7 @@ class World(BaseWorld):
         BaseWorld.__init__(self, lifespan)
         self.name = 'fruit'
         self.name_long = 'fruit selection world'
-        print "Entering", self.name_long
+        print("Entering", self.name_long)
         self.world_visualize_period = 1e6
         self.brain_visualize_period = 1e3
         """
@@ -63,10 +66,16 @@ class World(BaseWorld):
             1: discard
         """
         self.num_actions = 2
-        self.action = np.zeros(self.num_actions)
+        self.actions = np.zeros(self.num_actions)
+        self.reward = 0.
+        self.acted = False
+        self.eat = False
+        self.discard = False
+
         self.grab_fruit()
         self.reward_magnitude = 1.
-        self.verbose =  False
+        self.verbose = False
+
 
     def grab_fruit(self):
         """
@@ -80,11 +89,8 @@ class World(BaseWorld):
         """
         self.size = np.random.randint(2)
         self.color = np.random.randint(2)
-        if ( (self.size == 0) and (self.color == 0) or
-             (self.size == 1) and (self.color == 1) ):
-             self.edible = True
-        else: 
-            self.edible = False
+        self.edible = ((self.size == 0) and (self.color == 0) or
+                       (self.size == 1) and (self.color == 1))
 
         self.sensors = np.zeros(self.num_sensors)
         if self.size == 0:
@@ -96,8 +102,9 @@ class World(BaseWorld):
         if self.color == 1:
             self.sensors[3] = 1.
 
-    def step(self, action): 
-        """ 
+
+    def step(self, action):
+        """
         Take one time step through the world.
 
         Parameters
@@ -112,7 +119,7 @@ class World(BaseWorld):
         self.sensors : array of floats
             The values of each of the sensors.
         """
-        self.timestep += 1 
+        self.timestep += 1
         self.actions = action.ravel()
 
         # Figure out which action was taken
@@ -129,11 +136,11 @@ class World(BaseWorld):
         # Check whether the appropriate action was taken, and assign reward.
         # There is a small punishment for doing nothing.
         self.reward = -.1
-        if ( (self.eat and self.edible) or 
-             (self.discard and not self.edible)):
+        if ((self.eat and self.edible) or
+            (self.discard and not self.edible)):
             self.reward = self.reward_magnitude
-        elif ( (self.eat and not self.edible) or 
-               (self.discard and self.edible)):
+        elif ((self.eat and not self.edible) or
+              (self.discard and self.edible)):
             self.reward = -self.reward_magnitude * .9
 
         if self.acted:
@@ -141,19 +148,20 @@ class World(BaseWorld):
 
         return self.sensors, self.reward
 
+
     def visualize_world(self, brain):
-        """ 
+        """
         Show what's going on in the world.
 
-        Note that this is the reward for the action based on the 
+        Note that this is the reward for the action based on the
         previous set of sensors. This visualizaion is called right after
-        the ``step()`` method is called, so the sensors have already 
+        the ``step()`` method is called, so the sensors have already
         been updated for the next loop.
         """
-        state_str = ' || '.join([ str(self.sensors),
-                                  str(self.actions), 
-                                  str(self.reward),
-                                  str(self.size),
-                                  str(self.color),
-                                  str(self.timestep) ])
+        state_str = ' || '.join([str(self.sensors),
+                                 str(self.actions),
+                                 str(self.reward),
+                                 str(self.size),
+                                 str(self.color),
+                                 str(self.timestep)])
         print state_str

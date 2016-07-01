@@ -14,6 +14,7 @@ from becca.core.level import Level
 # This trick is used to conveniently locate other BECCA resources.
 MODPATH = os.path.dirname(os.path.abspath(__file__))
 
+
 class Brain(object):
     """
     A biologically motivated learning algorithm.
@@ -51,8 +52,6 @@ class Brain(object):
     timestep : int
         The age of the ``brain`` in discrete time steps.
     """
-
-
     def __init__(self, num_sensors, num_actions, brain_name='test_brain'):
         """
         Configure the Brain.
@@ -76,7 +75,8 @@ class Brain(object):
 
         # Initialize the first ``Level``
         num_elements = self.num_sensors + self.num_actions
-        num_sequences = 3 * num_elements
+        num_sequences = 20 * num_elements
+        #num_sequences = 3 * num_elements
         level_index = 0
         level_0 = Level(level_index, num_elements, num_sequences)
         self.levels = [level_0]
@@ -129,11 +129,9 @@ class Brain(object):
         # Calcuate activities of all the sequences in the hierarchy.
         element_activities = np.concatenate((sensors, self.actions))
         for level in self.levels:
-            #sequences = level.update_elements(elements)
             sequence_activities = level.step(element_activities,
                                              reward,
                                              self.satisfaction)
-
             # For the next level
             element_activities = sequence_activities
 
@@ -142,14 +140,18 @@ class Brain(object):
             self.levels[i].sequence_goals = self.levels[i + 1].element_goals
 
         # Decide which actions to take.
-        self.actions = self.levels[0].element_goals
-        print('self.actions' + str(self.actions))
-        # debug: Random actions
-        # self.actions = self.random_actions()
+        goals = self.levels[0].element_goals
+        i_action = np.where(goals[self.num_sensors:
+                                  self.num_sensors + self.num_actions] >
+                            np.random.random_sample(self.num_actions))[0]
 
-        # Update level 0 with selected ``actions``.
-        #start_index = self.num_sensors
-        #self.levels[0].update_elements(self.actions, start_index)
+        #self.actions = np.zeros(self.num_actions)
+        #self.actions[i_action] = 1.
+        
+        # debug: Random actions
+        self.actions = self.random_actions()
+
+        #print('self.actions' + str(self.actions))
 
         # Periodically back up the ``brain``.
         if (self.timestep % self.backup_interval) == 0:
@@ -169,7 +171,7 @@ class Brain(object):
         actions : array of floats
             See ``sense_act_learn.actions``.
         """
-        threshold = 1. / float(self.num_actions)
+        threshold = .5 / float(self.num_actions)
         action_strength = np.random.random_sample(self.num_actions)
         actions = np.zeros(self.num_actions)
         actions[np.where(action_strength < threshold)] = 1.

@@ -34,6 +34,7 @@ from becca.worlds.grid_1D import World
 
 from becca.core.brain import Brain
 
+
 def test(world_class, testing_period=2e4):
     """
     Test the brain's performance on a world.
@@ -59,6 +60,7 @@ def test(world_class, testing_period=2e4):
     performance = run(world)
     print('Performance is: {0:.3}'.format(performance))
     return performance, world.name
+
 
 def run(world, restore=False):
     """
@@ -96,6 +98,7 @@ def run(world, restore=False):
     performance = brain.report_performance()
     return performance
 
+
 def profile():
     """
     Profile the brain's performance on the selected world.
@@ -109,6 +112,7 @@ def profile():
     profile_stats.strip_dirs().sort_stats('time', 'cumulative').print_stats(30)
     print('   View at the command line with')
     print(' > python -m pstats tester.profile')
+
 
 if __name__ == '__main__':
     # To profile BECCA's performance with world, set profile_flag to True.

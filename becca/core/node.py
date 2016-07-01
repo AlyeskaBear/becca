@@ -1,277 +1,236 @@
 """
-The Node class.
+The Node.
 """
 
-import numpy as np
-#import numba as nb
-#import tools
-#@numba.jit
-class Node(object):
-    """
-    A sequence node. Sequences are represented as trees of these nodes.
+import numba as nb
 
-    Attributes
+@nb.jit(nb.types.Tuple((nb.int32, nb.int32))
+        (nb.int32, #node_index, # node parameters
+         nb.float64[:], #activity,
+         nb.float64[:], #prev_activity,
+         nb.float64, #activity_threshold,
+         nb.float64, #activity_rate,
+         nb.float64[:], #cumulative_activity,
+         nb.float64, #curiosity_rate,
+         nb.float64[:], #curiosity,
+         nb.float64, #reward_rate,
+         nb.float64[:], #reward,
+         nb.float64[:], #total_value,
+         nb.float64, #value_rate,
+         nb.int32[:], #element_index,
+         nb.int32[:], #sequence_index,
+         nb.float64[:, :], #buds,
+         nb.float64, #bud_threshold,
+         nb.int32[:], #num_branches,
+         nb.int32[:, :], #branch_indices,
+         nb.float64[:], #element_activities, # level parameters
+         nb.float64, #upstream_activity,
+         nb.float64[:], #sequence_activities,
+         nb.int32, #num_nodes,
+         nb.int32, #num_sequences,
+         nb.int32, #max_num_sequences,
+         nb.float64[:], #element_goals,
+         nb.float64[:], #sequence_goals,
+         nb.float64, #new_reward,
+         nb.float64 #satisfaction
+        ), 
+        nopython=True)
+def step(node_index, # node parameters
+         activity,
+         prev_activity,
+         activity_threshold,
+         activity_rate,
+         cumulative_activity,
+         curiosity_rate,
+         curiosity,
+         reward_rate,
+         reward,
+         total_value,
+         value_rate,
+         element_index,
+         sequence_index,
+         buds,
+         bud_threshold,
+         num_branches,
+         branch_indices,
+         element_activities, # level parameters
+         upstream_activity,
+         sequence_activities,
+         num_nodes,
+         num_sequences,
+         max_num_sequences,
+         element_goals,
+         sequence_goals,
+         new_reward,
+         satisfaction
+        ):
+    """
+    Update the Node with the most recent element activities.
+
+    Parameters
     ----------
-    activity : float
-        The current activity of this Node.
-    activity_rate : float
-        The rate at which activities decay over time. A rate of 1 means
-        that activities decay instantly. A rate of 0 means that they
-        never decay.
-    activity_threshold : float
-        The value below which activity will be treated as zero. Doing this
-        sparsifies the system and reduces the number of calculations
-        required without having a large impact on the results.
-    buds : array of floats
-        The cumulative activities associated with each of the elements,
-        as potential child nodes.
-    bud_threshold : float
-        The level of accumulated activity at which a bud gets turned
-        into a full-blown child node.
-    cumulative_activity : float
-        The aggregated sum of past sequence activity.
-    curiosity : float
-        Similar to reward, but not based on experience. This is intended to
-        represent an optimism that encourages exploration.
-    curiosity_rate : float
-        A scaling factor that influences the rate at which
-        curiosity accumulates.
     element_activities : array of floats
         The most recent of observed element activities.
-    element_index : array of ints
-        The index of the element that is represented by this Node.
-    nodes : array of Nodes
-        The child nodes for this one. Each of these extend the sequence
-        in a new direction.
-    num_elements : int
-        The total number of elements that this Node will see.
-    previous_activity : array of floats
-        The observed Node's activity from the previous time step.
-    reward : float
-        An estimate of the reward obtained when this sequence node is active.
-    reward_rate : float
-        The rate at which the reward is incrementally stepped toward
-        the most recent observed value.
-        0 <= reward_learning_rate <= 1.
-        Smaller rates have a longer learning time, but maintain more
-        statistically accurate estimates.
-    sequence_index : int
-        The index of the sequence that the node corresponds to.
-    total_value : float
-        The overall value associated with the sequence, a combination of
-        reward, curiosity, top-down goals and goals associated with
-        longer sequences, for which this is a prefix.
-    value_rate : float
-        The rate, between 0 and 1, at which the Node's total value decays.
-        0 is no decay. 1 is instant decay.
+    element_goals : array of floats
+        The goals (internal reward due to planning and incentives)
+        associated with each element.
+    new_reward : float
+        The current value of the reward.
+    satisfaction : float
+        The state of satisfaction of the brain. A filtered version
+        of reward.
+    sequence_activities : array of floats
+        The set of activities associated with each of the sequences (Nodes)
+        in the Level.
+    sequence_goals : array of floats
+        The goals (internal reward due to planning and incentives)
+        associated with each sequence (Node).
+    upstream_activity : float
+        The activity of the this Node's parent.
     """
+    # TODO: update documentation for parameters
 
-    def __init__(self, num_elements, element_index, sequence_index=None,
-                 cumulative_activity=0., activity_rate=1.):
-        """
-        Set up the Node.
+    # For the duration of this function call, the processing is focused on
+    # node i.
+    i = node_index
 
-        Parameters
-        ----------
-        activity_rate : float
-            See self.activity_rate.
-        element_index : int
-            See self.element_index.
-        num_elements : int
-            See self.num_elements.
-        sequence_index : int
-            See self.sequence_index
-        """
-        self.num_elements = num_elements
-        self.activity = 0.
-        self.previous_activity = 0.
-        self.activity_threshold = 1e-2
-        self.cumulative_activity = cumulative_activity
-        self.activity_rate = activity_rate
-        self.curiosity_rate = 1e-3
-        self.curiosity = 0.
-        self.reward_rate = 1e-2
-        self.reward = 0.
-        self.total_value = 0.
-        self.value_rate = activity_rate
-        self.element_index = element_index
-        self.sequence_index = sequence_index
-        self.element_activities = np.zeros(self.num_elements)
-        self.buds = np.zeros(self.num_elements)
-        self.bud_threshold = 1e3
-        self.nodes = []
+    # Calculate the new node activity.
+    # Node activity is either the incoming activity associated with
+    # the element index, or the activity from the upstream node,
+    # whichever is less.
+    activity[i] = min(upstream_activity, element_activities[element_index[i]])
 
-    def step(self, element_activities,
-             upstream_activity, sequence_activities,
-             num_sequences, max_num_sequences,
-             element_goals, sequence_goals,
-             reward, satisfaction):
-        """
-        Update the Node with the most recent element activities.
+    # If the decayed activity from the previous time step was greater,
+    # revert to that.
+    activity[i] = max(prev_activity[i] * (1. - activity_rate), activity[i])
+    cumulative_activity[i] += activity[i]
 
-        Parameters
-        ----------
-        element_activities : array of floats
-            The most recent of observed element activities.
-        element_goals : array of floats
-            The goals (internal reward due to planning and incentives)
-            associated with each element.
-        reward : float
-            The current value of the reward.
-        satisfaction : float
-            The state of satisfaction of the brain. A filtered version
-            of reward.
-        sequence_activities : array of floats
-            The set of activities associated with each of the sequences (Nodes)
-            in the Level.
-        sequence_goals : array of floats
-            The goals (internal reward due to planning and incentives)
-            associated with each sequence (Node).
-        upstream_activity : float
-            The activity of the this Node's parent.
-        """
+    # Set the relevant sequence activity for the Level.
+    if sequence_index[i] != -1:
+        sequence_activities[sequence_index[i]] = activity[i]
 
-        # Calculate the new node activity.
-        # Node activity is either the incoming activity associated with
-        # the element index, or the activity from the upstream node,
-        # whichever is less.
-        element_activity = element_activities[self.element_index]
-        self.activity = np.minimum(upstream_activity, element_activity)
-        # If the decayed activity from the previous tme step was greater,
-        # revert to that.
-        self.activity = np.maximum(self.previous_activity *
-                                   (1. - self.activity_rate),
-                                   self.activity)
-        self.cumulative_activity += self.activity
+    # Update the reward estimate.
+    #
+    # Increment the expected reward value associated with each sequence.
+    # The size of the increment is larger when:
+    #     1. the discrepancy between the previously learned and
+    #         observed reward values is larger and
+    #     2. the sequence activity is greater.
+    # Another way to say this is:
+    # If either the reward discrepancy is very small
+    # or the sequence activity is very small, there is no change.
+    reward[i] += (new_reward - reward[i]) * activity[i] * reward_rate
 
-        # Set the relevant sequence activity for the Level.
-        if self.sequence_index is not None:
-            sequence_activities[self.sequence_index] = self.activity
+    # Fulfill curiosity.
+    curiosity[i] *= 1. - activity[i]
+    # Update the curiosity.
+    uncertainty = 1. / (1. + cumulative_activity[i])
+    curiosity[i] += (curiosity_rate * uncertainty *
+                     (1. - curiosity[i]) *
+                     (1. - satisfaction))
 
-        # Update the reward estimate.
-        #
-        # Increment the expected reward value associated with each sequence.
-        # The size of the increment is larger when:
-        #     1. the discrepancy between the previously learned and
-        #         observed reward values is larger and
-        #     2. the sequence activity is greater.
-        # Another way to say this is:
-        # If either the reward discrepancy is very small
-        # or the sequence activity is very small, there is no change.
-        self.reward += ((reward - self.reward) *
-                        self.activity *
-                        self.reward_rate)
+    # Calculate the forward goal, the goal value associated with
+    # longer sequences, for which this is a prefix. A child node's
+    # value propogates back to this node with a fraction of its
+    # value, given by:
+    #
+    #       fraction = (child node's cumulative activity + bud threshold)
+    #                   ________________________________________________
+    #                         this node's cumulative activity
+    #
+    # bud_threshold is added to the numerator to account for the fact
+    # that parent nodes get that much of a head start on their activity count.
+    # The forward goal is the maximum propogated goal across
+    # all child nodes.
+    forward_goal = -1
+    for branch_index in branch_indices[i, :num_branches[i]]:
+        node_value = total_value[branch_index] * (
+            (cumulative_activity[branch_index] + bud_threshold) /
+            cumulative_activity[i])
+        if node_value > forward_goal:
+            forward_goal = node_value
 
-        # Fulfill curiosity.
-        self.curiosity *= 1. - self.activity
-        # Update the curiosity.
-        uncertainty = 1. / (1. + self.cumulative_activity)
-        self.curiosity += (self.curiosity_rate *
-                           uncertainty *
-                           (1. - self.curiosity) *
-                           (1. - satisfaction))
+    # The goal value passed down from the level above.
+    if sequence_index[i] != -1:
+        top_down_goal = sequence_goals[sequence_index[i]]
+    else:
+        top_down_goal = 0.
+    # The new element value is the maximum of all its constituents.
+    total_value_ceil = max(max(forward_goal, top_down_goal),
+                           max(curiosity[i], reward[i]))
+    new_total_value = total_value_ceil * (1. - activity[i])
+    total_value[i] = max(new_total_value, total_value[i] * (1. - value_rate))
+    # Pass the new element goal down.
+    element_goals[element_index] = max(element_goals[element_index[i]],
+                                       total_value[i])
 
-        # Calculate the forward goal, the goal value associated with
-        # longer sequences, for which this is a prefix. A child node's
-        # value propogates back to this node with a fraction of its
-        # value, given by:
-        #       fraction = child node's cumulative activity /
-        #                   this node's cumulative activity
-        # The forward goal is the maximum propogated goal across
-        # all child nodes.
-        forward_goal = -1
-        for node in self.nodes:
-            node_value = node.total_value * (node.cumulative_activity /
-                                             self.cumulative_activity)
-            if node_value > forward_goal:
-                node_value = forward_goal
+    # prev_activity (node activity from the previous time step)
+    # is used for the upstream activity instead the node's current
+    # activity in order to introduce the one-time-step-per-element
+    # temporal structure of the sequence.
+    upstream_activity = prev_activity[i]
+    for node_index in branch_indices[i, :num_branches[i]]:
+        num_nodes, num_sequences = (
+            step(node_index, # node parameters
+                 activity,
+                 prev_activity,
+                 activity_threshold,
+                 activity_rate,
+                 cumulative_activity,
+                 curiosity_rate,
+                 curiosity,
+                 reward_rate,
+                 reward,
+                 total_value,
+                 value_rate,
+                 element_index,
+                 sequence_index,
+                 buds,
+                 bud_threshold,
+                 num_branches,
+                 branch_indices,
+                 element_activities, # level parameters
+                 upstream_activity,
+                 sequence_activities,
+                 num_nodes,
+                 num_sequences,
+                 max_num_sequences,
+                 element_goals,
+                 sequence_goals,
+                 new_reward,
+                 satisfaction))
 
-        # The goal value passed down from the level above.
-        top_down_goal = sequence_goals[self.sequence_index]
+    # If there is still room for more sequences, grow them.
+    if num_sequences < max_num_sequences:
+        # Update each of the child buds.
+        #print(element_activities.shape, self.buds.shape)
+        # Again, use prev_activity to get one-time-step-per-element.
+        buds[i, :] += prev_activity[i] * element_activities
+        # Don't allow the node to have a child with the same element index,
+        buds[i, element_index[i]] = 0.
+        # or with nodes that they already have.
+        for branch_index in branch_indices[i, :num_branches[i]]:
+            buds[i, element_index[branch_index]] = 0.
 
-        # The new element value is the maximum of all its constituents.
-        total_value_ceil = np.maximum([forward_goal,
-                                       top_down_goal,
-                                       self.curiosity,
-                                       self.reward])
-        new_total_value = total_value_ceil * (1. - self.activity)
-        self.total_value = np.maximum(new_total_value,
-                                      self.total_value *
-                                      (1. - self.value_rate))
-        # Pass the new element goal down.
-        element_goals[self.element_index] = self.total_value
+        # Create a new branch when appropriate.
+        for bud_index, bud_value in enumerate(buds[i, :]):
+            if bud_value > bud_threshold:
+                # Populate values for the new branch.
+                #print('nb',  num_branches[i],
+                #      'i', i,
+                #      'nn', num_nodes,
+                #      'bi', bud_index)
+                branch_indices[i, num_branches[i]] = num_nodes
+                element_index[num_nodes] = bud_index
+                sequence_index[num_nodes] = num_sequences
+                reward[num_nodes] = reward[i]
 
-        # Descend through each of the child branches.
-        for node in self.nodes:
-            node.step(element_activities,
-                      self.previous_activity,
-                      sequence_activities,
-                      num_sequences,
-                      max_num_sequences,
-                      element_goals,
-                      sequence_goals,
-                      reward,
-                      satisfaction)
+                buds[i, bud_index] = 0.
+                num_branches[i] += 1
+                num_sequences += 1
+                num_nodes += 1
 
-        # If there is still room for more sequences, grow them.
-        if num_sequences < max_num_sequences:
-            # Update each of the child buds.
-            self.buds += self.activity * self.element_activities
-            # Don't allow the node to have a child with the same element index,
-            self.buds[self.element_index] = 0.
-            # or with nodes that they already have.
-            for node in self.nodes:
-                self.buds[node.element_index] = 0.
+    # Pass the node activity to the next time step.
+    prev_activity[i] = activity[i]
 
-            # Create a new branch when appropriate.
-            matches = np.where(self.buds > self.bud_threshold)[0]
-            if matches.size > 0:
-                element_index = matches[0]
-                self.nodes.append(Node(self.activity_rate,
-                                       element_index,
-                                       sequence_index=num_sequences,
-                                       cumulative_activity=self.bud_threshold))
-                self.buds[element_index] = 0.
-
-        # Pass the node activity to the next time step.
-        self.previous_activity = self.activity
-
-
-'''
-
-    def visualize(self):
-        """
-        Show the transitions within the sequence.
-        """
-        print("      curiosity: {0:.4f}".format(self.curiosity))
-        print("      reward: {0:.4f}".format(self.reward))
-
-        print("      observations")
-        for i in range(self.num_elements):
-            row_string = "        "
-            for j in range(self.num_elements):
-                element_string = " {0:>12,.2f}".format(self.observations[i,j]) 
-                row_string += element_string
-            print(row_string)
-
-        print("      opportunities")
-        for i in range(self.num_elements):
-            row_string = "        "
-            for j in range(self.num_elements):
-                element_string = " {0:>12,.2f}".format(self.opportunities[i,j]) 
-                row_string += element_string
-            print(row_string)
-
-        print("      transition_strengths")
-        for i in range(self.num_elements):
-            row_string = "        "
-            for j in range(self.num_elements):
-                element_string = " {0:>12,.2f}".format(
-                        self.transition_strengths[i,j]) 
-                row_string += element_string
-            print(row_string)
-
-if __name__ == "__main__":
-    test_sequence = Sequence(1.)
-    test_sequence.visualize()
-'''
+    return num_nodes, num_sequences

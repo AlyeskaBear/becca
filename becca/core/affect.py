@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 
 import becca.core.tools as tools
 
+
 class Affect(object):
     """
     Assign reward to the appropriate features and track it over time.
@@ -36,8 +37,6 @@ class Affect(object):
         Number of time steps since reward was last logged. It gets
         logged every time ``Affect`` is visualized.
     """
-
-
     def __init__(self):
         """
         Set up``Affect``.
