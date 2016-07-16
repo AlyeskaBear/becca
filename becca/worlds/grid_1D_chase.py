@@ -66,11 +66,11 @@ class World(BaseWorld):
         """
         BaseWorld.__init__(self, lifespan)
         self.reward_magnitude = 1.
-        self.energy_cost = self.reward_magnitude / 1e10
+        self.energy_cost = self.reward_magnitude / 1e2
         self.name = 'grid_1D_chase'
         self.name_long = 'one dimensional chase grid world'
         print("Entering", self.name_long)
-        self.size = 5
+        self.size = 7
         self.num_sensors = self.size + 2 * (self.size - 1)
         self.num_actions = 2 * (self.size - 1)
         self.reward = 0.
@@ -166,13 +166,13 @@ class World(BaseWorld):
         """
         Show what's going on in the world.
         """
-        state_image = ['.'] * (self.num_sensors + self.num_actions + 2)
+        state_image = ['.'] * (self.size + self.num_actions + 2)
         state_image[self.position] = 'O'
         state_image[self.target_position] = '+'
-        state_image[self.num_sensors:self.num_sensors + 2] = '||'
+        state_image[self.size:self.size + 2] = '||'
         action_index = np.where(self.action > 0.1)[0]
         if action_index.size > 0:
             for i in range(action_index.size):
-                state_image[self.num_sensors + 2 + action_index[i]] = 'x'
+                state_image[self.size + 2 + action_index[i]] = 'x'
         print(''.join(state_image))
 

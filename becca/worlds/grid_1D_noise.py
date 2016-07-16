@@ -74,13 +74,13 @@ class World(BaseWorld):
         self.num_real_sensors = 3
         # Number of sensors that have no basis in the world. 
         # These are noise meant to distract.
-        self.num_noise_sensors = 15        
+        self.num_noise_sensors = 0        
         self.num_sensors = self.num_noise_sensors + self.num_real_sensors
         self.num_actions = 2
-        self.action = np.zeros((self.num_actions,1))
+        self.action = np.zeros(self.num_actions)
         self.world_state = 0      
         self.simple_state = 0       
-        self.world_visualize_period = 1e6
+        self.world_visualize_period = 1e3
         self.brain_visualize_period = 1e3
 
 

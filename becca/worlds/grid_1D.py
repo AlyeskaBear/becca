@@ -80,8 +80,9 @@ class World(BaseWorld):
         self.energy = 0.
         self.world_state = 0
         self.simple_state = 0
-        self.world_visualize_period = 1e4
-        self.brain_visualize_period = 1e4
+        self.world_visualize_period = 1e3
+        self.brain_visualize_period = 1e3
+
 
     def step(self, action):
         """
@@ -151,6 +152,7 @@ class World(BaseWorld):
         reward = self.assign_reward(sensors)
 
         return sensors, reward
+
 
     def assign_reward(self, sensors):
         """

@@ -164,4 +164,4 @@ class World(BaseWorld):
                                  str(self.size),
                                  str(self.color),
                                  str(self.timestep)])
-        print state_str
+        print(state_str)

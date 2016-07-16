@@ -47,9 +47,9 @@ class World(Grid_1D_World):
         self.name = 'grid_1D_delay'
         self.name_long = 'one dimensional grid world with delay'
         print('--delayed')
-        self.max_delay = 9
+        self.max_delay = 1
         self.future_reward = [0.] * self.max_delay
-        self.world_visualize_period = 1e6
+        self.world_visualize_period = 1e4
 
 
     def assign_reward(self, sensors):
@@ -72,12 +72,14 @@ class World(Grid_1D_World):
         # Punish actions just a little
         new_reward -= self.energy  * self.energy_cost
         # Find the delay for the reward
-        delay = np.random.randint(1, self.max_delay)
+        delay = np.random.randint(0, self.max_delay)
         #self.future_reward[delay] += 1. / float(self.max_delay)
-        self.future_reward[delay] = np.maximum(self.future_reward[delay], 1.)
+        #self.future_reward[delay] = np.maximum(self.future_reward[delay], 1.)
+        self.future_reward[delay] += new_reward
         # Advance the reward future by one time step
         self.future_reward.append(0.)
         reward = self.future_reward.pop(0)
+        #print('    delay', delay, 'reward', reward)
 
         return reward
 

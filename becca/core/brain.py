@@ -61,9 +61,9 @@ class Brain(object):
         """
         self.num_sensors = num_sensors
         # Always include an extra action. The last is the 'do nothing' action.
-        self.num_actions = num_actions + 1
+        self.num_actions = num_actions# + 1
 
-        self.backup_interval = 1e5
+        self.backup_interval = 1e4
         self.name = brain_name
         self.log_dir = os.path.normpath(os.path.join(MODPATH, '..', 'log'))
         if not os.path.isdir(self.log_dir):
@@ -75,8 +75,7 @@ class Brain(object):
 
         # Initialize the first ``Level``
         num_elements = self.num_sensors + self.num_actions
-        num_sequences = 20 * num_elements
-        #num_sequences = 3 * num_elements
+        num_sequences = 300 * num_elements
         level_index = 0
         level_0 = Level(level_index, num_elements, num_sequences)
         self.levels = [level_0]
@@ -139,19 +138,37 @@ class Brain(object):
         for i in range(len(self.levels) - 1)[::-1]:
             self.levels[i].sequence_goals = self.levels[i + 1].element_goals
 
-        # Decide which actions to take.
-        goals = self.levels[0].element_goals
-        i_action = np.where(goals[self.num_sensors:
-                                  self.num_sensors + self.num_actions] >
-                            np.random.random_sample(self.num_actions))[0]
-
+        # Isolate the actions from the rest of the goals..
+        self.actions = self.levels[0].element_goals[
+            self.num_sensors:self.num_sensors + self.num_actions]
+        #cumgoals = np.cumsum(action_goals)
+        #pick = np.random.random_sample() * cumgoals[-1]
+        #matches = np.where(cumgoals < pick)[0]
+        #if matches.size == 0:
+        #    i_action = 0
+        #else:
+        #    i_action = matches[-1] + 1
+        #print('')
+        #print('g', goals)
+        #print('cg', cumgoals)
+        #print('pick', pick)
+        #print('ia', i_action)
+        #i_action = np.argmax(goals[self.num_sensors:
+        #                           self.num_sensors + self.num_actions])
+        #i_action = np.where(action_goals >
+        #                    np.random.random_sample(self.num_actions))[0]
+       
+        #print('ag', action_goals)
+        #print('ia', i_action)
         #self.actions = np.zeros(self.num_actions)
         #self.actions[i_action] = 1.
-        
-        # debug: Random actions
-        self.actions = self.random_actions()
 
-        #print('self.actions' + str(self.actions))
+        # debug: Random actions
+        #self.actions = self.random_actions()
+
+        #print('goals', goals[self.num_sensors:
+        #                     self.num_sensors + self.num_actions])
+        #print('self.actions', self.actions)
 
         # Periodically back up the ``brain``.
         if (self.timestep % self.backup_interval) == 0:
@@ -159,7 +176,8 @@ class Brain(object):
 
         # Account for the fact that the last "do nothing" action
         # was added by the ``brain``.
-        return self.actions[:-1]
+        #return self.actions[:-1]
+        return self.actions#[:-1]
 
 
     def random_actions(self):

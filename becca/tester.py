@@ -17,9 +17,9 @@ import numpy as np
 
 # Worlds from the benchmark
 #from becca.worlds.base_world import World
-from becca.worlds.grid_1D import World
+#from becca.worlds.grid_1D import World
 #from becca.worlds.grid_1D_delay import World
-#from becca.worlds.grid_1D_chase import World
+from becca.worlds.grid_1D_chase import World
 #from becca.worlds.grid_1D_ms import World
 #from becca.worlds.grid_1D_noise import World
 #from becca.worlds.grid_2D import World
@@ -47,7 +47,7 @@ def test(world_class, testing_period=2e4):
         sending action commands to.
     testing_period : int, optional
         The number of time steps to test the brain
-        on the current world.  The default is 10,000.
+        on the current world.
 
     Returns
     -------
