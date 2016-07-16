@@ -75,9 +75,11 @@ class Brain(object):
 
         # Initialize the first ``Level``
         num_elements = self.num_sensors + self.num_actions
-        num_sequences = 300 * num_elements
+        num_bundles = 3 * num_elements
+        num_sets = num_elements + num_bundles
+        num_sequences = 30 * num_elements
         level_index = 0
-        level_0 = Level(level_index, num_elements, num_sequences)
+        level_0 = Level(level_index, num_elements, num_sets, num_sequences)
         self.levels = [level_0]
         self.actions = np.zeros(self.num_actions)
 

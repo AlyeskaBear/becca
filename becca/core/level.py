@@ -6,6 +6,7 @@ from __future__ import print_function
 import numpy as np
 
 import becca.core.node as node
+import becca.core.ziptie as ziptie
 
 
 class Level(object):
@@ -40,14 +41,20 @@ class Level(object):
     max_num_elements : int
         The maximum number of elements that this level can accept.
     max_num_sequences : int
-        The maximum number of sequences that this level can create.
+        The maximum number of sequences that this level will create.
+    max_num_sets : int
+        The maximum number of sets that this level will create.
     num_sequences : int
         The number of sequences that this level has already created.
 
     Node-specific
     TODO: add node-specific parameters here
     """
-    def __init__(self, level_index, max_num_elements, max_num_sequences):
+    def __init__(self,
+                 level_index,
+                 max_num_elements,
+                 max_num_sets,
+                 max_num_sequences):
         """
         Configure the ``Level``.
 
@@ -59,18 +66,23 @@ class Level(object):
             See ``Level.max_num_elements``.
         max_num_sequences : int
             See ``Level.max_num_sequences``.
+        max_num_sets : int
+            See ``Level.max_num_sets``.
         """
         self.level_index = level_index
         self.name = "_".join(["level", str(self.level_index)])
 
         self.max_num_elements = max_num_elements
+        self.max_num_sets = self.max_num_sets
+        self.max_num_bundles = max_num_sets - max_num_elements
         self.max_num_sequences = max_num_sequences
         self.num_sequences = 0
         # This limit on number of nodes accounts for the fact that the
         # root node and all its first generation children
         # (sequences of length 1) are the only nodes
         # not assigned to sequences.
-        self.max_num_nodes = self.max_num_sequences + self.max_num_elements + 1
+        #self.max_num_nodes = self.max_num_sequences + self.max_num_elements + 1
+        self.max_num_nodes = self.max_num_sequences + self.max_num_sets + 1
         self.num_nodes = 1
 
         # Normalization constants
@@ -91,6 +103,9 @@ class Level(object):
         self.goal_votes = np.zeros(self.max_num_elements)
         self.element_goals = np.zeros(self.max_num_elements)
         self.sequence_goals = np.zeros(self.max_num_sequences)
+
+        # Initialize the ziptie for bundling elements.
+        self.ziptie = Ziptie(self.max_num_elements, level=self.level_index)
 
         # Initialize nodes and their related data structures.
         self.node_activities = np.zeros(self.max_num_nodes)
@@ -290,8 +305,7 @@ class Level(object):
             print("level.Level.update_elements:")
             print("    Attempting to update out of range element activities.")
 
-        stop_index = np.minimum(start_index + inputs.size,
-                                self.max_num_elements)
+        stop_index = min(start_index + inputs.size, self.max_num_elements)
         # Input index
         j = 0
         for i in range(start_index, stop_index):
@@ -308,16 +322,16 @@ class Level(object):
 
             # Scale the input by the maximum.
             val = val / (self.input_max[i] + epsilon)
-            val = np.maximum(0., val)
-            val = np.minimum(1., val)
+            val = max(0., val)
+            val = min(1., val)
 
             # Sparsify the cable activities to speed up processing.
             if val < self.activity_threshold:
                 val = 0.
 
-            self.element_activities[i] = np.maximum(
-                val,
-                self.element_activities[i] * (1. - self.activity_decay_rate))
+            self.element_activities[i] = max(val,
+                                             self.element_activities[i] * 
+                                             (1. - self.activity_decay_rate))
             j += 1
 
 
