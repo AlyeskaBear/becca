@@ -25,17 +25,21 @@ import numba as nb
          #nb.float64, #value_rate,
          nb.int32[:], #element_index,
          nb.int32[:], #sequence_index,
+         nb.int32[:], #sequence_length,
          #nb.float64[:, :], #buds,
          nb.float64, #bud_threshold,
          nb.int32[:], #num_children,
          nb.int32[:, :], #child_indices,
+         nb.int32[:], #parent_index,
          nb.float64[:], #element_activities, # level parameters
+         nb.int32, #num_active_elements,
          nb.float64, #parent_activity,
          nb.float64, #prev_parent_activity,
          nb.float64[:], #sequence_activities,
          nb.int32, #num_nodes,
          nb.int32, #num_sequences,
          nb.int32, #max_num_sequences,
+         nb.int32, #max_num_nodes,
          nb.float64[:], #goal_votes,
          nb.float64[:], #element_goals,
          #nb.float64[:], #element_total_weights,
@@ -44,9 +48,9 @@ import numba as nb
          nb.float64, #new_reward,
          nb.float64 #satisfaction
         )
-       #)
-        ,
-        nopython=True)
+        )
+        #,
+        #nopython=True)
 
 def step(node_index, # node parameters
          activity,
@@ -67,17 +71,21 @@ def step(node_index, # node parameters
          #value_rate,
          element_index,
          sequence_index,
+         sequence_length,
          #buds,
          child_threshold,
          num_children,
          child_indices,
+         parent_index,
          element_activities, # level parameters
+         num_active_elements,
          parent_activity,
          prev_parent_activity,
          sequence_activities,
          num_nodes,
          num_sequences,
          max_num_sequences,
+         max_num_nodes,
          goal_votes,
          element_goals,
          #element_total_weights,
@@ -123,8 +131,8 @@ def step(node_index, # node parameters
     # element_goals havent been updated yet, so they still
     # represent what happened on the previous time step.
     # attempts : array of floats
-    #     The total number of times the final element of each node 
-    #     has been selected as a goal at the same time that the sequence 
+    #     The total number of times the final element of each node
+    #     has been selected as a goal at the same time that the sequence
     #     corresponding to the node is active.
     attempts[i] = min(prev_parent_activity, element_goals[element_index[i]])
 
@@ -155,12 +163,15 @@ def step(node_index, # node parameters
     curiosity[i] += (curiosity_rate * uncertainty *
                      (1. - curiosity[i]) *
                      (1. - satisfaction))
+    #print('sat', satisfaction)
+    #print('cur', curiosity[i])
+    #print('unc', uncertainty)
 
     # fulfillment, unfulfillment : array of floats
-    #     All attempts result in either fulfillment or unfulfillment. 
+    #     All attempts result in either fulfillment or unfulfillment.
     #     If the node becomes active soon after the attempt, the attempt
     #     is considered fulfilled. The sooner and the larger the activity,
-    #     the more complete the fulfillment. All attempts or portions of 
+    #     the more complete the fulfillment. All attempts or portions of
     #     attempts that aren't fulfilled get added to unfulfillment.
     # Fulfill goal attempts when appropriate.
     new_fulfillment = min(activity[i], attempts[i])
@@ -175,17 +186,17 @@ def step(node_index, # node parameters
     # choosability : array of floats
     #     The ratio of fulfillment to the cumulative number of past attempts.
     #     Choosabiity is an answer to the question: If I set this node's
-    #     element as a goal when its parent node is active, what is the 
+    #     element as a goal when its parent node is active, what is the
     #     likelihood that it will be achieved?
     # Update the node's choosability.
     choosability[i] = fulfillment[i] / (fulfillment[i] + unfulfillment[i])
 
-    # Calculate the combined value of child nodes, 
+    # Calculate the combined value of child nodes,
     # the goal value associated with
     # longer sequences, for which this is a prefix. A child node's
     # value propogates back to this node with a fraction of its value.
     time_penalty = .8
-    # choosable_value is the expected value of this node if 
+    # choosable_value is the expected value of this node if
     # it is chosen as a goal when its parent node is active.
     # unchoosable_value is the expected value of this node if
     # it is not chosen as a goal when its parent node is active.
@@ -195,46 +206,48 @@ def step(node_index, # node parameters
     #print('forward goal for node', i, 'element', element_index[i])
     if num_children[i] > 0:
         for child_index in child_indices[i, :num_children[i]]:
-            # choosable_child_value is the expected value of this
-            # child, if it this node becomes active, and if the child
-            # is then chosen as a goal. 
-            choosable_child_value = (value_to_parent[child_index] * 
-                                      choosability[child_index])
+            if element_index[child_index] < num_active_elements:
 
-            # Serendipity is the fraction of the time that the child was
-            # stumbled into, unchosen. It is estimated by taking the ratio
-            # of the total number of times the child occurred accidentally
-            # to the total number of times it could have occurred 
-            # accidentally.
-            serendipity = ((cumulative_activity[child_index] - 
-                            fulfillment[child_index]) /
-                           (cumulative_activity[i] - 
-                            fulfillment[child_index] - 
-                            unfulfillment[child_index]))
-            # unchoosable_child_value is the expected value of this child
-            # if this node becomes active and the child is *not* chosen
-            # as a goal.
-            unchoosable_child_value = (value_to_parent[child_index] * 
-                                        serendipity)
-            # Unchoosable child values are summed. Because they are weighted
-            # by serendipity, this is kind of like averaging.
-            unchoosable_children_value += unchoosable_child_value
-            # Choosable child values are max'ed.
-            choosable_children_value = max(choosable_children_value,
-                                           choosable_child_value)
-            #print('    child element', element_index[child_index],
-            #      'tv', value_to_parent[child_index], 
-            #      'choo', choosability[child_index],
-            #      'choo val', choosable_child_value,
-            #      'choo fwd val', choosable_value,
-            #      'unchoo val', unchoosable_child_value,
-            #      'cum act', cumulative_activity[child_index],
-            #      'unchoo fwd val', unchoosable_value)
-                  
+                # choosable_child_value is the expected value of this
+                # child, if it this node becomes active, and if the child
+                # is then chosen as a goal.
+                choosable_child_value = (value_to_parent[child_index] *
+                                         choosability[child_index])
+
+                # Serendipity is the fraction of the time that the child was
+                # stumbled into, unchosen. It is estimated by taking the ratio
+                # of the total number of times the child occurred accidentally
+                # to the total number of times it could have occurred
+                # accidentally.
+                serendipity = ((cumulative_activity[child_index] -
+                                fulfillment[child_index]) /
+                               (cumulative_activity[i] -
+                                fulfillment[child_index] -
+                                unfulfillment[child_index]))
+                # unchoosable_child_value is the expected value of this child
+                # if this node becomes active and the child is *not* chosen
+                # as a goal.
+                unchoosable_child_value = (value_to_parent[child_index] *
+                                           serendipity)
+                # Unchoosable child values are summed. Because they are weighted
+                # by serendipity, this is kind of like averaging.
+                unchoosable_children_value += unchoosable_child_value
+                # Choosable child values are max'ed.
+                choosable_children_value = max(choosable_children_value,
+                                               choosable_child_value)
+                #print('    child element', element_index[child_index],
+                #      'tv', value_to_parent[child_index],
+                #      'choo', choosability[child_index],
+                #      'choo val', choosable_child_value,
+                #      'choo fwd val', choosable_value,
+                #      'unchoo val', unchoosable_child_value,
+                #      'cum act', cumulative_activity[child_index],
+                #      'unchoo fwd val', unchoosable_value)
+
         children_value = unchoosable_children_value + choosable_children_value
         #print('  unchoo fwd val', unchoosable_value,
         #      'choo fwd val', choosable_value,
-        #      'fwd goal', children_value)  
+        #      'fwd goal', children_value)
     else:
         children_value = 0.
 
@@ -252,20 +265,25 @@ def step(node_index, # node parameters
     #     The expected value of a node to its parent node.
     #     It is the node's total value  scaled by a time step penalty.
     # The new element value is the maximum of all its constituents.
-    value_to_parent[i] = time_penalty * total_value 
-    
+    value_to_parent[i] = time_penalty * total_value
+
     # total_goal_value is the strength of this node's vote for its element
     # to be the next goal. This is where curiosity is added in. It doesn't
-    # get passed up through parents. It also gets bounded by 0 and 1. 
+    # get passed up through parents. It also gets bounded by 0 and 1.
     total_goal_value = curiosity[i] + choosability[i] * total_value
     total_goal_value = min(max(total_goal_value, 0.), 1.)
 
-    # If this is not the root node, set the relevant sequence activity 
+    # If this is not the root node, set the relevant sequence activity
     # for the level and set the relevant element goal.
     if sequence_index[i] != -1:
         sequence_activities[sequence_index[i]] = activity[i]
 
+    if sequence_length[i] > 1:
         # Record weights and totals for calculating the element goal.
+        #if total_goal_value > 0.:
+            #print('element index', element_index[i],
+            #      'parent activity', parent_activity,
+            #      'total goal value', total_goal_value)
         goal_votes[element_index[i]] = max(goal_votes[element_index[i]],
                                            parent_activity * total_goal_value)
 
@@ -273,7 +291,7 @@ def step(node_index, # node parameters
         #    print()
         #    print('sequence', i, 'element', element_index[i])
         #    print('goal_vote', parent_activity * total_goal_value)
-        #    print('total_goal_value', total_goal_value, 
+        #    print('total_goal_value', total_goal_value,
         #          'parent activity', parent_activity)
         #    print('children value', children_value, 'reward', reward[i],
         #          'curiosity', curiosity[i], 'choosability', choosability[i])
@@ -286,68 +304,84 @@ def step(node_index, # node parameters
         parent_activity = activity[i]
         prev_parent_activity = prev_activity[i]
         for child_index in child_indices[i, :num_children[i]]:
-            num_nodes, num_sequences = (
-                step(child_index, # node parameters
-                     activity,
-                     prev_activity,
-                     activity_threshold,
-                     activity_rate,
-                     cumulative_activity,
-                     attempts,
-                     total_attempts,
-                     fulfillment,
-                     unfulfillment,
-                     choosability,
-                     curiosity_rate,
-                     curiosity,
-                     #reward_rate,
-                     reward,
-                     value_to_parent,
-                     #value_rate,
-                     element_index,
-                     sequence_index,
-                     #buds,
-                     child_threshold,
-                     num_children,
-                     child_indices,
-                     element_activities, # level parameters
-                     parent_activity,
-                     prev_parent_activity,
-                     sequence_activities,
-                     num_nodes,
-                     num_sequences,
-                     max_num_sequences,
-                     goal_votes,
-                     element_goals,
-                     #element_total_weights,
-                     #element_weighted_values,
-                     #min_element_values,
-                     sequence_goals,
-                     new_reward,
-                     satisfaction))
+            if element_index[child_index] < num_active_elements:
+                num_nodes, num_sequences = (
+                    step(child_index, # node parameters
+                         activity,
+                         prev_activity,
+                         activity_threshold,
+                         activity_rate,
+                         cumulative_activity,
+                         attempts,
+                         total_attempts,
+                         fulfillment,
+                         unfulfillment,
+                         choosability,
+                         curiosity_rate,
+                         curiosity,
+                         #reward_rate,
+                         reward,
+                         value_to_parent,
+                         #value_rate,
+                         element_index,
+                         sequence_index,
+                         sequence_length,
+                         #buds,
+                         child_threshold,
+                         num_children,
+                         child_indices,
+                         parent_index,
+                         element_activities, # level parameters
+                         num_active_elements,
+                         parent_activity,
+                         prev_parent_activity,
+                         sequence_activities,
+                         num_nodes,
+                         num_sequences,
+                         max_num_sequences,
+                         max_num_nodes,
+                         goal_votes,
+                         element_goals,
+                         #element_total_weights,
+                         #element_weighted_values,
+                         #min_element_values,
+                         sequence_goals,
+                         new_reward,
+                         satisfaction))
 
     # If there is still room for more sequences, grow them.
     else:
     #if num_children[i] == 0:
-        if num_sequences < max_num_sequences:
+        if num_sequences < max_num_sequences and num_nodes < max_num_nodes:
             #print('ca', cumulative_activity[i], 'i', i)
-            if cumulative_activity[i] > child_threshold:
-                # Create a new set of childes.
+            if cumulative_activity[i] > child_threshold * sequence_length[i]:
+                # Assign this node its own output sequence, now that it
+                # has been observed enough times.
+                sequence_index[i] = num_sequences
+                num_sequences += 1
+                #if num_sequences == max_num_sequences:
+                #    break
+                # Create a new set of children.
                 for i_element, _ in enumerate(element_activities):
                     # Don't allow the node to have a child with
                     # the same element index.
                     if i_element != element_index[i]:
-                        #print('+++ Creating sequence', num_sequences, 'with', 
+                        #print('+++ Creating sequence', num_sequences, 'with',
                         #      element_index[i])
                         node_index = num_nodes
+                        sequence_length[node_index] = sequence_length[i] + 1
                         child_indices[i, num_children[i]] = node_index
                         element_index[node_index] = i_element
-                        sequence_index[num_nodes] = num_sequences
+                        parent_index[node_index] = i
+                        # Copy over the sequence prefix and add the parent.
+                        #prefixes[node_index, 0:sequence_length[i] - 1] = (
+                        #    prefixes[i, 0:sequence_length[i] - 1])
+                        #prefixes[node_index, sequence_length[i] - 1] = (
+                        #    element_index[i])
 
                         num_children[i] += 1
                         num_nodes += 1
-                        num_sequences += 1
-                        if num_sequences == max_num_sequences:
+                        if num_nodes == max_num_nodes:
                             break
 
     # Pass the node activity to the next time step.

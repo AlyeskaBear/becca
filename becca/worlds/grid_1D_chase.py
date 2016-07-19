@@ -79,7 +79,7 @@ class World(BaseWorld):
         self.sensors = np.zeros(self.num_sensors)
         self.position = 2
         self.target_position = 1
-        self.world_visualize_period = 1e3
+        self.world_visualize_period = 1e0
         self.brain_visualize_period = 1e3
 
 
@@ -174,5 +174,5 @@ class World(BaseWorld):
         if action_index.size > 0:
             for i in range(action_index.size):
                 state_image[self.size + 2 + action_index[i]] = 'x'
-        print(''.join(state_image))
-
+        state_string = ''.join(state_image)
+        print(state_string, '  ', self.timestep, 'time steps')

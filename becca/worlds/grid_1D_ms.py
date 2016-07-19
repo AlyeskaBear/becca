@@ -69,7 +69,7 @@ class World(BaseWorld):
         print("Entering", self.name_long)
         self.num_sensors = 9
         self.num_actions = 2
-        self.action = np.zeros((self.num_actions, 1))
+        self.action = np.zeros(self.num_actions)
         self.world_state = 0
         self.simple_state = 0
         self.world_visualize_period = 1e6
@@ -92,8 +92,8 @@ class World(BaseWorld):
         sensors : array of floats
             The values of each of the sensors.
         """
-        self.action = action.ravel()
-        self.action[np.nonzero(self.action)] = 1.
+        self.action = action
+        self.action = np.round(self.action)
         self.timestep += 1
         energy = self.action[0] + self.action[1]
         self.world_state += self.action[0] - self.action[1]

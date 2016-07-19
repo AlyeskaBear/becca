@@ -63,7 +63,7 @@ class Brain(object):
         # Always include an extra action. The last is the 'do nothing' action.
         self.num_actions = num_actions# + 1
 
-        self.backup_interval = 1e4
+        self.backup_interval = 1e5
         self.name = brain_name
         self.log_dir = os.path.normpath(os.path.join(MODPATH, '..', 'log'))
         if not os.path.isdir(self.log_dir):
@@ -74,12 +74,12 @@ class Brain(object):
         self.satisfaction = 0.
 
         # Initialize the first ``Level``
-        num_elements = self.num_sensors + self.num_actions
-        num_bundles = 3 * num_elements
-        num_sets = num_elements + num_bundles
-        num_sequences = 30 * num_elements
+        num_inputs = self.num_sensors + self.num_actions
+        num_bundles = 1# num_inputs
+        num_elements = num_inputs + num_bundles
+        num_sequences = int(30 * num_elements ** 2) 
         level_index = 0
-        level_0 = Level(level_index, num_elements, num_sets, num_sequences)
+        level_0 = Level(level_index, num_inputs, num_elements, num_sequences)
         self.levels = [level_0]
         self.actions = np.zeros(self.num_actions)
 
@@ -94,7 +94,7 @@ class Brain(object):
         ----------
         sensors : array of floats
             The information coming from the sensors in the world.
-            The array should have ``self.num_sensors`` elements.
+            The array should have ``self.num_sensors`` inputs.
             Each value in the array is expected to be between 0 and 1,
             inclusive. Sensor values are interpreted as fuzzy binary
             values, rather than continuous values. For instance,
@@ -118,7 +118,7 @@ class Brain(object):
         actions : array of floats
             The action commands that the ``brain`` is sending to the world
             to be executed. The array should have ``self.num_actions``
-            elements in it. Each value should be binary: 0 and 1. This
+            inputs in it. Each value should be binary: 0 and 1. This
             allows the ``brain`` to learn most effectively how to interact
             with the world to obtain more reward.
         """
@@ -128,20 +128,20 @@ class Brain(object):
         self.satisfaction = self.affect.update(reward)
 
         # Calcuate activities of all the sequences in the hierarchy.
-        element_activities = np.concatenate((sensors, self.actions))
+        input_activities = np.concatenate((sensors, self.actions))
         for level in self.levels:
-            sequence_activities = level.step(element_activities,
+            sequence_activities = level.step(input_activities,
                                              reward,
                                              self.satisfaction)
             # For the next level
-            element_activities = sequence_activities
+            input_activities = sequence_activities
 
         # Pass goals back down.
         for i in range(len(self.levels) - 1)[::-1]:
-            self.levels[i].sequence_goals = self.levels[i + 1].element_goals
+            self.levels[i].sequence_goals = self.levels[i + 1].input_goals
 
         # Isolate the actions from the rest of the goals..
-        self.actions = self.levels[0].element_goals[
+        self.actions = self.levels[0].input_goals[
             self.num_sensors:self.num_sensors + self.num_actions]
         #cumgoals = np.cumsum(action_goals)
         #pick = np.random.random_sample() * cumgoals[-1]
@@ -159,7 +159,7 @@ class Brain(object):
         #                           self.num_sensors + self.num_actions])
         #i_action = np.where(action_goals >
         #                    np.random.random_sample(self.num_actions))[0]
-       
+
         #print('ag', action_goals)
         #print('ia', i_action)
         #self.actions = np.zeros(self.num_actions)
@@ -273,7 +273,7 @@ class Brain(object):
             else:
                 print('The brain {0} does not have the same number'.format(
                     self.pickle_filename))
-                print('of input and output elements as the world.')
+                print('of sensors and actions as the world.')
                 print('Creating a new brain from scratch.')
         except IOError:
             print('Couldn\'t open {0} for loading'.format(
@@ -293,5 +293,5 @@ class Brain(object):
         print('{0} is {1} time steps old'.format(self.name, self.timestep))
 
         self.affect.visualize(self.timestep, self.name, self.log_dir)
-        for level in self.levels:
-            level.visualize()
+        #for level in self.levels:
+        #    level.visualize()
