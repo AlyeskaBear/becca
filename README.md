@@ -2,6 +2,8 @@ BECCA is a general learning program for use in any robot or embodied system. Whe
 
 ####Install BECCA
 
+[![Join the chat at https://gitter.im/brohrer/becca](https://badges.gitter.im/brohrer/becca.svg)](https://gitter.im/brohrer/becca?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Make sure you have a current version of Anaconda, then
 
     pip install --pre becca
