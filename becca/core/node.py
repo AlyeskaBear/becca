@@ -41,6 +41,7 @@ import numba as nb
          nb.int32, #max_num_sequences,
          nb.int32, #max_num_nodes,
          nb.float64[:], #goal_votes,
+         nb.int32[:], #responsible_nodes,
          nb.float64[:], #element_goals,
          #nb.float64[:], #element_total_weights,
          #nb.float64[:], #element_weighted_values,
@@ -87,6 +88,7 @@ def step(node_index, # node parameters
          max_num_sequences,
          max_num_nodes,
          goal_votes,
+         responsible_nodes,
          element_goals,
          #element_total_weights,
          #element_weighted_values,
@@ -109,6 +111,8 @@ def step(node_index, # node parameters
 
     new_reward : float
         The current value of the reward.
+    responsible_nodes : array of ints
+
     satisfaction : float
         The state of satisfaction of the brain. A filtered version
         of reward.
@@ -271,7 +275,7 @@ def step(node_index, # node parameters
     # to be the next goal. This is where curiosity is added in. It doesn't
     # get passed up through parents. It also gets bounded by 0 and 1.
     total_goal_value = curiosity[i] + choosability[i] * total_value
-    total_goal_value = min(max(total_goal_value, 0.), 1.)
+    #total_goal_value = min(max(total_goal_value, 0.), 1.)
 
     # If this is not the root node, set the relevant sequence activity
     # for the level and set the relevant element goal.
@@ -284,8 +288,11 @@ def step(node_index, # node parameters
             #print('element index', element_index[i],
             #      'parent activity', parent_activity,
             #      'total goal value', total_goal_value)
-        goal_votes[element_index[i]] = max(goal_votes[element_index[i]],
-                                           parent_activity * total_goal_value)
+        if parent_activity * total_goal_value > goal_votes[element_index[i]]:
+            goal_votes[element_index[i]] = parent_activity * total_goal_value 
+            responsible_nodes[element_index[i]] = i
+        #goal_votes[element_index[i]] = max(goal_votes[element_index[i]],
+        #                                   parent_activity * total_goal_value)
 
         #if parent_activity * total_goal_value > .9:
         #    print()
@@ -341,6 +348,7 @@ def step(node_index, # node parameters
                          max_num_sequences,
                          max_num_nodes,
                          goal_votes,
+                         responsible_nodes,
                          element_goals,
                          #element_total_weights,
                          #element_weighted_values,

@@ -90,7 +90,7 @@ class Level(object):
         self.input_max_grow_time = 1e2
         self.input_max_decay_time = self.input_max_grow_time * 1e2
 
-        self.activity_decay_rate = 1. / (2. ** (self.level_index))
+        self.activity_decay_rate = 1. / (2. ** (self.level_index + 0.))
         self.activity_threshold = .1
         #self.goal_decay_rate = self.activity_decay_rate / 2.
         #TODO document
@@ -102,8 +102,8 @@ class Level(object):
         self.element_activities = np.zeros(self.max_num_elements)
         self.sequence_activities = np.zeros(self.max_num_sequences)
         self.element_goal_votes = np.zeros(self.max_num_elements)
+        self.responsible_nodes = -np.ones(self.max_num_elements, 'int32')
         self.element_goals = np.zeros(self.max_num_elements)
-        self.element_fatigue = np.zeros(self.max_num_elements)
         self.input_goals = np.zeros(self.max_num_inputs)
         self.sequence_goals = np.zeros(self.max_num_sequences)
 
@@ -210,6 +210,7 @@ class Level(object):
         #self.ziptie.learn()
         self.num_active_elements = self.max_num_inputs + self.ziptie.num_bundles
 
+        self.responsible_nodes = -np.ones(self.max_num_elements, 'int32')
         self.element_goal_votes = np.zeros(self.max_num_elements)
         prev_parent_activity = 1.
         parent_activity = 1.
@@ -250,6 +251,7 @@ class Level(object):
                       self.max_num_sequences,
                       self.max_num_nodes,
                       self.element_goal_votes,
+                      self.responsible_nodes,
                       self.element_goals,
                       #input_total_weights,
                       #input_weighted_values,
@@ -266,7 +268,7 @@ class Level(object):
                     sequence_indices.append(self.node_element_index[
                         self.node_parent_index[temp_index]])
                     temp_index = self.node_parent_index[temp_index]
-                print('  added sequence', sequence_indices[::-1])
+                #print('  added sequence', sequence_indices[::-1])
             self.last_num_nodes = self.num_nodes
 
         # Maintain the node activity history.
@@ -313,18 +315,17 @@ class Level(object):
         arousal = 1.
         self.element_goals = np.zeros(self.max_num_elements)
         self.input_goals = np.zeros(self.max_num_inputs)
-        self.element_goal_votes *= (1. - self.element_fatigue)
-        self.element_fatigue *= (1. - self.activity_decay_rate)
         #i_goals = np.where(self.element_goal_votes ** (1. / arousal)  >
         #                   np.random.random_sample( self.max_num_inputs))[0]
         matches = np.where(self.element_goal_votes ==
                            np.max(self.element_goal_votes))[0]
         i_goals = matches[np.argmax(np.random.random_sample(matches.size))]
+        responsible_node = self.responsible_nodes[i_goals]
         #i_goals = np.argmax(self.element_goal_votes)
+
         if (self.element_goal_votes[i_goals] ** (1. / arousal) >
                 np.random.random_sample()):
             self.element_goals[i_goals] = 1.
-            self.element_fatigue[i_goals] = 1.
 
             if i_goals < self.max_num_inputs:
                 self.input_goals[i_goals] = 1.
@@ -333,10 +334,11 @@ class Level(object):
                 self.input_goals = self.ziptie.get_index_projection(
                     i_goals - self.max_num_inputs)
 
-        print('element fatigue', self.element_fatigue)
-        print('element goal votes', self.element_goal_votes)
-        print('element goals', self.element_goals)
-        print('input goals', self.input_goals)
+        if True:
+            print('element goal votes', self.element_goal_votes)
+            print('element goals', self.element_goals)
+            print('input goals', self.input_goals)
+            self.print_node(responsible_node)
 
         return self.sequence_activities
 
@@ -436,17 +438,17 @@ class Level(object):
         # i, j, k, l are the input indices of each sequence
         # First, descend all the trees.
         def descend(node_index,
-                    prefix,
-                    sequence_indices,
-                    sequence_lists,
+                    #prefix,
+                    #sequence_indices,
+                    #sequence_lists,
                     sequence_nodes):
             """
             Recursively descend the node trees and enumerate the sequences.
             """
             # If the current node index has a corresponding sequence,
             # add it to the list.
-            sequence_indices.append(self.node_sequence_index[node_index])
-            sequence_lists.append(prefix)
+            #sequence_indices.append(self.node_sequence_index[node_index])
+            #sequence_lists.append(prefix)
             sequence_nodes.append(node_index)
 
             # If this is a terminal node, backtrack up the tree.
@@ -462,44 +464,65 @@ class Level(object):
                 #      'pre', prefix)
                 if (self.node_element_index[child_index] <
                     self.num_active_elements):
-                    new_prefix = prefix + [self.node_element_index[child_index]]
+                    #new_prefix = prefix + [self.node_element_index[child_index]]
                     descend(child_index,
-                            new_prefix,
-                            sequence_indices,
-                            sequence_lists,
+                            #new_prefix,
+                            #sequence_indices,
+                            #sequence_lists,
                             sequence_nodes)
 
         root_index = 0
-        prefix = []
-        sequence_indices = []
-        sequence_lists = []
+        #prefix = []
+        #sequence_indices = []
+        #sequence_lists = []
         sequence_nodes = []
         descend(root_index,
-                prefix,
-                sequence_indices,
-                sequence_lists,
+                #prefix,
+                #sequence_indices,
+                #sequence_lists,
                 sequence_nodes)
+        #for i, seq_index in enumerate(sequence_indices):
 
-        for i, seq_index in enumerate(sequence_indices):
-            print("  sequence", seq_index, ': ', sequence_lists[i])
-            j = sequence_nodes[i]
-
-            #Show the transitions within the sequence.
-            print("    cumulative: {0:.4f}".format(
-                self.node_cumulative_activity[j]))
-            print("      fulfillment: {0:.4f}".format(self.node_fulfillment[j]))
-            print("      unfulfillment: {0:.4f}".format(
-                self.node_unfulfillment[j]))
-            print("      choosability: {0:.4f}".format(
-                self.node_choosability[j]))
-            print("    curiosity: {0:.4f}".format(self.node_curiosity[j]))
-            print("    reward: {0:.4f}".format(self.node_reward[j]))
-            print("    val to parent: {0:.4f}".format(
-                self.node_value_to_parent[j]))
-            total_goal_value = (self.node_curiosity[j] +
-                                self.node_choosability[j] *
-                                self.node_value_to_parent[j] / .9)
-            total_goal_value = min(max(total_goal_value, 0.), 1.)
-            print("    total goal value: {0:.4f}".format(total_goal_value))
-            print("----------------------------------------------")
+        #for i in range(self.num_nodes):
+        for i in sequence_nodes:
+            self.print_node(i)
         print("==============================================================")
+        
+
+    def print_node(self, i):
+        """ 
+        Print a bunch of information about a node.
+        """
+        print("----------------------------------------------")
+
+        full_sequence = [self.node_element_index[i]]
+        temp_index = i
+        while self.node_parent_index[temp_index] > 0:
+            full_sequence.append(self.node_element_index[
+                self.node_parent_index[temp_index]])
+            temp_index = self.node_parent_index[temp_index]
+        full_sequence = full_sequence[::-1]
+        sequence_index = self.node_sequence_index[i] 
+        if sequence_index == -1:
+            sequence_index = "none"
+        print("  node", i, 
+              "  sequence", sequence_index,
+              ": ", full_sequence)
+
+        #Show the transitions within the sequence.
+        print("    cumulative: {0:.4f}".format(
+            self.node_cumulative_activity[i]))
+        print("      fulfillment: {0:.4f}".format(self.node_fulfillment[i]))
+        print("      unfulfillment: {0:.4f}".format(
+            self.node_unfulfillment[i]))
+        print("      choosability: {0:.4f}".format(
+            self.node_choosability[i]))
+        print("    curiosity: {0:.4f}".format(self.node_curiosity[i]))
+        print("    reward: {0:.4f}".format(self.node_reward[i]))
+        print("    val to parent: {0:.4f}".format(
+            self.node_value_to_parent[i]))
+        total_goal_value = (self.node_curiosity[i] +
+                            self.node_choosability[i] *
+                            self.node_value_to_parent[i] / .9)
+        total_goal_value = min(max(total_goal_value, 0.), 1.)
+        print("    total goal value: {0:.4f}".format(total_goal_value))

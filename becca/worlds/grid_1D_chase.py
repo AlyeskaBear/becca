@@ -79,7 +79,7 @@ class World(BaseWorld):
         self.sensors = np.zeros(self.num_sensors)
         self.position = 2
         self.target_position = 1
-        self.world_visualize_period = 1e0
+        self.world_visualize_period = 1e3
         self.brain_visualize_period = 1e3
 
 
@@ -148,7 +148,7 @@ class World(BaseWorld):
         Move the target to a new position that is not already occupied.
         """
         while self.target_position == self.position:
-            self.target_position = int(np.random.randint(5))
+            self.target_position = int(np.random.randint(self.size))
 
 
     def assign_reward(self):

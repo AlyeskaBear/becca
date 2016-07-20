@@ -75,9 +75,9 @@ class Brain(object):
 
         # Initialize the first ``Level``
         num_inputs = self.num_sensors + self.num_actions
-        num_bundles = 1# num_inputs
+        num_bundles = 3 * num_inputs
         num_elements = num_inputs + num_bundles
-        num_sequences = int(30 * num_elements ** 2) 
+        num_sequences = int(3 * num_elements ** 2) 
         level_index = 0
         level_0 = Level(level_index, num_inputs, num_elements, num_sequences)
         self.levels = [level_0]

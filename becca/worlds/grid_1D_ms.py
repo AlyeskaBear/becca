@@ -72,7 +72,7 @@ class World(BaseWorld):
         self.action = np.zeros(self.num_actions)
         self.world_state = 0
         self.simple_state = 0
-        self.world_visualize_period = 1e6
+        self.world_visualize_period = 1e0
         self.brain_visualize_period = 1e3
 
 
@@ -124,6 +124,11 @@ class World(BaseWorld):
         """
         Show what's going on in the world.
         """
-        state_image = ['.'] * self.num_sensors
+        state_image = ['.'] * (self.num_sensors + self.num_actions + 2)
         state_image[self.simple_state] = 'O'
+        state_image[self.num_sensors:self.num_sensors + 2] = '||'
+        action_index = np.where(self.action > 0.1)[0]
+        if action_index.size > 0:
+            for i in range(action_index.size):
+                state_image[self.num_sensors + 2 + action_index[i]] = 'x'
         print(''.join(state_image))
