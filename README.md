@@ -20,5 +20,5 @@ Some [videos](http://youtu.be/4kPoU8eZvio?list=PLF861CC4C40439EEB) show BECCA in
 We used to use [BECCA_users group](https://groups.google.com/forum/?fromgroups#!forum/becca_users), but now are migrating away from it.
 
 <a href="url"><img src="https://github.com/brohrer/becca-docs/raw/master/figs/logo_plate.png" 
-align="center" height="80" width="240" ></a>
+align="center" height="40" width="120" ></a>
  
