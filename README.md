@@ -15,20 +15,10 @@ The [wiki](https://github.com/brohrer/becca/wiki) has tutorials on how to use BE
 
 Some [videos](http://youtu.be/4kPoU8eZvio?list=PLF861CC4C40439EEB) show BECCA in action. 
 
-Until we can get a becca tag on StackOverflow, the [BECCA_users group](https://groups.google.com/forum/?fromgroups#!forum/becca_users) provides a forum for users to share questions, solutions, and experiences. 
+[![Join the chat at https://gitter.im/brohrer/becca](https://badges.gitter.im/brohrer/becca.svg)](https://gitter.im/brohrer/becca?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) provides a forum for users to share questions, solutions, and experiences. 
 
-
-To see a demo, just run benchmark.py.
-The [wiki](https://github.com/brohrer/becca/wiki) has tutorials on 
-how to use BECCA in your application and on 
-[how it works](https://github.com/brohrer/becca-docs/blob/master/how_it_works.pdf?raw=true). 
-A series of [videos](http://youtu.be/4kPoU8eZvio?list=PLF861CC4C40439EEB) 
-demonstrate BECCA's performance in a few different contexts. 
-The [BECCA_users group](https://groups.google.com/forum/?fromgroups#!forum/becca_users) 
-provides a forum for users to share questions, solutions, and experiences. 
-A few [publications](https://github.com/brohrer/publications) 
-describe earlier versions and applications of BECCA. 
+We used to use [BECCA_users group](https://groups.google.com/forum/?fromgroups#!forum/becca_users), but now are migrating away from it.
 
 <a href="url"><img src="https://github.com/brohrer/becca-docs/raw/master/figs/logo_plate.png" 
-align="center" height="80" width="240" ></a>
+align="center" height="40" width="120" ></a>
  
