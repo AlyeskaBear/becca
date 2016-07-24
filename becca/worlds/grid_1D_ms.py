@@ -72,7 +72,7 @@ class World(BaseWorld):
         self.action = np.zeros(self.num_actions)
         self.world_state = 0
         self.simple_state = 0
-        self.world_visualize_period = 1e0
+        self.world_visualize_period = 1e3
         self.brain_visualize_period = 1e3
 
 

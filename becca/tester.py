@@ -7,26 +7,27 @@ To use this module as a top level script:
         uncommented below.
     3. Run from the command line.
         > python tester.py
+
+Usage
+-----
+Test BECCA on the grid1D.py world.
+> python tester.py grid1D
+
+Test BECCA on the suite of all test worlds.
+> python tester.py all
+
+Profile BECCA on the image2D.py world.
+> python tester.py image2D --profile 
 """
 
 from __future__ import print_function
+import argparse
 import cProfile
+import matplotlib.pyplot as plt
 import pstats
 
 import numpy as np
 
-# Worlds from the benchmark
-#from becca.worlds.base_world import World
-#from becca.worlds.grid_1D import World
-#from becca.worlds.grid_1D_chase import World
-#from becca.worlds.grid_1D_delay import World
-from becca.worlds.grid_1D_ms import World
-#from becca.worlds.grid_1D_noise import World
-#from becca.worlds.grid_2D import World
-#from becca.worlds.grid_2D_dc import World
-#from becca.worlds.image_1D import World
-#from becca.worlds.image_2D import World
-#from becca.worlds.fruit import World
 
 # If you want to run a world of your own, add the appropriate line here
 #from worlds.hello import World
@@ -99,7 +100,46 @@ def run(world, restore=False):
     return performance
 
 
-def profile():
+def suite():
+    """
+    Run all the worlds in the benchmark and tabulate their performance.
+    """
+    # Import the suite of test worlds
+    from becca.worlds.grid_1D import World as World_grid_1D
+    from becca.worlds.grid_1D_chase import World as World_grid_1D_chase
+    from becca.worlds.grid_1D_delay import World as World_grid_1D_delay
+    from becca.worlds.grid_1D_ms import World as World_grid_1D_ms
+    from becca.worlds.grid_1D_noise import World as World_grid_1D_noise
+    from becca.worlds.grid_2D import World as World_grid_2D
+    from becca.worlds.grid_2D_dc import World as World_grid_2D_dc
+    from becca.worlds.image_1D import World as World_image_1D
+    from becca.worlds.image_2D import World as World_image_2D
+    from becca.worlds.fruit import World as World_fruit
+
+    performance = []
+    performance.append(test(World_grid_1D))
+    performance.append(test(World_grid_1D_delay))
+    performance.append(test(World_grid_1D_chase))
+    performance.append(test(World_grid_1D_ms))
+    performance.append(test(World_grid_1D_noise))
+    performance.append(test(World_grid_2D))
+    performance.append(test(World_grid_2D_dc))
+    performance.append(test(World_image_1D))
+    performance.append(test(World_image_2D))
+    performance.append(test(World_fruit))
+    print('Individual test world scores:')
+    scores = []
+    for score in performance:
+        print('    {0:.2}, {1}'.format(score[0], score[1]))
+        scores.append(score[0])
+    print('Overall test suite score: {0:.2}'.format(np.mean(scores)))
+
+    # Block the program, displaying all plots.
+    # When the plot windows are closed, the program closes.
+    plt.show()
+
+
+def profile(World):
     """
     Profile the brain's performance on the selected world.
     """
@@ -115,9 +155,67 @@ def profile():
 
 
 if __name__ == '__main__':
-    # To profile BECCA's performance with world, set profile_flag to True.
-    PROFILE_FLAG = False
-    if PROFILE_FLAG:
-        profile()
+    # Build the command line parser.
+    parser = argparse.ArgumentParser(description='Test BECCA on some toy worlds.')
+    parser.add_argument('world', default='all',
+                        help=' '.join(['The test world to run.',
+                                       'Choose by name or number:', 
+                                       '1) grid1D,', 
+                                       '2) grid1D_chase,',
+                                       '3) grid1D_delay,',
+                                       '4) grid1D_ms,',
+                                       '5) grid1D_noise,',
+                                       '6) grid2D,',
+                                       '7) grid2D_dc,',
+                                       '8) image1D,',
+                                       '9) image2D,',
+                                       '10) fruit,',
+                                       '0) all',
+                                       'Default value is all.']))
+    parser.add_argument('-p', '--profile', action='store_true')
+    args = parser.parse_args()
+    print(args)
+
+    if args.world == 'grid1D' or args.world == '1': 
+        from becca.worlds.grid_1D import World as World_grid_1D
+        World = World_grid_1D
+    elif args.world == 'grid1D_chase' or args.world == '2':
+        from becca.worlds.grid_1D_chase import World as World_grid_1D_chase
+        World = World_grid_1D_chase
+    elif args.world == 'grid1D_delay' or args.world == '3':
+        from becca.worlds.grid_1D_delay import World as World_grid_1D_delay
+        World = World_grid_1D_delay
+    elif args.world == 'grid1D_ms' or args.world == '4':
+        from becca.worlds.grid_1D_ms import World as World_grid_1D_ms
+        World = World_grid_1D_ms
+    elif args.world == 'grid1D_noise' or args.world == '5':
+        from becca.worlds.grid_1D_noise import World as World_grid_1D_noise
+        World = World_grid_1D_noise
+    elif args.world == 'grid2D' or args.world == '6':
+        from becca.worlds.grid_2D import World as World_grid_2D
+        World = World_grid_2D
+    elif args.world == 'grid2D_dc' or args.world == '7':
+        from becca.worlds.grid_2D_dc import World as World_grid_2D_dc
+        World = World_grid_2D_dc
+    elif args.world == 'image1D' or args.world == '8':
+        from becca.worlds.image_1D import World as World_image_1D
+        World = World_image_1D
+    elif args.world == 'image2D' or args.world == '9':
+        from becca.worlds.image_2D import World as World_image_2D
+        World = World_image_2D
+    elif args.world == 'fruit' or args.world == '10':
+        from becca.worlds.fruit import World as World_fruit
+        World = World_fruit
     else:
-        run(World(lifespan=1e8), restore=True)
+        args.world = 'all'
+
+    # To profile BECCA's performance with world, set profile_flag to True.
+    #PROFILE_FLAG = False
+    #if PROFILE_FLAG:
+    if args.world == 'all':
+        suite()
+    elif args.profile:
+        profile(World)
+    else:
+        performance = run(World(lifespan=5e4), restore=True)
+        print('performance:', performance)

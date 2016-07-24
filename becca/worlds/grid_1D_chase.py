@@ -136,9 +136,9 @@ class World(BaseWorld):
         # Sense the relative distance to the target.
         distance = self.position - self.target_position
         if distance < 0:
-            self.sensors[self.size + np.abs(distance) - 1] = 1
+            self.sensors[self.size - 1 + np.abs(distance)] = 1
         else:
-            self.sensors[2 * self.size - 2 + np.abs(distance)] = 1
+            self.sensors[2 * (self.size - 1) + np.abs(distance)] = 1
 
         return self.sensors, self.reward
 

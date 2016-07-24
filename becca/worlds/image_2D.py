@@ -147,6 +147,7 @@ class World(BaseWorld):
         self.world_visualize_period = 1e3
         self.brain_visualize_period = 1e3
         self.print_features = False
+        # TODO: re-implment print features
 
 
     def step(self, action):
@@ -242,7 +243,7 @@ class World(BaseWorld):
         Show what is going on in BECCA and in the world.
         """
         if self.print_features:
-            projections = brain.cortex.get_index_projections()[0]
+            projections = brain.get_index_projections()[0]
             wtools.print_pixel_array_features(
                 projections,
                 self.fov_span ** 2 * 2,

@@ -4,6 +4,7 @@ The Level class.
 
 from __future__ import print_function
 import numpy as np
+import time
 
 import becca.core.node as node
 from becca.core.ziptie import ZipTie
@@ -20,6 +21,8 @@ class Level(object):
     activity_decay_rate : float
         The fraction that sequence activities decay.
         0 <= decay_rate <= 1.
+    debug : boolean
+
     input_activities : array of floats
         The activity levels of each of the level's inputs.
     input_surplus : array of floats
@@ -71,6 +74,7 @@ class Level(object):
         """
         self.level_index = level_index
         self.name = "_".join(["level", str(self.level_index)])
+        self.debug = False
 
         self.max_num_inputs = max_num_inputs
         self.max_num_elements = max_num_elements
@@ -81,7 +85,6 @@ class Level(object):
         # root node and all its first generation children
         # (sequences of length 1) are the only nodes
         # not assigned to sequences.
-        #self.max_num_nodes = self.max_num_sequences + self.max_num_inputs + 1
         self.max_num_nodes = self.max_num_sequences + self.max_num_elements + 1
         self.num_nodes = 1
 
@@ -90,13 +93,31 @@ class Level(object):
         self.input_max_grow_time = 1e2
         self.input_max_decay_time = self.input_max_grow_time * 1e2
 
-        self.activity_decay_rate = 1. / (2. ** (self.level_index + 0.))
+        self.activity_decay_rate = 1. / (2. ** self.level_index)
         self.activity_threshold = .1
-        #self.goal_decay_rate = self.activity_decay_rate / 2.
         #TODO document
         self.reward_trace_length = 10
-        self.node_activity_history = ([np.zeros(self.max_num_nodes)] *
-                                      self.reward_trace_length)
+        self.trace_history_length = self.reward_trace_length + 2
+        self.decay = np.zeros(self.reward_trace_length)
+        for t in range(self.reward_trace_length):
+            # Use a hyperbolic decay. A node will be assigned
+            # some responsibility for the reward, even if it was active
+            # a while ago. The amount of responsibility is proportional
+            # to 1/t, where t is the number of time steps since the
+            # node was active.
+            self.decay[t] = 1. / (t + 1.)
+
+        # Create a circular (cylindrical) buffer for trace history.
+        #self.reward_history = [0.] * (self.reward_trace_length + 1)
+        #self.node_trace_history = ([np.zeros(self.max_num_nodes)] *
+        #                              (self.reward_trace_length + 1))
+        self.node_trace_history = np.zeros((self.max_num_nodes,
+                                            self.trace_history_length))
+        # Keep track of the current location within the buffer.
+        self.trace_index = 0
+
+        #self.node_element_goal_votes = np.zeros((self.max_num_nodes,
+        #                                         self.max_num_elements))
 
         self.input_activities = np.zeros(self.max_num_inputs)
         self.element_activities = np.zeros(self.max_num_elements)
@@ -117,29 +138,27 @@ class Level(object):
         self.node_prev_activity = np.zeros(self.max_num_nodes)
         self.node_activity_threshold = 1e-6
         self.node_activity_rate = self.activity_decay_rate
-        self.node_cumulative_activity = 1e-3 * np.ones(self.max_num_nodes)
+        self.node_cumulative_activities = 1e-3 * np.ones(self.max_num_nodes)
         self.node_attempts = np.zeros(self.max_num_nodes)
-        self.node_total_attempts = 1e-3 * np.ones(self.max_num_nodes)
+        #self.node_total_attempts = 1e-3 * np.ones(self.max_num_nodes)
         self.node_fulfillment = 1e-3 * np.ones(self.max_num_nodes)
         self.node_unfulfillment = 1e-3 * np.ones(self.max_num_nodes)
-        self.node_choosability = np.zeros(self.max_num_nodes)
-        self.node_curiosity_rate = 1e-3
+        #self.node_choosability = np.zeros(self.max_num_nodes)
+        self.node_curiosity_rate = 5e-4
         self.node_curiosity = 1e-1 * np.ones(self.max_num_nodes)
         self.node_reward_rate = 1e-2
         self.node_reward = np.zeros(self.max_num_nodes)
         self.node_value_to_parent = np.zeros(self.max_num_nodes)
-        #self.node_value_rate = self.activity_decay_rate
         self.node_element_index = -np.ones(self.max_num_nodes, 'int32')
         self.node_sequence_index = -np.ones(self.max_num_nodes, 'int32')
         self.node_sequence_length = -np.ones(self.max_num_nodes, 'int32')
-        #self.node_buds = np.zeros((self.max_num_nodes,
-        #                           self.max_num_inputs))
         self.node_child_threshold = 1e2
         self.node_num_children = np.zeros(self.max_num_nodes, 'int32')
         # The node index of each child child
         self.node_child_indices = -np.ones((self.max_num_nodes,
                                             self.max_num_elements), 'int32')
         self.node_parent_index = -np.ones(self.max_num_nodes, 'int32')
+
         # Node 0 is the root.
         # Give it one child for each input.
         # Don't assign sequences to these nodes. They represent sequences
@@ -150,11 +169,8 @@ class Level(object):
             new_node_index = self.num_nodes
             self.node_child_indices[0, self.node_num_children[0]] = (
                 new_node_index)
-            # Pretend that the element has been observed often enough to
-            # warrant the creation of children.
-            self.node_cumulative_activity[new_node_index] = 1.#(
+            self.node_cumulative_activities[new_node_index] = 1.
             self.node_sequence_length[new_node_index] = 1
-            #    self.node_child_threshold)
             self.node_element_index[new_node_index] = i_element
             self.node_parent_index[new_node_index] = 0
             self.node_num_children[0] += 1
@@ -170,10 +186,8 @@ class Level(object):
                         new_node_index,
                         self.node_num_children[new_node_index]] = (
                         child_node_index)
-                    self.node_cumulative_activity[child_node_index] = 1.
+                    self.node_cumulative_activities[child_node_index] = 1.
                     self.node_sequence_length[child_node_index] = 2
-                    #self.node_prefixes[child_node_index, 0] = (
-                    #    self.node_element_index[j_element])
                     self.node_element_index[child_node_index] = j_element
                     self.node_parent_index[child_node_index] = new_node_index
                     self.node_num_children[new_node_index] += 1
@@ -202,16 +216,21 @@ class Level(object):
         """
         node_index = 0
         self.update_inputs(new_inputs)
+
         # Run the inputs through the ziptie to find bundle activities
         # and to learn how to bundle them.
         bundle_activities = self.ziptie.sparse_featurize(self.input_activities)
+
         self.element_activities = np.concatenate((self.input_activities.copy(),
-                                              bundle_activities))
-        #self.ziptie.learn()
+                                                  bundle_activities))
+
+        self.ziptie.learn()
         self.num_active_elements = self.max_num_inputs + self.ziptie.num_bundles
 
         self.responsible_nodes = -np.ones(self.max_num_elements, 'int32')
         self.element_goal_votes = np.zeros(self.max_num_elements)
+        #self.node_element_goal_votes = np.zeros((self.max_num_nodes,
+        #                                         self.max_num_elements))
         prev_parent_activity = 1.
         parent_activity = 1.
         self.num_nodes, self.num_sequences = (
@@ -220,27 +239,24 @@ class Level(object):
                       self.node_prev_activity,
                       self.node_activity_threshold,
                       self.node_activity_rate,
-                      self.node_cumulative_activity,
+                      self.node_cumulative_activities,
                       self.node_attempts,
-                      self.node_total_attempts,
+                      #self.node_total_attempts,
                       self.node_fulfillment,
                       self.node_unfulfillment,
-                      self.node_choosability,
+                      #self.node_choosability,
                       self.node_curiosity_rate,
                       self.node_curiosity,
-                      #self.node_reward_rate,
                       self.node_reward,
                       self.node_value_to_parent,
-                      #self.node_value_rate,
                       self.node_element_index,
                       self.node_sequence_index,
                       self.node_sequence_length,
-                      #self.node_buds,
                       self.node_child_threshold,
                       self.node_num_children,
                       self.node_child_indices,
                       self.node_parent_index,
-                      #self.input_activities, # level parameters
+                      #self.node_element_goal_votes,
                       self.element_activities,
                       self.num_active_elements,
                       parent_activity,
@@ -253,92 +269,79 @@ class Level(object):
                       self.element_goal_votes,
                       self.responsible_nodes,
                       self.element_goals,
-                      #input_total_weights,
-                      #input_weighted_values,
-                      #min_input_values,
                       self.sequence_goals,
                       reward,
                       satisfaction))
 
         if self.num_nodes > self.last_num_nodes: 
-            for i in xrange(self.last_num_nodes, self.num_nodes):
-                sequence_indices = [self.node_element_index[i]]
-                temp_index = i
-                while self.node_parent_index[temp_index] != 0:
-                    sequence_indices.append(self.node_element_index[
-                        self.node_parent_index[temp_index]])
-                    temp_index = self.node_parent_index[temp_index]
-                #print('  added sequence', sequence_indices[::-1])
+            #for i in xrange(self.last_num_nodes, self.num_nodes):
+            #    sequence_indices = [self.node_element_index[i]]
+            #    temp_index = i
+            #    while self.node_parent_index[temp_index] != 0:
+            #        sequence_indices.append(self.node_element_index[
+            #            self.node_parent_index[temp_index]])
+            #        temp_index = self.node_parent_index[temp_index]
+            #    #print('  added sequence', sequence_indices[::-1])
             self.last_num_nodes = self.num_nodes
-
-        # Maintain the node activity history.
-        self.node_activity_history.pop()
-        self.node_activity_history.append(self.node_activities.copy())
-
-        # Update node reward estimates.
-        #
-        # Adjust the reward update rate so that the node adjusts
-        # very quickly to the first few exposures and then gradually
-        # more slowly to subsequent ones. This tends to decrease training
-        # time. It's an agressive learning strategy, and so is
-        # prone to initial error, but it allows
-        # for later experiences to refine the reward estimate and
-        # eventually correct that error out.
-        mod_reward_rate = np.maximum(self.node_reward_rate,
-                                     1. / (2. + self.node_cumulative_activity))
-        for i in range(len(self.node_activity_history)):
-            # Use a hyperbolic decay. A node will be assigned
-            # some responsibility for the reward, even if it was active
-            # a while ago. The amount of responsibility is proportional
-            # to 1/t, where t is the number of time steps since the
-            # node was active.
-            decay = 1. / (i + 1.)
-
-            # Cycle through the node activity history, starting with the
-            # most recent time step and working backward.
-            i_history = len(self.node_activity_history) - i - 1
-
-            # Increment the expected reward value associated with each sequence.
-            # The size of the increment is larger when:
-            #     1. the discrepancy between the previously learned and
-            #         observed reward values is larger and
-            #     2. the sequence activity is greater.
-            # Another way to say this is:
-            # If either the reward discrepancy is very small
-            # or the sequence activity is very small, there is no change.
-            self.node_reward += ((reward - self.node_reward) *
-                                 self.node_activity_history[i_history] *
-                                 mod_reward_rate * decay)
 
         # Decide which element goals to select, based on
         # all the votes tallied up across nodes.
-        arousal = 1.
+        #arousal = 1/4.
         self.element_goals = np.zeros(self.max_num_elements)
         self.input_goals = np.zeros(self.max_num_inputs)
-        #i_goals = np.where(self.element_goal_votes ** (1. / arousal)  >
+        #goal_index = np.where(self.element_goal_votes ** (1. / arousal)  >
         #                   np.random.random_sample( self.max_num_inputs))[0]
         matches = np.where(self.element_goal_votes ==
                            np.max(self.element_goal_votes))[0]
-        i_goals = matches[np.argmax(np.random.random_sample(matches.size))]
-        responsible_node = self.responsible_nodes[i_goals]
-        #i_goals = np.argmax(self.element_goal_votes)
+        goal_index = matches[np.argmax(np.random.random_sample(matches.size))]
+        responsible_node = self.responsible_nodes[goal_index]
+        #goal_index = np.argmax(self.element_goal_votes)
 
-        if (self.element_goal_votes[i_goals] ** (1. / arousal) >
-                np.random.random_sample()):
-            self.element_goals[i_goals] = 1.
+        #if (self.element_goal_votes[goal_index] ** (1. / arousal) >
+        #        np.random.random_sample()):
+        self.element_goals[goal_index] = 1.
 
-            if i_goals < self.max_num_inputs:
-                self.input_goals[i_goals] = 1.
-            else:
-                # Project element goals down to input goals.
-                self.input_goals = self.ziptie.get_index_projection(
-                    i_goals - self.max_num_inputs)
+        if goal_index < self.max_num_inputs:
+            self.input_goals[goal_index] = 1.
+        else:
+            # Project element goals down to input goals.
+            # 7 ms
+            self.input_goals = self.ziptie.get_index_projection(
+                goal_index - self.max_num_inputs)
+        #else:
+        #    goal_index = -1
 
-        if True:
+        if self.debug:
             print('element goal votes', self.element_goal_votes)
             print('element goals', self.element_goals)
             print('input goals', self.input_goals)
             self.print_node(responsible_node)
+
+        # Maintain the node activity history.
+        #self.node_trace_history.pop(0)
+
+        #self.node_trace_history.append(
+        #    self.node_element_goal_votes[:, goal_index])
+
+        #self.node_trace_history.append(self.node_activities.copy())
+        #self.reward_history.append(reward)
+        
+        self.node_reward, self.node_trace_history, self.trace_index = (
+            node.update_rewards(self.node_reward,
+                                reward,
+                                self.node_reward_rate,
+                                self.reward_trace_length,
+                                self.decay,
+                                self.node_trace_history,
+                                self.trace_history_length,
+                                self.trace_index,
+                                self.node_cumulative_activities,
+                                self.node_activities,
+                                self.node_element_index,
+                                self.node_parent_index,
+                                goal_index,
+                                self.num_nodes
+                                ))
 
         return self.sequence_activities
 
@@ -459,31 +462,14 @@ class Level(object):
             # child children.
             for child_index in self.node_child_indices[
                     node_index, :self.node_num_children[node_index]]:
-                #print('ci', child_index, 'nei',
-                #      self.node_element_index[child_index],
-                #      'pre', prefix)
                 if (self.node_element_index[child_index] <
                     self.num_active_elements):
-                    #new_prefix = prefix + [self.node_element_index[child_index]]
-                    descend(child_index,
-                            #new_prefix,
-                            #sequence_indices,
-                            #sequence_lists,
-                            sequence_nodes)
+                    descend(child_index, sequence_nodes)
 
         root_index = 0
-        #prefix = []
-        #sequence_indices = []
-        #sequence_lists = []
         sequence_nodes = []
         descend(root_index,
-                #prefix,
-                #sequence_indices,
-                #sequence_lists,
                 sequence_nodes)
-        #for i, seq_index in enumerate(sequence_indices):
-
-        #for i in range(self.num_nodes):
         for i in sequence_nodes:
             self.print_node(i)
         print("==============================================================")
@@ -511,18 +497,19 @@ class Level(object):
 
         #Show the transitions within the sequence.
         print("    cumulative: {0:.4f}".format(
-            self.node_cumulative_activity[i]))
-        print("      fulfillment: {0:.4f}".format(self.node_fulfillment[i]))
-        print("      unfulfillment: {0:.4f}".format(
-            self.node_unfulfillment[i]))
-        print("      choosability: {0:.4f}".format(
-            self.node_choosability[i]))
+            self.node_cumulative_activities[i]))
+        #print("      fulfillment: {0:.4f}".format(self.node_fulfillment[i]))
+        #print("      unfulfillment: {0:.4f}".format(
+        #    self.node_unfulfillment[i]))
+        #print("      choosability: {0:.4f}".format(
+        #    self.node_choosability[i]))
         print("    curiosity: {0:.4f}".format(self.node_curiosity[i]))
         print("    reward: {0:.4f}".format(self.node_reward[i]))
-        print("    val to parent: {0:.4f}".format(
-            self.node_value_to_parent[i]))
-        total_goal_value = (self.node_curiosity[i] +
-                            self.node_choosability[i] *
-                            self.node_value_to_parent[i] / .9)
-        total_goal_value = min(max(total_goal_value, 0.), 1.)
+        #print("    val to parent: {0:.4f}".format(
+        #    self.node_value_to_parent[i]))
+        #total_goal_value = (self.node_curiosity[i] +
+        #                    self.node_choosability[i] *
+        #                    self.node_value_to_parent[i] / .9)
+        #total_goal_value = min(max(total_goal_value, 0.), 1.)
+        total_goal_value = self.node_reward[i] + self.node_curiosity[i]
         print("    total goal value: {0:.4f}".format(total_goal_value))

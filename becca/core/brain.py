@@ -61,7 +61,7 @@ class Brain(object):
         """
         self.num_sensors = num_sensors
         # Always include an extra action. The last is the 'do nothing' action.
-        self.num_actions = num_actions# + 1
+        self.num_actions = num_actions + 1
 
         self.backup_interval = 1e5
         self.name = brain_name
@@ -143,34 +143,9 @@ class Brain(object):
         # Isolate the actions from the rest of the goals..
         self.actions = self.levels[0].input_goals[
             self.num_sensors:self.num_sensors + self.num_actions]
-        #cumgoals = np.cumsum(action_goals)
-        #pick = np.random.random_sample() * cumgoals[-1]
-        #matches = np.where(cumgoals < pick)[0]
-        #if matches.size == 0:
-        #    i_action = 0
-        #else:
-        #    i_action = matches[-1] + 1
-        #print('')
-        #print('g', goals)
-        #print('cg', cumgoals)
-        #print('pick', pick)
-        #print('ia', i_action)
-        #i_action = np.argmax(goals[self.num_sensors:
-        #                           self.num_sensors + self.num_actions])
-        #i_action = np.where(action_goals >
-        #                    np.random.random_sample(self.num_actions))[0]
-
-        #print('ag', action_goals)
-        #print('ia', i_action)
-        #self.actions = np.zeros(self.num_actions)
-        #self.actions[i_action] = 1.
 
         # debug: Random actions
         #self.actions = self.random_actions()
-
-        #print('goals', goals[self.num_sensors:
-        #                     self.num_sensors + self.num_actions])
-        #print('self.actions', self.actions)
 
         # Periodically back up the ``brain``.
         if (self.timestep % self.backup_interval) == 0:
@@ -178,8 +153,8 @@ class Brain(object):
 
         # Account for the fact that the last "do nothing" action
         # was added by the ``brain``.
-        #return self.actions[:-1]
-        return self.actions#[:-1]
+        return self.actions[:-1]
+        #return self.actions#[:-1]
 
 
     def random_actions(self):

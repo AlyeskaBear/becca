@@ -116,7 +116,7 @@ class ZipTie(object):
         #self.size = self.max_num_bundles
         self.num_bundles = 0
         # User-defined constants
-        self.nucleation_threshold = 100. * 5 ** self.level
+        self.nucleation_threshold = 2e1 * 5 ** self.level
         self.agglomeration_threshold = .5 * self.nucleation_threshold
         self.activity_threshold = .1
         self.bundles_full = False
