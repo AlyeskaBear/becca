@@ -144,7 +144,7 @@ class Level(object):
         self.node_fulfillment = 1e-3 * np.ones(self.max_num_nodes)
         self.node_unfulfillment = 1e-3 * np.ones(self.max_num_nodes)
         #self.node_choosability = np.zeros(self.max_num_nodes)
-        self.node_curiosity_rate = 5e-4
+        self.node_curiosity_rate = 1e-3
         self.node_curiosity = 1e-1 * np.ones(self.max_num_nodes)
         self.node_reward_rate = 1e-2
         self.node_reward = np.zeros(self.max_num_nodes)
