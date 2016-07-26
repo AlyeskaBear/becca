@@ -2,10 +2,19 @@ BECCA is a general learning program for use in any robot or embodied system. Whe
 
 ####How do I try BECCA out?
 
-Make sure you have a current version of Anaconda, then
+Make sure you have a current version of Anaconda, and version 0.27 or higher of numba.
+    
+    conda update conda
+    conda update anaconda
+    conda update numba
+    
+Pull down the code from Pypi.
 
     pip install --pre becca
     pip install --pre beccatest
+    
+Run it on your local machine.
+    
     python
     >>>import beccatest
     >>>beccatest.test.suite()
