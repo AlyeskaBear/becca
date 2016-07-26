@@ -144,15 +144,15 @@ class Level(object):
         self.node_fulfillment = 1e-3 * np.ones(self.max_num_nodes)
         self.node_unfulfillment = 1e-3 * np.ones(self.max_num_nodes)
         #self.node_choosability = np.zeros(self.max_num_nodes)
-        self.node_curiosity_rate = 1e-3
+        self.node_curiosity_rate = 1e-4
         self.node_curiosity = 1e-1 * np.ones(self.max_num_nodes)
-        self.node_reward_rate = 1e-2
+        self.node_reward_rate = 1e-3
         self.node_reward = np.zeros(self.max_num_nodes)
         self.node_value_to_parent = np.zeros(self.max_num_nodes)
         self.node_element_index = -np.ones(self.max_num_nodes, 'int32')
         self.node_sequence_index = -np.ones(self.max_num_nodes, 'int32')
         self.node_sequence_length = -np.ones(self.max_num_nodes, 'int32')
-        self.node_child_threshold = 1e2
+        self.node_child_threshold = 3e3
         self.node_num_children = np.zeros(self.max_num_nodes, 'int32')
         # The node index of each child child
         self.node_child_indices = -np.ones((self.max_num_nodes,
