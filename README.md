@@ -24,8 +24,6 @@ document from a previous version. Some of the principles are the same.
 
 The [wiki](https://github.com/brohrer/becca/wiki) has tutorials on how to use BECCA in your application.
 
-####How do I contribute?
-
 [![Join the chat at https://gitter.im/brohrer/becca](https://badges.gitter.im/brohrer/becca.svg)](https://gitter.im/brohrer/becca?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) provides a forum for users to share questions, solutions, and experiences. 
 
 <a href="url"><img src="https://github.com/brohrer/becca-docs/raw/master/figs/logo_plate.png" 
