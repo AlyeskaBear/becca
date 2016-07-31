@@ -6,8 +6,8 @@ from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 
-import becca.core.tools as tools
-import becca.core.ziptie_numba as nb
+import becca.tools as tools
+import becca.ziptie_numba as nb
 
 class ZipTie(object):
     """
@@ -103,6 +103,7 @@ class ZipTie(object):
             Default is 'anonymous'.
         """
         self.level = level
+        self.level_factor = 5. ** self.level
         if name is None:
             self.name = '_'.join(['ziptie', str(self.level)])
         else:
@@ -116,7 +117,7 @@ class ZipTie(object):
         #self.size = self.max_num_bundles
         self.num_bundles = 0
         # User-defined constants
-        self.nucleation_threshold = 2e1 * 5 ** self.level
+        self.nucleation_threshold = 50. * self.level_factor
         self.agglomeration_threshold = .5 * self.nucleation_threshold
         self.activity_threshold = .1
         self.bundles_full = False
@@ -125,9 +126,9 @@ class ZipTie(object):
         self.nonbundle_activities = np.zeros(self.max_num_cables)
 
         # Normalization constants
-        self.cable_max = np.zeros(self.max_num_cables)
-        self.cable_max_grow_time = 1e2
-        self.cable_max_decay_time = self.cable_max_grow_time * 1e2
+        #self.cable_max = np.zeros(self.max_num_cables)
+        #self.cable_max_grow_time = 1e2 * 
+        #self.cable_max_decay_time = self.cable_max_grow_time * 1e2
 
         map_size = (self.max_num_bundles, self.max_num_cables)
         # To represent the sparse 2D bundle map, a pair of row and col
@@ -254,7 +255,7 @@ class ZipTie(object):
         self.nonbundle_activities[np.where(self.nonbundle_activities < 
                                            self.activity_threshold)] = 0.
         #return self.sparse_bundle_activities
-        return self.bundle_activities
+        return self.nonbundle_activities, self.bundle_activities
 
     def learn(self):
         """

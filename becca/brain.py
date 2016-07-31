@@ -7,8 +7,8 @@ import cPickle as pickle
 import os
 import numpy as np
 
-from becca.core.affect import Affect
-from becca.core.level import Level
+from becca.affect import Affect
+from becca.level import Level
 
 # Identify the full local path of the brain.py module.
 # This trick is used to conveniently locate other BECCA resources.
@@ -65,7 +65,7 @@ class Brain(object):
 
         self.backup_interval = 1e5
         self.name = brain_name
-        self.log_dir = os.path.normpath(os.path.join(MODPATH, '..', 'log'))
+        self.log_dir = os.path.normpath(os.path.join(MODPATH, 'log'))
         if not os.path.isdir(self.log_dir):
             os.makedirs(self.log_dir)
         self.pickle_filename = os.path.join(self.log_dir,
@@ -75,11 +75,12 @@ class Brain(object):
 
         # Initialize the first ``Level``
         num_inputs = self.num_sensors + self.num_actions
-        num_bundles = 3 * num_inputs
-        num_elements = num_inputs + num_bundles
-        num_sequences = int(3 * num_elements ** 2) 
+        #num_bundles = 3 * num_inputs
+        #num_elements = num_inputs + num_bundles
+        #num_sequences = 1 * num_elements
         level_index = 0
-        level_0 = Level(level_index, num_inputs, num_elements, num_sequences)
+        #level_0 = Level(level_index, num_inputs, num_elements, num_sequences)
+        level_0 = Level(level_index, num_inputs)
         self.levels = [level_0]
         self.actions = np.zeros(self.num_actions)
 
@@ -136,6 +137,27 @@ class Brain(object):
             # For the next level
             input_activities = sequence_activities
 
+        # If the top level has more than half of its allocated sequences
+        # created, then create a new level on top of it. 
+        if level.num_sequences > level.max_num_sequences / 2.:
+            # Initialize the next level.
+            num_inputs = level.max_num_sequences
+            #num_bundles = num_inputs
+            #num_elements = num_inputs + num_bundles
+            #num_sequences = 2 * num_elements
+            level_index = level.level_index + 1
+            print('------------------------------------------ Creating level',
+                  level_index)
+            next_level = Level(level_index,
+                               num_inputs,
+                               #num_elements,
+                               #num_sequences
+                               )
+            self.levels.append(next_level)
+
+            sequence_activities = next_level.step(input_activities,
+                                                  reward,
+                                                  self.satisfaction)
         # Pass goals back down.
         for i in range(len(self.levels) - 1)[::-1]:
             self.levels[i].sequence_goals = self.levels[i + 1].input_goals

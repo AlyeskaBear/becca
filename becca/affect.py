@@ -6,7 +6,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-import becca.core.tools as tools
+import becca.tools as tools
 
 
 class Affect(object):

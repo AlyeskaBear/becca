@@ -67,7 +67,7 @@ def step(node_index, # node parameters
          element_index,
          sequence_index,
          sequence_length,
-         child_threshold,
+         sequence_threshold,
          num_children,
          child_indices,
          parent_index,
@@ -311,7 +311,7 @@ def step(node_index, # node parameters
                          element_index,
                          sequence_index,
                          sequence_length,
-                         child_threshold,
+                         sequence_threshold,
                          num_children,
                          child_indices,
                          parent_index,
@@ -334,28 +334,31 @@ def step(node_index, # node parameters
 
     # If there is still room for more sequences, grow them.
     else: #if num_children[i] == 0:
-        if num_sequences < max_num_sequences and num_nodes < max_num_nodes:
-            if cumulative_activities[i] > child_threshold * sequence_length[i]:
+        #if num_sequences < max_num_sequences and num_nodes < max_num_nodes:
+        if num_sequences < max_num_sequences:
+            mod_threshold = sequence_threshold * (
+                1. + num_sequences / max_num_sequences)
+            if cumulative_activities[i] > mod_threshold:
                 # Assign this node its own output sequence, now that it
                 # has been observed enough times.
                 sequence_index[i] = num_sequences
                 num_sequences += 1
                 # Create a new set of children.
-                for i_element, _ in enumerate(element_activities):
-                    # Don't allow the node to have a child with
-                    # the same element index.
-                    if i_element != element_index[i]:
-                        #print('+++ Creating sequence', num_sequences, 'with',
-                        #      element_index[i])
-                        node_index = num_nodes
-                        sequence_length[node_index] = sequence_length[i] + 1
-                        child_indices[i, num_children[i]] = node_index
-                        element_index[node_index] = i_element
-                        parent_index[node_index] = i
-                        num_children[i] += 1
-                        num_nodes += 1
-                        if num_nodes == max_num_nodes:
-                            break
+                #for i_element, _ in enumerate(element_activities):
+                #    # Don't allow the node to have a child with
+                #    # the same element index.
+                #    if i_element != element_index[i]:
+                #        #print('+++ Creating sequence', num_sequences, 'with',
+                #        #      element_index[i])
+                #        node_index = num_nodes
+                #        sequence_length[node_index] = sequence_length[i] + 1
+                #        child_indices[i, num_children[i]] = node_index
+                #        element_index[node_index] = i_element
+                #        parent_index[node_index] = i
+                #        num_children[i] += 1
+                #        num_nodes += 1
+                #        if num_nodes == max_num_nodes:
+                #            break
 
     # Pass the node activity to the next time step.
     prev_activity[i] = activity[i]
@@ -416,9 +419,8 @@ def update_rewards(node_reward,
         # for later experiences to refine the reward estimate and
         # eventually correct that error out.
         mod_reward_rate = max(reward_rate, 
-                              1. / (2. + cumulative_activities[i]))
+                              1. / (1. + cumulative_activities[i]))
         for t in range(trace_length):
-
             # Increment the expected reward value associated with each sequence.
             # The size of the increment is larger when:
             #     1. the discrepancy between the previously learned and
@@ -427,6 +429,7 @@ def update_rewards(node_reward,
             # Another way to say this is:
             # If either the reward discrepancy is very small
             # or the sequence activity is very small, there is no change.
+            #if trace_decay[t] > 0.:
             node_reward[i] += ((reward - node_reward[i]) *
                                trace_history[i, t_history[t]] *
                                mod_reward_rate *

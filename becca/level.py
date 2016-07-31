@@ -6,8 +6,8 @@ from __future__ import print_function
 import numpy as np
 import time
 
-import becca.core.node as node
-from becca.core.ziptie import ZipTie
+import becca.node as node
+from becca.ziptie import ZipTie
 
 
 class Level(object):
@@ -56,8 +56,9 @@ class Level(object):
     def __init__(self,
                  level_index,
                  max_num_inputs,
-                 max_num_elements,
-                 max_num_sequences):
+                 max_num_elements=None,
+                 max_num_sequences=None
+                 ):
         """
         Configure the ``Level``.
 
@@ -73,29 +74,41 @@ class Level(object):
             See ``Level.max_num_elements``.
         """
         self.level_index = level_index
+        # level_factor : float 
+        #     A scaling factor that adjusts the level's constants
+        #     to behave at a slower time scale.
+        self.level_factor = 4. ** self.level_index
         self.name = "_".join(["level", str(self.level_index)])
         self.debug = False
 
         self.max_num_inputs = max_num_inputs
-        self.max_num_elements = max_num_elements
-        self.max_num_bundles = max_num_elements - max_num_inputs
-        self.max_num_sequences = max_num_sequences
+        self.max_num_bundles = self.max_num_inputs
+        if max_num_elements == None:
+            self.max_num_elements = self.max_num_inputs + self.max_num_bundles
+        else:
+            self.max_num_elements = max_num_elements
+        if max_num_sequences == None:
+            self.max_num_sequences = self.max_num_inputs
+        else:
+            self.max_num_sequences = max_num_sequences
+
         self.num_sequences = 0
         # This limit on number of nodes accounts for the fact that the
         # root node and all its first generation children
         # (sequences of length 1) are the only nodes
         # not assigned to sequences.
-        self.max_num_nodes = self.max_num_sequences + self.max_num_elements + 1
+        self.max_num_nodes = self.max_num_elements ** 2 + 1
         self.num_nodes = 1
 
         # Normalization constants
         self.input_max = np.zeros(self.max_num_inputs)
         self.input_max_grow_time = 1e2
         self.input_max_decay_time = self.input_max_grow_time * 1e2
-
-        self.activity_decay_rate = 1. / (2. ** self.level_index)
+        #self.activity_decay_rate = 1. / (2. ** self.level_index)
+        self.activity_decay_rate = 1. / (5. ** self.level_index)
         self.activity_threshold = .1
         #TODO document
+        #self.reward_trace_length = int(10 * self.level_factor)
         self.reward_trace_length = 10
         self.trace_history_length = self.reward_trace_length + 2
         self.decay = np.zeros(self.reward_trace_length)
@@ -105,19 +118,15 @@ class Level(object):
             # a while ago. The amount of responsibility is proportional
             # to 1/t, where t is the number of time steps since the
             # node was active.
-            self.decay[t] = 1. / (t + 1.)
+            #if t % self.level_factor == 0.:
+            #    self.decay[t] = 1. / (t / self.level_factor + 1.)
+            self.decay[t] = 1. / (t  + 1.)
 
         # Create a circular (cylindrical) buffer for trace history.
-        #self.reward_history = [0.] * (self.reward_trace_length + 1)
-        #self.node_trace_history = ([np.zeros(self.max_num_nodes)] *
-        #                              (self.reward_trace_length + 1))
         self.node_trace_history = np.zeros((self.max_num_nodes,
                                             self.trace_history_length))
         # Keep track of the current location within the buffer.
         self.trace_index = 0
-
-        #self.node_element_goal_votes = np.zeros((self.max_num_nodes,
-        #                                         self.max_num_elements))
 
         self.input_activities = np.zeros(self.max_num_inputs)
         self.element_activities = np.zeros(self.max_num_elements)
@@ -144,15 +153,15 @@ class Level(object):
         self.node_fulfillment = 1e-3 * np.ones(self.max_num_nodes)
         self.node_unfulfillment = 1e-3 * np.ones(self.max_num_nodes)
         #self.node_choosability = np.zeros(self.max_num_nodes)
-        self.node_curiosity_rate = 1e-4
+        self.node_curiosity_rate = 1e-3 #/ self.level_factor
         self.node_curiosity = 1e-1 * np.ones(self.max_num_nodes)
-        self.node_reward_rate = 1e-3
+        self.node_reward_rate = 3e-3 #/ self.level_factor
         self.node_reward = np.zeros(self.max_num_nodes)
         self.node_value_to_parent = np.zeros(self.max_num_nodes)
         self.node_element_index = -np.ones(self.max_num_nodes, 'int32')
         self.node_sequence_index = -np.ones(self.max_num_nodes, 'int32')
         self.node_sequence_length = -np.ones(self.max_num_nodes, 'int32')
-        self.node_child_threshold = 3e3
+        self.node_sequence_threshold = 1e2 * self.level_factor
         self.node_num_children = np.zeros(self.max_num_nodes, 'int32')
         # The node index of each child child
         self.node_child_indices = -np.ones((self.max_num_nodes,
@@ -219,10 +228,13 @@ class Level(object):
 
         # Run the inputs through the ziptie to find bundle activities
         # and to learn how to bundle them.
-        bundle_activities = self.ziptie.sparse_featurize(self.input_activities)
+        (nonbundle_activities, bundle_activities) = (
+            self.ziptie.sparse_featurize(self.input_activities))
 
-        self.element_activities = np.concatenate((self.input_activities.copy(),
+        self.element_activities = np.concatenate((nonbundle_activities,
                                                   bundle_activities))
+        #self.element_activities = np.concatenate((self.input_activities.copy(),
+        #                                          bundle_activities))
 
         self.ziptie.learn()
         self.num_active_elements = self.max_num_inputs + self.ziptie.num_bundles
@@ -252,7 +264,7 @@ class Level(object):
                       self.node_element_index,
                       self.node_sequence_index,
                       self.node_sequence_length,
-                      self.node_child_threshold,
+                      self.node_sequence_threshold,
                       self.node_num_children,
                       self.node_child_indices,
                       self.node_parent_index,
