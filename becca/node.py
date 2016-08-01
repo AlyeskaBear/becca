@@ -33,7 +33,6 @@ import numpy as np
          nb.float64, #curiosity_rate,
          nb.float64[:], #curiosity,
          nb.float64[:], #reward,
-         nb.float64[:], #value_to_parent,
          nb.int32[:], #element_index,
          nb.int32[:], #sequence_index,
          nb.int32[:], #sequence_length,
@@ -69,7 +68,6 @@ def step(node_index, # node parameters
          curiosity_rate,
          curiosity,
          reward,
-         value_to_parent,
          element_index,
          sequence_index,
          sequence_length,
@@ -144,9 +142,6 @@ def step(node_index, # node parameters
     # Fulfill curiosity on the previous time step's attempts.
     # Don't fulfill curiosity on activity. Activity may or may not occur,
     # but attempts the agent can control.
-    # curiosity : array of floats
-    #     The value associated with selecting this node's element as a goal
-    #     when this node's sequence is active.
     curiosity[i] -= attempts[i]
     curiosity[i] = max(0., curiosity[i])
 
@@ -174,23 +169,6 @@ def step(node_index, # node parameters
         top_down_goal = sequence_goals[sequence_index[i]]
     else:
         top_down_goal = 0.
-
-    # total_value is the sum of all sources expected value for this
-    # node becoming active: reward, top-down sequence goals and
-    # expected value fo children.
-    #total_value = reward[i] + children_value + top_down_goal
-    #total_value = reward[i] + top_down_goal
-    # value_to_parent : array of floats
-    #     The expected value of a node to its parent node.
-    #     It is the node's total value  scaled by a time step penalty.
-    # The new element value is the maximum of all its constituents.
-    #value_to_parent[i] = time_penalty * total_value
-
-    # total_goal_value is the strength of this node's vote for its element
-    # to be the next goal. This is where curiosity is added in. It doesn't
-    # get passed up through parents. It also gets bounded by 0 and 1.
-    #total_goal_value = curiosity[i] + choosability[i] * total_value
-    #total_goal_value = curiosity[i] + reward[i]
 
     # If this is not the root node, set the relevant sequence activity
     # for the level and set the relevant element goal.
@@ -227,7 +205,6 @@ def step(node_index, # node parameters
                          curiosity_rate,
                          curiosity,
                          reward,
-                         value_to_parent,
                          element_index,
                          sequence_index,
                          sequence_length,
