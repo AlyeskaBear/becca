@@ -1,22 +1,36 @@
 """
 The Node.
+
+This module contains a couple of functions that do most of the heavy lifting. 
+They use numba to compile int C, so they run *really* fast. Even faster
+than vectorized numpy.
+
+step() : This one is repsponsible for the one-time step advancement
+    of a node. It is the heart of BECCA. It recursively calls all the 
+    other nodes within a level too. Because recurive calls within numba
+    is a relatively new feature, this demands numba 27 or later. 
+    It is also the reason that the function signature is explicitly 
+    typed, instead of just using an @autojit decorator.
+
+update_rewards() : This function updates the reward associated with
+    each of the nodes. It manages the credit assignment and reward updates
+    across all nodes--some of the most critical aspects of BECCA's 
+    reinforcement learning algorithm.
 """
 
 import numba as nb
 import numpy as np
 
 @nb.jit(nb.types.Tuple((nb.int32, nb.int32))
-        (nb.int32, #node_index, # node parameters
+        (nb.int32, #node_index
          nb.float64[:], #activity,
          nb.float64[:], #prev_activity,
          nb.float64, #activity_threshold,
          nb.float64, #activity_rate,
          nb.float64[:], #cumulative_activities,
          nb.float64[:], #attempts,
-         #nb.float64[:], #total_attempts,
          nb.float64[:], #fulfillment,
          nb.float64[:], #unfulfillment,
-         #nb.float64[:], #choosability,
          nb.float64, #curiosity_rate,
          nb.float64[:], #curiosity,
          nb.float64[:], #reward,
@@ -28,8 +42,7 @@ import numpy as np
          nb.int32[:], #num_children,
          nb.int32[:, :], #child_indices,
          nb.int32[:], #parent_index,
-         #nb.float64[:, :], #element_goal_votes,
-         nb.float64[:], #element_activities, # level parameters
+         nb.float64[:], #element_activities
          nb.int32, #num_active_elements,
          nb.float64, #parent_activity,
          nb.float64, #prev_parent_activity,
@@ -44,10 +57,7 @@ import numpy as np
          nb.float64[:], #sequence_goals,
          nb.float64, #new_reward,
          nb.float64 #satisfaction
-        )
-        #)
-        ,
-        nopython=True)
+        ), nopython=True)
 
 def step(node_index, # node parameters
          activity,
@@ -56,10 +66,8 @@ def step(node_index, # node parameters
          activity_rate,
          cumulative_activities,
          attempts,
-         #total_attempts,
          fulfillment,
          unfulfillment,
-         #choosability,
          curiosity_rate,
          curiosity,
          reward,
@@ -71,7 +79,6 @@ def step(node_index, # node parameters
          num_children,
          child_indices,
          parent_index,
-         #element_goal_votes,
          element_activities, # level parameters
          num_active_elements,
          parent_activity,
@@ -91,33 +98,27 @@ def step(node_index, # node parameters
     """
     Update the Node with the most recent element activities.
 
-    Parameters
-    ----------
-    element_activities : array of floats
-        The most recent of observed element activities.
-    element_goals : array of floats
-        The goals (internal reward due to planning and incentives)
-        associated with each element.
-    goal_votes :
+    The step() function carries out BECCA's feature creation,
+    model learning and action selection. These are all incremental
+    methods, meaning that they take the new inputs at each time step
+    and update all the internal parameters and estimates incrementally.
 
+    I apologize for the ridiculous number of variables passed into this
+    function. When I figure out a more elegant way to do this, I'll 
+    implement it. Most of the input arguments are defined in level.py.
+    The few that aren't are defined here.
+
+    Parameters
+    ----------------
     new_reward : float
         The current value of the reward.
-    responsible_nodes : array of ints
-
     satisfaction : float
         The state of satisfaction of the brain. A filtered version
         of reward.
-    sequence_activities : array of floats
-        The set of activities associated with each of the sequences (Nodes)
-        in the Level.
-    sequence_goals : array of floats
-        The goals (internal reward due to planning and incentives)
-        associated with each sequence (Node).
-    prev_parent_activity : float
-        The activity of the this Node's parent.
+    parent_activity, prev_parent_activity : float
+        The activity of the this node's parent from the current and previous
+        time step..
     """
-    # TODO: update documentation for parameters
-
     # For the duration of this function call, the processing is focused on
     # node i.
     i = node_index
@@ -300,10 +301,8 @@ def step(node_index, # node parameters
                          activity_rate,
                          cumulative_activities,
                          attempts,
-                         #total_attempts,
                          fulfillment,
                          unfulfillment,
-                         #choosability,
                          curiosity_rate,
                          curiosity,
                          reward,
@@ -315,7 +314,6 @@ def step(node_index, # node parameters
                          num_children,
                          child_indices,
                          parent_index,
-                         #element_goal_votes,
                          element_activities, # level parameters
                          num_active_elements,
                          parent_activity,

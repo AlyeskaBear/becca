@@ -45,5 +45,3 @@ def run(world, restore=False):
         world.visualize(brain)
     performance = brain.report_performance()
     return performance
-
-
