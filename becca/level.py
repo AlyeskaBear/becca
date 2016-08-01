@@ -175,26 +175,75 @@ class Level(object):
         # input_goals,
         # element_goals,
         # sequence_goals : array of floats
-        #     Goals can be set for inputs, elements and sequences. 
-        #
+        #     Goals can be set for inputs, elements and sequences.
+        #     They are temporary incentives, used for planning and
+        #     action selection. They are passed down through the
+        #     hierarchy, from higher levels to lower.
+        #     Sequence goals are passed down from
+        #     the level above. Nodes use those to set element goals.
+        #     Element goals are then translated into input goals.
+        #     Input goals are passed down to the next level as its
+        #     new sequence goals. When the bottom level is reached,
+        #     input goals corresponding to actions are used for 
+        #     action selection.
         self.input_goals = np.zeros(self.max_num_inputs)
         self.element_goals = np.zeros(self.max_num_elements)
         self.sequence_goals = np.zeros(self.max_num_sequences)
 
+        # element_goal_votes : array of floats
+        #     Each node votes for an element to become a goal.
+        #     Each element keeps the highest vote it receives
+        #     in each time step. element_goal_votes tallies
+        #     these votes across nodes, and is then reset to
+        #     zero at the beginning of eah time step.
         self.element_goal_votes = np.zeros(self.max_num_elements)
+        # responsible_nodes : array of ints
+        #     This tracks the index of the node that cast the 
+        #     highest vote for each element. That way, when an
+        #     element is selected as a goal, we can see which
+        #     node made it happen. This gives the mechanism 
+        #     some explainability which helps in visualization
+        #     and debugging.
         self.responsible_nodes = -np.ones(self.max_num_elements, 'int32')
 
-        # Initialize the ziptie for bundling inputs.
+        # ziptie : ZipTie
+        #     The ziptie is an instance of the ZipTie algorithm class,
+        #     an incremental method for bundling inputs. Check out 
+        #     ziptie.py for a complete description. ZipTies note which
+        #     inputs tend to be co-active and creates bundles of them.
+        #     This feature creation mechanism results in l0-sparse 
+        #     features, which sparsity helps keep BECCA fast.
         self.ziptie = ZipTie(self.max_num_inputs, 
                              num_bundles=self.max_num_bundles,
                              level=self.level_index)
 
-        # Initialize nodes and their related data structures.
+        # Nodes are the data structure used to represent time.
+        # They are arranged into a tree with a single root node,
+        # child nodes for each element, and grandchild node for
+        # each of the other elements. Each leaf in this tree
+        # represents a two-step sequence. Nodes track several
+        # aspects of the sequences.
+        
+        # node_activities, node_prev_activities : array of floats
+        #     The activity of each node at both the current
+        #     and the previous time step.
         self.node_activities = np.zeros(self.max_num_nodes)
-        self.node_prev_activity = np.zeros(self.max_num_nodes)
-        self.node_activity_threshold = 1e-6
+        self.node_prev_activities = np.zeros(self.max_num_nodes)
+        # node_activity_rate : float
+        #     The rate at which node activities decay at each time
+        #     step in the absence of any additional activation.
+        #     new_activity = old_activity * (1 - node_acctivity_rate)
         self.node_activity_rate = self.activity_decay_rate
+        # node_cumulative_activities : array of floats
+        #     The sum of each node's activity over its lifetime.
         self.node_cumulative_activities = 1e-3 * np.ones(self.max_num_nodes)
+        
+        # attempts, fulfillment, unfulfillment : array of floats
+        #     All attempts result in either fulfillment or unfulfillment.
+        #     If the node becomes active soon after the attempt, the attempt
+        #     is considered fulfilled. The sooner and the larger the activity,
+        #     the more complete the fulfillment. All attempts or portions of
+        #     attempts that aren't fulfilled get added to unfulfillment.
         self.node_attempts = np.zeros(self.max_num_nodes)
         self.node_fulfillment = 1e-3 * np.ones(self.max_num_nodes)
         self.node_unfulfillment = 1e-3 * np.ones(self.max_num_nodes)
@@ -289,9 +338,8 @@ class Level(object):
         self.num_nodes, self.num_sequences = (
             node.step(node_index, # node parameters
                       self.node_activities,
-                      self.node_prev_activity,
-                      self.node_activity_threshold,
-                      self.node_activity_rate,
+                      self.node_prev_activities,
+                       self.node_activity_rate,
                       self.node_cumulative_activities,
                       self.node_attempts,
                       self.node_fulfillment,
@@ -341,43 +389,25 @@ class Level(object):
         #arousal = 1/4.
         self.element_goals = np.zeros(self.max_num_elements)
         self.input_goals = np.zeros(self.max_num_inputs)
-        #goal_index = np.where(self.element_goal_votes ** (1. / arousal)  >
-        #                   np.random.random_sample( self.max_num_inputs))[0]
         matches = np.where(self.element_goal_votes ==
                            np.max(self.element_goal_votes))[0]
         goal_index = matches[np.argmax(np.random.random_sample(matches.size))]
         responsible_node = self.responsible_nodes[goal_index]
-        #goal_index = np.argmax(self.element_goal_votes)
-
-        #if (self.element_goal_votes[goal_index] ** (1. / arousal) >
-        #        np.random.random_sample()):
         self.element_goals[goal_index] = 1.
 
         if goal_index < self.max_num_inputs:
             self.input_goals[goal_index] = 1.
         else:
             # Project element goals down to input goals.
-            # 7 ms
             self.input_goals = self.ziptie.get_index_projection(
                 goal_index - self.max_num_inputs)
-        #else:
-        #    goal_index = -1
-
+        
         if self.debug:
             print('element goal votes', self.element_goal_votes)
             print('element goals', self.element_goals)
             print('input goals', self.input_goals)
             self.print_node(responsible_node)
 
-        # Maintain the node activity history.
-        #self.node_trace_history.pop(0)
-
-        #self.node_trace_history.append(
-        #    self.node_element_goal_votes[:, goal_index])
-
-        #self.node_trace_history.append(self.node_activities.copy())
-        #self.reward_history.append(reward)
-        
         self.node_reward, self.node_trace_history, self.trace_index = (
             node.update_rewards(self.node_reward,
                                 reward,
