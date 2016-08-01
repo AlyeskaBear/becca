@@ -238,7 +238,9 @@ class Level(object):
         #     The sum of each node's activity over its lifetime.
         self.node_cumulative_activities = 1e-3 * np.ones(self.max_num_nodes)
         
-        # attempts, fulfillment, unfulfillment : array of floats
+        # node_attempts, node_fulfillment, node_unfulfillment : array of floats
+        #     An attempt occurs when a node's parent is active and its
+        #     terminal element is selected as a goal.
         #     All attempts result in either fulfillment or unfulfillment.
         #     If the node becomes active soon after the attempt, the attempt
         #     is considered fulfilled. The sooner and the larger the activity,
@@ -247,19 +249,51 @@ class Level(object):
         self.node_attempts = np.zeros(self.max_num_nodes)
         self.node_fulfillment = 1e-3 * np.ones(self.max_num_nodes)
         self.node_unfulfillment = 1e-3 * np.ones(self.max_num_nodes)
-        self.node_curiosity_rate = 1e-3
-        self.node_curiosity = 1e-1 * np.ones(self.max_num_nodes)
-        self.node_reward_rate = 3e-3
+
+        # node_reward : array of floats
+        #     The expected reward of choosing this node's element as a goal
+        #     when its parent node is active.
         self.node_reward = np.zeros(self.max_num_nodes)
-        self.node_value_to_parent = np.zeros(self.max_num_nodes)
+        # node_reward_rate : float
+        #     A constant scaling factor on the rate at which node_reward adapts
+        #     to new observations.
+        self.node_reward_rate = 3e-3
+        # node_curiosity : array of floats
+        #     The value associated with selecting a node's element as a goal
+        #     when the node's parent is active.
+        self.node_curiosity = 1e-1 * np.ones(self.max_num_nodes)
+        # node_curiosity_rate : float
+        #     A constant scaling factor on the rate at which curiosity accumulates.
+        #     A higher rate yields a more curious and exploratory brain.
+        self.node_curiosity_rate = 1e-3
+        
+        # node_element_index, node_sequence_index : array of ints
+        #     The indices associated with each node's terminal element
+        #     and sequence, respectively. Note that nodes initially are
+        #     not assigned to sequences. There are far fewer sequences
+        #     than nodes and only the most commonly occurring nodes
+        #     get elevated to the status of sequence.
         self.node_element_index = -np.ones(self.max_num_nodes, 'int32')
         self.node_sequence_index = -np.ones(self.max_num_nodes, 'int32')
-        self.node_sequence_length = -np.ones(self.max_num_nodes, 'int32')
+        # node_sequence_threshold : float
+        #     If a node's cumulative activity exceeds the 
+        #     node_sequence_threshold, then the node is elevated to the status
+        #     of a sequence, an ouput from one level that becomes an input 
+        #     to the level above it.
         self.node_sequence_threshold = 1e2 * 4. ** self.level_index
+        # node_sequence_length : array of ints
+        #     The length of the sequence represented by a node.
+        #     For root node, this is 0. For its children, 1.
+        #     For the grandchild leaf nodes, it is 2. 
+        self.node_sequence_length = -np.ones(self.max_num_nodes, 'int32')
+        
+        # node_num_children : array of ints
         self.node_num_children = np.zeros(self.max_num_nodes, 'int32')
+        # node_child_indices : 2D array of ints
         # The node index of each child child
         self.node_child_indices = -np.ones((self.max_num_nodes,
                                             self.max_num_elements), 'int32')
+        # node_parent_index : array of ints
         self.node_parent_index = -np.ones(self.max_num_nodes, 'int32')
 
         # Node 0 is the root.
@@ -347,7 +381,6 @@ class Level(object):
                       self.node_curiosity_rate,
                       self.node_curiosity,
                       self.node_reward,
-                      self.node_value_to_parent,
                       self.node_element_index,
                       self.node_sequence_index,
                       self.node_sequence_length,
@@ -579,18 +612,7 @@ class Level(object):
         #Show the transitions within the sequence.
         print("    cumulative: {0:.4f}".format(
             self.node_cumulative_activities[i]))
-        #print("      fulfillment: {0:.4f}".format(self.node_fulfillment[i]))
-        #print("      unfulfillment: {0:.4f}".format(
-        #    self.node_unfulfillment[i]))
-        #print("      choosability: {0:.4f}".format(
-        #    self.node_choosability[i]))
         print("    curiosity: {0:.4f}".format(self.node_curiosity[i]))
         print("    reward: {0:.4f}".format(self.node_reward[i]))
-        #print("    val to parent: {0:.4f}".format(
-        #    self.node_value_to_parent[i]))
-        #total_goal_value = (self.node_curiosity[i] +
-        #                    self.node_choosability[i] *
-        #                    self.node_value_to_parent[i] / .9)
-        #total_goal_value = min(max(total_goal_value, 0.), 1.)
         total_goal_value = self.node_reward[i] + self.node_curiosity[i]
         print("    total goal value: {0:.4f}".format(total_goal_value))
