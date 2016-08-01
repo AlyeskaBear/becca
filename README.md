@@ -11,13 +11,13 @@ Make sure you have a current version of Anaconda, and version 0.27 or higher of 
 Pull down the code from Pypi.
 
     pip install --pre becca
-    pip install --pre beccatest
+    pip install --pre becca_test
     
 Run it on your local machine.
     
     python
-    >>>import beccatest
-    >>>beccatest.test.suite()
+    >>>import becca_test
+    >>>becca_test.test.suite()
 
 ###What can BECCA do?
 
