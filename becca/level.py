@@ -91,7 +91,13 @@ class Level(object):
         #     num_sequences < num_nodes
         self.num_nodes = 1
         self.num_sequences = 0
-
+        # num_active_elements : int
+        #     The number of elements that have exhibited some non-trivial
+        #     activity. Initially, the elements corresponding to bundles
+        #     will be unused. Until they are populated, it's computationally
+        #     more efficient to skip over them.
+        self.num_active_elements = self.max_num_inputs
+        
         # Normalization constants.
         # input_max : array of floats
         #     The maximum of each input's activity.
@@ -288,19 +294,23 @@ class Level(object):
         self.node_sequence_length = -np.ones(self.max_num_nodes, 'int32')
         
         # node_num_children : array of ints
+        #     The number of child nodes that belong to each node.
         self.node_num_children = np.zeros(self.max_num_nodes, 'int32')
         # node_child_indices : 2D array of ints
-        # The node index of each child child
+        #     The node indices of the children that belong to each node.
+        #     There should be as many non-negative child indices
+        #     as their are num_children for each node.
         self.node_child_indices = -np.ones((self.max_num_nodes,
                                             self.max_num_elements), 'int32')
         # node_parent_index : array of ints
+        #     The node index of each node's parent node.
         self.node_parent_index = -np.ones(self.max_num_nodes, 'int32')
 
-        # Node 0 is the root.
-        # Give it one child for each input.
+        # Initialize the node tree.
+        # Node 0 is the root. Give it one child for each element.
         # Don't assign sequences to these nodes. They represent sequences
         # of length 1 which aren't interesting. They're already represented
-        # in this level's element inputs.
+        # in this level's elements.
         self.node_sequence_length[0] = 0
         for i_element in range(self.max_num_elements):
             new_node_index = self.num_nodes
@@ -355,20 +365,27 @@ class Level(object):
         self.update_inputs(new_inputs)
 
         # Run the inputs through the ziptie to find bundle activities
-        # and to learn how to bundle them.
+        # and to learn how to bundle them. nonbundle_activities
+        # are all the input activities that don't contribute to 
+        # bundle_activites. It's what's left over. This forces all the
+        # inputs to be expressed as concisely as possible, 
+        # in bundles wherever possible, rather than separately.
         (nonbundle_activities, bundle_activities) = (
             self.ziptie.sparse_featurize(self.input_activities))
-
+        # The element activities are the combination of the residual
+        # input activities and the bundle activities.
         self.element_activities = np.concatenate((nonbundle_activities,
                                                   bundle_activities))
-
+        # Incrementally update the bundles in the ziptie.
         self.ziptie.learn()
         self.num_active_elements = self.max_num_inputs + self.ziptie.num_bundles
 
+        # Re-initialize a few quantities for this time step. 
         self.responsible_nodes = -np.ones(self.max_num_elements, 'int32')
         self.element_goal_votes = np.zeros(self.max_num_elements)
         prev_parent_activity = 1.
         parent_activity = 1.
+        # Kick off the descent down through the node tree.
         self.num_nodes, self.num_sequences = (
             node.step(node_index, # node parameters
                       self.node_activities,
@@ -404,6 +421,7 @@ class Level(object):
                       reward,
                       satisfaction))
 
+        # If any nodes were added, reflect that.
         if self.num_nodes > self.last_num_nodes: 
             # Print any element sequences that have been added this time step.
             if self.debug:
@@ -419,18 +437,22 @@ class Level(object):
 
         # Decide which element goals to select, based on
         # all the votes tallied up across nodes.
-        #arousal = 1/4.
+        # Choose exactly one goal at each time step.
+        # Choose the element with the largest vote. If there is a tie,
+        # randomly select between them.
         self.element_goals = np.zeros(self.max_num_elements)
         self.input_goals = np.zeros(self.max_num_inputs)
         matches = np.where(self.element_goal_votes ==
                            np.max(self.element_goal_votes))[0]
         goal_index = matches[np.argmax(np.random.random_sample(matches.size))]
+        # Track which node cast the winning vote.
         responsible_node = self.responsible_nodes[goal_index]
         self.element_goals[goal_index] = 1.
-
+        # Express the element goal in terms of input goals.
         if goal_index < self.max_num_inputs:
             self.input_goals[goal_index] = 1.
         else:
+            # If the goal element is a bundle, cast it in terms of inputs. 
             # Project element goals down to input goals.
             self.input_goals = self.ziptie.get_index_projection(
                 goal_index - self.max_num_inputs)
@@ -441,6 +463,8 @@ class Level(object):
             print('input goals', self.input_goals)
             self.print_node(responsible_node)
 
+        # Assign credit for the current reward to any goals set 
+        # and actions taken in the last few time steps. 
         self.node_reward, self.node_trace_history, self.trace_index = (
             node.update_rewards(self.node_reward,
                                 reward,
@@ -457,7 +481,10 @@ class Level(object):
                                 goal_index,
                                 self.num_nodes
                                 ))
-
+        # If any of the nodes are assigned to this level's
+        # sequences, their activities will be reflected
+        # in the sequence activities and pushed upward to be
+        # inputs for the next level.
         return self.sequence_activities
 
 
@@ -501,6 +528,9 @@ class Level(object):
             print("level.Level.update_inputs:")
             print("    Attempting to update out of range input activities.")
 
+        # This is written to be easily compilable by numba, however,
+        # it hasn't proven to be at all significant in profiling, so it
+        # has stayed in slow-loop python for now.
         stop_index = min(start_index + inputs.size, self.max_num_inputs)
         # Input index
         j = 0
@@ -518,6 +548,7 @@ class Level(object):
 
             # Scale the input by the maximum.
             val = val / (self.input_max[i] + epsilon)
+            # Ensure that 0 <= val <= 1.
             val = max(0., val)
             val = min(1., val)
 
@@ -529,10 +560,10 @@ class Level(object):
 
     def visualize(self):
         """
-        Show the current state of the ``Level``.
+        Show the current state of the level.
         """
-        # This the level at which we can ignore an element's activity
-        # in order to simplify display.
+        # activity_threshold the level at which we can ignore
+        # an element's activity in order to simplify display.
         activity_threshold = .01
         print(self.name)
 
@@ -548,24 +579,15 @@ class Level(object):
                 print(" ".join(["sequence", str(i_sequence), ":",
                                 "activity ", str(activity)]))
 
-        # Enumerate all sequences.
-        # Use the format
-        #   q: i - j - k - l
-        # where q is the sequence index and
-        # i, j, k, l are the input indices of each sequence
-        # First, descend all the trees.
+        # Enumerate all sequences, doing a depth-first descent
+        # through the tree.
         def descend(node_index,
-                    #prefix,
-                    #sequence_indices,
-                    #sequence_lists,
                     sequence_nodes):
             """
             Recursively descend the node trees and enumerate the sequences.
             """
             # If the current node index has a corresponding sequence,
             # add it to the list.
-            #sequence_indices.append(self.node_sequence_index[node_index])
-            #sequence_lists.append(prefix)
             sequence_nodes.append(node_index)
 
             # If this is a terminal node, backtrack up the tree.
@@ -595,6 +617,7 @@ class Level(object):
         """
         print("----------------------------------------------")
 
+        # Re-create the node's sequence by tracing its parentage.
         full_sequence = [self.node_element_index[i]]
         temp_index = i
         while self.node_parent_index[temp_index] > 0:
