@@ -1,6 +1,6 @@
-BECCA is a general learning program for use in any robot or embodied system. When using BECCA, a robot learns to do whatever it is rewarded to do, and continues learning throughout its lifetime.
+Becca is a general learning program for use in any robot or embodied system. When using Becca, a robot learns to do whatever it is rewarded to do, and continues learning throughout its lifetime.
 
-###How do I try BECCA out?
+###How do I try Becca out?
 
 Make sure you have a current version of Anaconda, and version 0.27 or higher of numba.
     
@@ -19,19 +19,19 @@ Run it on your local machine.
     >>>import becca_test
     >>>becca_test.test.suite()
 
-###What can BECCA do?
+###What can Becca do?
 
-Some [videos](http://youtu.be/4kPoU8eZvio?list=PLF861CC4C40439EEB) show BECCA in action. 
+Some [videos](http://youtu.be/4kPoU8eZvio?list=PLF861CC4C40439EEB) show Becca in action. 
 
-###How does BECCA work?
+###How does Becca work?
 
 I owe you an update, but here's the 
 [how it works](https://github.com/brohrer/becca-docs/blob/master/how_it_works.pdf?raw=true) 
 document from a previous version. Some of the principles are the same. 
 
-###How do I use BECCA with my own robot? 
+###How do I use Becca with my own robot? 
 
-The [wiki](https://github.com/brohrer/becca/wiki) has tutorials on how to use BECCA in your application.
+The [wiki](https://github.com/brohrer/becca/wiki) has tutorials on how to use Becca in your application.
 
 [![Join the chat at https://gitter.im/brohrer/becca](https://badges.gitter.im/brohrer/becca.svg)](https://gitter.im/brohrer/becca?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) provides a forum for users to share questions, solutions, and experiences. 
 
