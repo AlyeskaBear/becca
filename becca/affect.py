@@ -17,41 +17,38 @@ class Affect(object):
     It is influenced by the recent history of reward and in turn
     influences the intensity with which a brain pursues
     its goals and makes plans.
-
-    Attributes
-    ----------
-    cumulative_reward : float
-        The total reward amassed since the last visualization.
-    reward_history : list of floats
-        A time series of reward accumulated during the periods between
-        each time ``Affect`` is visualized..
-    reward_steps : list of ints
-        A time series of the brain's age in time steps corresponding
-        to each of the rewards in ``reward_history``.
-    satisfaction : float
-        A filtered average of the reward.
-    satisfaction_time_constant : float
-        The time constant of the leaky integrator used to filter
-        reward into a rough average of the recent reward history.
-    time_since_reward_log : int
-        Number of time steps since reward was last logged. It gets
-        logged every time ``Affect`` is visualized.
     """
     def __init__(self):
         """
-        Set up``Affect``.
+        Set up Affect.
 
         Parameters
         ----------
         num_features : int
-            The number of features in the ``brain``. ``Affect`` will
+            The number of features in the brain. Affect will
             learn the reward associated with each of these.
         """
+        # satisfaction_time_constant : float
+        #     The time constant of the leaky integrator used to filter
+        #     reward into a rough average of the recent reward history.
         self.satisfaction_time_constant = 1e3
+        # satisfaction : float
+        #     A filtered average of the reward.
         self.satisfaction = 0.
+        # cumulative_reward : float
+        #     The total reward amassed since the last visualization.
         self.cumulative_reward = 0.
+        # time_since_reward_log : int
+        #     Number of time steps since reward was last logged. It gets
+        #     logged every time Affect is visualized.
         self.time_since_reward_log = 0.
+        # reward_history : list of floats
+        #     A time series of reward accumulated during the periods between
+        #     each time Affect is visualized..
         self.reward_history = []
+        # reward_steps : list of ints
+        #     A time series of the brain's age in time steps corresponding
+        #     to each of the rewards in reward_history.
         self.reward_steps = []
 
 
@@ -61,8 +58,6 @@ class Affect(object):
 
         Parameters
         ----------
-        new_features : array of floats
-            The most recently observed set of feature activities.
         reward : float
             The most recently observed reward value.
 
@@ -75,6 +70,7 @@ class Affect(object):
 
         # Update the satisfaction, a filtered version of the reward.
         rate = 1. / self.satisfaction_time_constant
+        # This filter is also known as a leaky integrator.
         self.satisfaction = self.satisfaction * (1. - rate) + reward * rate
 
         # Log the reward.
@@ -91,16 +87,16 @@ class Affect(object):
         Parameters
         ----------
         timestep : int
-            See docstring for ``brain.py``.
+            See docstring for brain.py.
         brain_name : str
-            See docstring for ``brain.py``.
+            See docstring for brain.py.
         log_dir : str
-            See docstring for ``brain.py``.
+            See docstring for brain.py.
 
         Returns
         -------
         performance : float
-            The average reward over the lifespan of the ``brain``.
+            The average reward over the lifespan of the brain.
         """
         # Check whether any time has passed since the last update.
         if self.time_since_reward_log > 0:

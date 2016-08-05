@@ -7,26 +7,24 @@ import numpy as np
 import time
 
 import becca.node as node
-from becca.ziptie import ZipTie
+from becca.ziptie import Ziptie
 
 
 class Level(object):
     """
     One level in the hierarchy of sequences.
 
-    Attributes
-    ----------
-    input_activities : array of floats
-        The activity levels of each of the level's inputs.
-    input_surplus : array of floats
-        The input activities that are not accounted for in the
-        currently active sequences.
-    goal_decay_rate : float
-        The fraction that each goal will decay during each time step.
+    Each level contains a tree, representing all element sequences of
+    length two. The nodes of the tree are an important data structure
+    in level-related calculations. Their properties are listed in the 
+    Level.node_xxx attributes initialized below.
 
-    node_xxx : node-specific attributes
-        These are listed and defined in node.py without their 'node_' prefix.
-
+    In each time step, each level takes in new inputs, transforms them 
+    into sequences, and passes them up to the next level. The level also
+    takes sequence goals that are passed down from above, transforms them
+    into input goals, and passses them down to the next level. Finally,
+    the level uses the new inputs to incrementally train itself for 
+    future time steps.
     """
     def __init__(self,
                  level_index,
@@ -212,14 +210,14 @@ class Level(object):
         #     and debugging.
         self.responsible_nodes = -np.ones(self.max_num_elements, 'int32')
 
-        # ziptie : ZipTie
-        #     The ziptie is an instance of the ZipTie algorithm class,
+        # ziptie : Ziptie
+        #     The ziptie is an instance of the Ziptie algorithm class,
         #     an incremental method for bundling inputs. Check out 
-        #     ziptie.py for a complete description. ZipTies note which
+        #     ziptie.py for a complete description. Zipties note which
         #     inputs tend to be co-active and creates bundles of them.
         #     This feature creation mechanism results in l0-sparse 
-        #     features, which sparsity helps keep BECCA fast.
-        self.ziptie = ZipTie(self.max_num_inputs, 
+        #     features, which sparsity helps keep Becca fast.
+        self.ziptie = Ziptie(self.max_num_inputs, 
                              num_bundles=self.max_num_bundles,
                              level=self.level_index)
 
@@ -371,7 +369,7 @@ class Level(object):
         # inputs to be expressed as concisely as possible, 
         # in bundles wherever possible, rather than separately.
         (nonbundle_activities, bundle_activities) = (
-            self.ziptie.sparse_featurize(self.input_activities))
+            self.ziptie.featurize(self.input_activities))
         # The element activities are the combination of the residual
         # input activities and the bundle activities.
         self.element_activities = np.concatenate((nonbundle_activities,

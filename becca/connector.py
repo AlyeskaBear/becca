@@ -7,9 +7,9 @@ from becca.brain import Brain
 
 def run(world, restore=False):
     """
-    Run BECCA with a world.
+    Run Becca with a world.
 
-    Connects the brain and the world together and runs them for as long
+    Connect the brain and the world together and runs them for as long
     as the world dictates.
 
     Parameters
@@ -26,8 +26,6 @@ def run(world, restore=False):
         The performance of the brain over its lifespan, measured by the
         average reward it gathered per time step.
     """
-
-
     brain_name = '{0}_brain'.format(world.name)
     brain = Brain(world.num_sensors,
                   world.num_actions,
@@ -43,5 +41,6 @@ def run(world, restore=False):
         actions = brain.sense_act_learn(sensors, reward)
         sensors, reward = world.step(actions)
         world.visualize(brain)
+    # Wrap up the run.
     performance = brain.report_performance()
     return performance

@@ -1,5 +1,5 @@
 """
-The core BECCA code
+The core Becca code
 
 This package contains all the learning algorithms and heuristics
 implemented together in a functional learning agent. Most users
@@ -8,5 +8,5 @@ those who want to experiment with and improve the underlying
 learning algorithms and their implementations, should need to muck
 around with it.
 
-See tester.py for an example of how to implement it with a world.
+See the becca_test package for examples of how to implement it with a world.
 """

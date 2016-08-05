@@ -10,47 +10,15 @@ import numpy as np
 from becca.affect import Affect
 from becca.level import Level
 
-# Identify the full local path of the brain.py module.
-# This trick is used to conveniently locate other BECCA resources.
-MODPATH = os.path.dirname(os.path.abspath(__file__))
-
 
 class Brain(object):
     """
     A biologically motivated learning algorithm.
 
-    Attributes
-    ----------
-    affect : Affect
-        See the pydocs in the module ``affect.py`` for the class ``Affect``.
-    backup_interval : int
-        The number of time steps between saving a copy of the ``brain``
-        out to a pickle file for easy recovery.
-    levels : list of ``Level``
-        Collectively, the levels form a hierarchy with ``levels[0]``
-        on the bottom.
-        Refer to ``level.py`` for a detailed description of a level.
-    log_dir : str
-        Relative path to the ``log`` directory. This is where backups
-        and images of the ``brain``'s state and performance are kept.
-    name : str
-        Unique name for this ``brain``.
-    num_actions : int
-        The number of distinct actions that the ``brain`` can choose to
-        execute in the world.
-    num_features : int
-        The total number of features, including sensors and all features
-        derived from them.
-    num_sensors : int
-        The number of distinct sensors that the world will be passing in
-        to the ``brain``.
-    pickle_filename : str
-        Relative path and filename of the backup pickle file.
-    satisfaction : float
-        The level of contentment experienced by the brain. Higher contentment
-        dampens curiosity and the drive to explore.
-    timestep : int
-        The age of the ``brain`` in discrete time steps.
+    Becca's Brain contains all of its learning algorithms, 
+    integrated into a single whole.
+    Check out connector.py for an example for how to attach a world
+    to a brain.
     """
     def __init__(self, num_sensors, num_actions, brain_name='test_brain'):
         """
@@ -58,32 +26,69 @@ class Brain(object):
 
         Parameters
         ----------
+        brain_name : str
+            A descriptive string identifying the brain.
+        num_actions : array of ints
+            The total number of action outputs that the world is expecting.
+        num_sensors : array of ints
+            The total number of sensor inputs that the world is providing.
         """
+        # num_sensors : int
+        #     The number of distinct sensors that the world will be passing in
+        #     to the brain.
         self.num_sensors = num_sensors
-        # Always include an extra action. The last is the 'do nothing' action.
+        # num_actions : int
+        #     The number of distinct actions that the brain can choose to
+        #     execute in the world. Always include an extra action.
+        #     The last is the 'do nothing' action.
         self.num_actions = num_actions + 1
 
+        # backup_interval : int
+        #     The number of time steps between saving a copy of the brain
+        #     out to a pickle file for easy recovery.
         self.backup_interval = 1e5
+        # name : str
+        #     Unique name for this brain.
         self.name = brain_name
-        self.log_dir = os.path.normpath(os.path.join(MODPATH, 'log'))
+
+        # Identify the full local path of the brain.py module.
+        # This trick is used to conveniently locate other Becca resources.
+        module_path = os.path.dirname(os.path.abspath(__file__))
+        # log_dir : str
+        #     Relative path to the log directory. This is where backups
+        #     and images of the brain's state and performance are kept.
+        self.log_dir = os.path.normpath(os.path.join(module_path, 'log'))
+        # Check whether the directory is already there. If not, create it.
         if not os.path.isdir(self.log_dir):
             os.makedirs(self.log_dir)
+        # pickle_filename : str
+        #     Relative path and filename of the backup pickle file.
         self.pickle_filename = os.path.join(self.log_dir,
                                             '{0}.pickle'.format(brain_name))
+        # affect : Affect
+        #     See the pydocs in the module affect.py for the class Affect.
         self.affect = Affect()
+        # satisfaction : float
+        #     The level of contentment experienced by the brain.
+        #     Higher contentment dampens curiosity and the drive to explore.
         self.satisfaction = 0.
 
-        # Initialize the first ``Level``
+        # levels : list of Level
+        #     Collectively, the levels form a hierarchy with levels[0]
+        #     on the bottom.
+        #     Refer to level.py for a detailed description of a level.
+        #     Initialize the 0th level.
         num_inputs = self.num_sensors + self.num_actions
-        #num_bundles = 3 * num_inputs
-        #num_elements = num_inputs + num_bundles
-        #num_sequences = 1 * num_elements
         level_index = 0
-        #level_0 = Level(level_index, num_inputs, num_elements, num_sequences)
         level_0 = Level(level_index, num_inputs)
         self.levels = [level_0]
+        
+        # actions : array of floats
+        #     The set of actions to execute this time step.
         self.actions = np.zeros(self.num_actions)
 
+        # timestep : int
+        #     The age of the brain in discrete time steps.
         self.timestep = 0
 
 
@@ -95,21 +100,21 @@ class Brain(object):
         ----------
         sensors : array of floats
             The information coming from the sensors in the world.
-            The array should have ``self.num_sensors`` inputs.
+            The array should have self.num_sensors inputs.
             Each value in the array is expected to be between 0 and 1,
             inclusive. Sensor values are interpreted as fuzzy binary
             values, rather than continuous values. For instance,
-            the ``brain`` doesn't interpret a contact sensor value of .5
+            the brain doesn't interpret a contact sensor value of .5
             to mean that the contact
             sensor was only weakly contacted. It interprets it
             to mean that the sensor was fully contacted for 50% of the sensing
             duration or that there is a 50% chance that the sensor was
             fully contacted during the entire sensing duration. For another
             example, a light sensor reading of zero won't be
-            interpreted as by the ``brain`` as darkness. It will just be
+            interpreted as by the brain as darkness. It will just be
             interpreted as a lack of information about the lightness.
         reward : float
-            The extent to which the ``brain`` is being rewarded by the
+            The extent to which the brain is being rewarded by the
             world. It is expected to be between -1 and 1, inclusive.
             -1 is the worst pain ever. 1 is the most intense ecstasy
             imaginable. 0 is neutral.
@@ -117,10 +122,10 @@ class Brain(object):
         Returns
         -------
         actions : array of floats
-            The action commands that the ``brain`` is sending to the world
-            to be executed. The array should have ``self.num_actions``
+            The action commands that the brain is sending to the world
+            to be executed. The array should have self.num_actions
             inputs in it. Each value should be binary: 0 and 1. This
-            allows the ``brain`` to learn most effectively how to interact
+            allows the brain to learn most effectively how to interact
             with the world to obtain more reward.
         """
         self.timestep += 1
@@ -142,17 +147,10 @@ class Brain(object):
         if level.num_sequences > level.max_num_sequences / 2.:
             # Initialize the next level.
             num_inputs = level.max_num_sequences
-            #num_bundles = num_inputs
-            #num_elements = num_inputs + num_bundles
-            #num_sequences = 2 * num_elements
             level_index = level.level_index + 1
             print('------------------------------------------ Creating level',
                   level_index)
-            next_level = Level(level_index,
-                               num_inputs,
-                               #num_elements,
-                               #num_sequences
-                               )
+            next_level = Level(level_index, num_inputs)
             self.levels.append(next_level)
 
             sequence_activities = next_level.step(input_activities,
@@ -169,24 +167,26 @@ class Brain(object):
         # debug: Random actions
         #self.actions = self.random_actions()
 
-        # Periodically back up the ``brain``.
+        # Periodically back up the brain.
         if (self.timestep % self.backup_interval) == 0:
             self.backup()
 
         # Account for the fact that the last "do nothing" action
-        # was added by the ``brain``.
+        # was added by the brain.
         return self.actions[:-1]
-        #return self.actions#[:-1]
 
 
     def random_actions(self):
         """
         Generate a random set of actions.
 
+        This is used for debugging. Running a world with random
+        actions gives a baseline performance floor.
+
         Returns
         -------
         actions : array of floats
-            See ``sense_act_learn.actions``.
+            See sense_act_learn.actions.
         """
         threshold = .5 / float(self.num_actions)
         action_strength = np.random.random_sample(self.num_actions)
@@ -203,7 +203,7 @@ class Brain(object):
         -------
         performance : float
             The average reward per time step collected by
-            the ``brain`` over its lifetime.
+            the brain over its lifetime.
         """
         return self.affect.visualize(self.timestep, self.name, self.log_dir)
 
@@ -215,7 +215,7 @@ class Brain(object):
         Returns
         -------
         success : bool
-            If the backup process completed without any problems, ``success``
+            If the backup process completed without any problems, success
             is True, otherwise it is False.
         """
         success = False
@@ -225,7 +225,7 @@ class Brain(object):
             # Save a second copy. If you only save one, and the user
             # happens to ^C out of the program while it is being saved,
             # the file becomes corrupted, and all the learning that the
-            # ``brain`` did is lost.
+            # brain did is lost.
             with open('{0}.bak'.format(self.pickle_filename),
                       'wb') as brain_data_bak:
                 pickle.dump(self, brain_data_bak)
@@ -247,8 +247,8 @@ class Brain(object):
         Returns
         -------
         restored_brain : Brain
-            If restoration was successful, the saved ``brain`` is returned.
-            Otherwise a notification prints and a new ``brain`` is returned.
+            If restoration was successful, the saved brain is returned.
+            Otherwise a notification prints and a new brain is returned.
         """
         restored_brain = self
         try:
@@ -284,7 +284,7 @@ class Brain(object):
         """
         Show the current state and some history of the brain.
 
-        This is typically called from a world's ``visualize`` method.
+        This is typically called from a world's visualize method.
         """
         print(' ')
         print('{0} is {1} time steps old'.format(self.name, self.timestep))

@@ -14,6 +14,7 @@ when doing loops), the function will fail and throw an error.
 """
 from numba import jit 
 
+
 @jit(nopython=True)
 def set_dense_val(array2d, i_rows, i_cols, val):
     """
@@ -30,10 +31,11 @@ def set_dense_val(array2d, i_rows, i_cols, val):
     
     Returns
     -------
-    Occur indirectly by modifying ``array2d``.
+    Occur indirectly by modifying array2d.
     """
     for i in range(len(i_rows)):
         array2d[i_rows[i], i_cols[i]] = val 
+
 
 @jit(nopython=True)
 def max_dense(array2d, results):
@@ -49,7 +51,7 @@ def max_dense(array2d, results):
 
     Returns
     -------
-    Results are returned indirectly by modifying ``results``.
+    Results are returned indirectly by modifying results.
     The results array has three elements and holds
         [0] the maximum value found
         [1] the row number in which it was found
@@ -68,71 +70,9 @@ def max_dense(array2d, results):
     results[1] = i_row_max
     results[2] = i_col_max
 
-@jit(nopython=True)
-def find_bundle_activities(i_rows, i_cols, cables, bundles, threshold):
-    """
-    Use a greedy method to sparsely translate cables to bundles.
-
-    Start at the last bundle added and work backward to the first. 
-    For each, calculate the bundle activity by finding the minimum
-    value of each of its constituent cables. Then subtract out
-    the bundle activity from each of its cables.
-     
-    Parameters
-    ----------
-    bundles : 1D array of floats
-        An array of bundle activity values. Initially it is all zeros.
-    cables : 1D array of floats
-        An array of cable activity values. 
-    i_rows : array of ints
-        The row indices for the non-zero sparse 2D array..
-    i_cols : array of ints
-        The column indices for the non-zero sparse 2D array elements.
-        All non-zero elements are assumed to be 1.
-        i_rows and i_cols must be the same length.
-        Each column represents a cable and each row represents a bundle.
-        The 2D array is a map from cables to bundles.
-    threshold : float
-        The amount of bundle activity below which, we just don't care.
-
-    Results
-    -------
-    Returned indirectly by modifying ```cables``. These are the residual
-    cable activities that are not represented by any bundle activities.
-    """
-    large = 1e10
-    
-    # Iterate over each bundle, that is, over each row.
-    i = len(i_rows) - 1
-    row = i_rows[i]
-    while row > -1:
-
-        # For each bundle, find the minimum cable activity that 
-        # contribues to it.
-        min_val = large
-        i_bundle = i
-        while i_rows[i] == row and i > -1:
-            col = i_cols[i]
-            val = cables[col]
-            if val < min_val:
-                min_val = val  
-            i -= 1
-
-        # Set the bundle activity.
-        bundles[row] = min_val
-
-        # Subtract the bundle activity from each of the cables.
-        i = i_bundle
-        while row == i_rows[i] and i > -1:
-            col = i_cols[i]
-            cables[col] -= min_val
-            i -= 1
-        
-        row -= 1
 
 @jit(nopython=True)
-def find_sparse_bundle_activities(i_rows, i_cols, cables, bundles, 
-                                  weights, threshold):
+def find_bundle_activities(i_rows, i_cols, cables, bundles, weights, threshold):
     """
     Use a greedy method to sparsely translate cables to bundles.
 
@@ -163,7 +103,7 @@ def find_sparse_bundle_activities(i_rows, i_cols, cables, bundles,
 
     Results
     -------
-    Returned indirectly by modifying ```cables``. These are the residual
+    Returned indirectly by modifying `cables. These are the residual
     cable activities that are not represented by any bundle activities.
     """
     large = 1e10
@@ -177,7 +117,7 @@ def find_sparse_bundle_activities(i_rows, i_cols, cables, bundles,
         max_vote = 0.
         best_val = 0.
         best_bundle = 0
-        # This is the index in ``i_row`` and ``i_col`` where the 
+        # This is the index in i_row and i_col where the 
         # current bundle's cable constituents are listed. Cable indices
         # are assumed to be contiguous and bundles are assumed to be
         # listed in ascending order of index.
@@ -223,7 +163,7 @@ def find_sparse_bundle_activities(i_rows, i_cols, cables, bundles,
             bundles[best_bundle] = best_val
 
             # Subtract the bundle activity from each of the cables.
-            # Using ``i_best_bundle`` lets us jump right to the place in 
+            # Using i_best_bundle lets us jump right to the place in 
             # the list of indices where the cables for the winning bundle
             # are listed.
             i = i_best_bundle
@@ -231,6 +171,7 @@ def find_sparse_bundle_activities(i_rows, i_cols, cables, bundles,
                 col = i_cols[i]
                 cables[col] -= best_val
                 i -= 1
+
 
 @jit(nopython=True)
 def nucleation_energy_gather(nonbundle_activities, nucleation_energy):
@@ -253,7 +194,7 @@ def nucleation_energy_gather(nonbundle_activities, nucleation_energy):
 
     Results
     -------
-    Returned indirectly by modifying ```nucleation_energy``.
+    Returned indirectly by modifying nucleation_energy.
     """
     for i_cable1 in range(len(nonbundle_activities)):
         activity1 = nonbundle_activities[i_cable1]
@@ -263,6 +204,7 @@ def nucleation_energy_gather(nonbundle_activities, nucleation_energy):
                 if activity2 > 0.:
                     nucleation_energy[i_cable1, i_cable2] += (
                             activity1 * activity2) 
+
 
 @jit(nopython=True)
 def agglomeration_energy_gather(bundle_activities, nonbundle_activities,
@@ -290,7 +232,7 @@ def agglomeration_energy_gather(bundle_activities, nonbundle_activities,
 
     Results
     -------
-    Returned indirectly by modifying ```agglomeration_energy``.
+    Returned indirectly by modifying `agglomeration_energy.
     """
     for i_col in range(len(nonbundle_activities)):
         activity = nonbundle_activities[i_col]
