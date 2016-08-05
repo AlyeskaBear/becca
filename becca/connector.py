@@ -15,7 +15,7 @@ def run(world, restore=False):
     Parameters
     ----------
     restore : bool, optional
-        If ``restore`` is True, try to restore the brain 
+        If ``restore`` is True, try to restore the brain
         from a previously saved
         version, picking up where it left off.
         Otherwise it create a new one. The default is False.

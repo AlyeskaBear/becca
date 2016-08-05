@@ -74,7 +74,7 @@ def pad(arr, shape, val=0., dtype=float):
         print(''.join([str(n_dim), ' dimensions? Now you\'re getting greedy']))
         return arr
 
-    for dim in range(len(shape)):
+    for dim, _ in enumerate(shape):
         if shape[dim] <= 0:
             new_shape[dim] = arr.shape[dim] - shape[dim]
         else:
@@ -238,7 +238,7 @@ def get_files_with_suffix(dir_name, suffixes):
         The filenames, including the local path from ``dir_name``.
     """
     found_filenames = []
-    for localpath, directories, filenames in os.walk(dir_name):
+    for localpath, _, filenames in os.walk(dir_name):
         for filename in filenames:
             for suffix in suffixes:
                 if filename.endswith(suffix):

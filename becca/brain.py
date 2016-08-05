@@ -15,7 +15,7 @@ class Brain(object):
     """
     A biologically motivated learning algorithm.
 
-    Becca's Brain contains all of its learning algorithms, 
+    Becca's Brain contains all of its learning algorithms,
     integrated into a single whole.
     Check out connector.py for an example for how to attach a world
     to a brain.
@@ -82,7 +82,7 @@ class Brain(object):
         level_index = 0
         level_0 = Level(level_index, num_inputs)
         self.levels = [level_0]
-        
+
         # actions : array of floats
         #     The set of actions to execute this time step.
         self.actions = np.zeros(self.num_actions)
@@ -143,7 +143,8 @@ class Brain(object):
             input_activities = sequence_activities
 
         # If the top level has more than half of its allocated sequences
-        # created, then create a new level on top of it. 
+        # created, then create a new level on top of it.
+        level = self.levels[-1]
         if level.num_sequences > level.max_num_sequences / 2.:
             # Initialize the next level.
             num_inputs = level.max_num_sequences

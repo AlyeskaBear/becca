@@ -94,12 +94,12 @@ class Ziptie(object):
         #     Each level a chance to mature before the one above it.
         self.nucleation_threshold = 50. * 5. ** self.level
         # agglomeration_threshold
-        #     Threshold above which agglomeration energy results 
+        #     Threshold above which agglomeration energy results
         #     in agglomeration.
         self.agglomeration_threshold = .5 * self.nucleation_threshold
         # activity_threshold : float
         #     Threshold below which input activity is teated as zero.
-        #     By ignoring the small activity values, 
+        #     By ignoring the small activity values,
         #     computation gets much faster.
         self.activity_threshold = .1
         # bundles_full : bool
@@ -145,7 +145,7 @@ class Ziptie(object):
 
     def featurize(self, new_cable_activities, bundle_weights=None):
         """
-        Calculate how much the cables' activities contribute to each bundle. 
+        Calculate how much the cables' activities contribute to each bundle.
 
         Find bundle activities by taking the minimum input value
         in the set of cables in the bundle. The bulk of the computation
@@ -157,15 +157,15 @@ class Ziptie(object):
             bundle_weights = np.ones(self.max_num_bundles)
         if self.n_map_entries > 0:
             nb.find_bundle_activities(
-                    self.bundle_map_rows[:self.n_map_entries], 
-                    self.bundle_map_cols[:self.n_map_entries], 
-                    self.nonbundle_activities, 
-                    self.bundle_activities, 
-                    bundle_weights, self.activity_threshold)
-        # The residual cable_activities after calculating 
+                self.bundle_map_rows[:self.n_map_entries],
+                self.bundle_map_cols[:self.n_map_entries],
+                self.nonbundle_activities,
+                self.bundle_activities,
+                bundle_weights, self.activity_threshold)
+        # The residual cable_activities after calculating
         # bundle_activities are the nonbundle_activities.
         # Sparsify them by setting all the small values to zero.
-        self.nonbundle_activities[np.where(self.nonbundle_activities < 
+        self.nonbundle_activities[np.where(self.nonbundle_activities <
                                            self.activity_threshold)] = 0.
         return self.nonbundle_activities, self.bundle_activities
 

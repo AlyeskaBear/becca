@@ -1,20 +1,20 @@
 """
 Node functions.
 
-This module contains a couple of functions that do most of the heavy lifting. 
+This module contains a couple of functions that do most of the heavy lifting.
 They use numba to compile int C, so they run really fast. Even faster
 than vectorized numpy. But not as fast as a GPU.
 
 step() : This one is repsponsible for the one-time step advancement
-    of a node. It is the heart of Becca. It recursively calls all the 
+    of a node. It is the heart of Becca. It recursively calls all the
     other nodes within a level too. Because recurive calls within numba
-    is a relatively new feature, this demands numba 27 or later. 
-    It is also the reason that the function signature is explicitly 
+    is a relatively new feature, this demands numba 27 or later.
+    It is also the reason that the function signature is explicitly
     typed, instead of just using an @autojit decorator.
 
 update_rewards() : This function updates the reward associated with
     each of the nodes. It manages the credit assignment and reward updates
-    across all nodes--some of the most critical aspects of Becca's 
+    across all nodes--some of the most critical aspects of Becca's
     reinforcement learning algorithm.
 """
 
@@ -100,7 +100,7 @@ def step(node_index, # node parameters
     and update all the internal parameters and estimates incrementally.
 
     I apologize for the ridiculous number of variables passed into this
-    function. When I figure out a more elegant way to do this, I'll 
+    function. When I figure out a more elegant way to do this, I'll
     implement it. Most of the input arguments have the same name as
     in level.py and are defined there.
     Node-related parameters, have an extra prefix, 'node_'.
@@ -146,20 +146,20 @@ def step(node_index, # node parameters
 
     # Increment the curiosity based on several multiplicative factors.
     #     curiosity_rate : a constant
-    #     uncertainty : an estimate of how much is not yet known about 
-    #         this node. It is a function of the total number of past 
+    #     uncertainty : an estimate of how much is not yet known about
+    #         this node. It is a function of the total number of past
     #         attempts, both fulfilled and unfulfilled.
-    #     parent_activity : The activity of the parent node. If the 
+    #     parent_activity : The activity of the parent node. If the
     #         parent isn't active, then the sequence represented by the
     #         child isn't active either.
-    #     1 - curiosity : This is a squashing factor that ensures that 
+    #     1 - curiosity : This is a squashing factor that ensures that
     #         curiosity will asymptotically approach 1.
-    #     1 - satisfaction : This is a scaling factor to account for 
+    #     1 - satisfaction : This is a scaling factor to account for
     #         contentment in the agent. If the agent is consistently
-    #         getting high rewards, there is little need to be curious. 
+    #         getting high rewards, there is little need to be curious.
     uncertainty = 1. / (1. + fulfillment[i] + unfulfillment[i])
-    curiosity[i] += (curiosity_rate * 
-                     uncertainty * 
+    curiosity[i] += (curiosity_rate *
+                     uncertainty *
                      parent_activity *
                      (1. - curiosity[i]) *
                      (1. - satisfaction))
@@ -189,14 +189,14 @@ def step(node_index, # node parameters
     # If this is not the root node or a first generation child,
     # set the relevant element goal vote.
     if sequence_length[i] > 1:
-        # The element goal vote is a combination of curiosity, 
+        # The element goal vote is a combination of curiosity,
         # reward, and any temporary internal goal.
         # This node is only relevant when the parent is active.
-        element_goal_vote = parent_activity * (curiosity[i] + 
+        element_goal_vote = parent_activity * (curiosity[i] +
                                                reward[i] +
                                                top_down_goal)
         # For each element, keep the maximum vote it receives from
-        # across all the nodes. Also note the node that cast the 
+        # across all the nodes. Also note the node that cast the
         # highest vote. This helps explain what Becca is doing
         # for visualization and debugging.
         if element_goal_vote > goal_votes[element_index[i]]:
@@ -253,7 +253,7 @@ def step(node_index, # node parameters
             # This makes it increasingly harder to create new sequences.
             # The early ones are created quickly and later ones, more slowly.
             # This balances an aggresive rapid-learning strategy with a
-            # more conservative slow-learning approach. 
+            # more conservative slow-learning approach.
             mod_threshold = sequence_threshold * (
                 1. + num_sequences / max_num_sequences)
             if cumulative_activities[i] > mod_threshold:
@@ -305,25 +305,25 @@ def update_rewards(node_reward,
 
     Go through the recent history of element goals
     and update the expected reward associated with each
-    of them using this time step's reward. The older a goal, the 
+    of them using this time step's reward. The older a goal, the
     less credit it gets for the current reward.
 
     The parameters are all defined in level.py. It's a runaround,
-    but it avoids duplication of documentation. 
+    but it avoids duplication of documentation.
     """
     # This is a bit of careful bookkeeping.
     # trace_history is a circular (cylindrical) buffer. Generate the
     # appropriate indices for stepping backward in time.
     t_history = np.zeros(trace_length, np.int32)
-    for t in range(trace_length):
+    for time in range(trace_length):
         # Cycle through the node activity history, starting with the
         # most recent time step and working backward.
-        t_past = trace_index - t
+        t_past = trace_index - time
         # Once the index reaches the beginning, loop back around.
         if t_past < 0:
             t_past += trace_history_length
-        t_history[t] = t_past
-    
+        t_history[time] = t_past
+
     # Now go through each of the nodes. If the node's element is the
     # one that was set as a goal, then it is eligible for updating.
     for i in range(num_nodes):
@@ -334,9 +334,9 @@ def update_rewards(node_reward,
         # prone to initial error, but it allows
         # for later experiences to refine the reward estimate and
         # eventually correct that error out.
-        mod_reward_rate = max(reward_rate, 
+        mod_reward_rate = max(reward_rate,
                               1. / (1. + cumulative_activities[i]))
-        for t in range(trace_length):
+        for time in range(trace_length):
             # Increment the expected reward value associated with each sequence.
             # The size of the increment is larger when:
             #     1. the discrepancy between the previously learned and
@@ -346,9 +346,9 @@ def update_rewards(node_reward,
             # If either the reward discrepancy is very small
             # or the sequence activity is very small, there is no change.
             node_reward[i] += ((reward - node_reward[i]) *
-                               trace_history[i, t_history[t]] *
+                               trace_history[i, t_history[time]] *
                                mod_reward_rate *
-                               trace_decay[t])
+                               trace_decay[time])
 
         # Update the trace history. Write over the oldest record with
         # the newest one.

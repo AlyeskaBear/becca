@@ -6,13 +6,13 @@ when everything is written out explicitly in loops. It even beats
 numpy handily on dense matrices. It doesn't like lists or lists of lists.
 It also tends to work better if you
 don't use numpy functions and if you make your code as simple
-as possible. 
+as possible.
 
-The (nopython=True) call makes it so that if numba can't compile the code 
-to C (very fast), but is forced to fall back to python instead (dead slow 
+The (nopython=True) call makes it so that if numba can't compile the code
+to C (very fast), but is forced to fall back to python instead (dead slow
 when doing loops), the function will fail and throw an error.
 """
-from numba import jit 
+from numba import jit
 
 
 @jit(nopython=True)
@@ -28,13 +28,13 @@ def set_dense_val(array2d, i_rows, i_cols, val):
         The row and column indices of each element to change.
     val : float
         The new value to assign.
-    
+
     Returns
     -------
     Occur indirectly by modifying array2d.
     """
-    for i in range(len(i_rows)):
-        array2d[i_rows[i], i_cols[i]] = val 
+    for i, _ in enumerate(i_rows):
+        array2d[i_rows[i], i_cols[i]] = val
 
 
 @jit(nopython=True)
@@ -60,8 +60,8 @@ def max_dense(array2d, results):
     max_val = results[0]
     i_row_max = results[1]
     i_col_max = results[2]
-    for i_row in range(array2d.shape[0]): 
-        for i_col in range(array2d.shape[1]): 
+    for i_row in range(array2d.shape[0]):
+        for i_col in range(array2d.shape[1]):
             if array2d[i_row, i_col] > max_val:
                 max_val = array2d[i_row, i_col]
                 i_row_max = i_row
@@ -76,17 +76,17 @@ def find_bundle_activities(i_rows, i_cols, cables, bundles, weights, threshold):
     """
     Use a greedy method to sparsely translate cables to bundles.
 
-    Start at the last bundle added and work backward to the first. 
+    Start at the last bundle added and work backward to the first.
     For each, calculate the bundle activity by finding the minimum
     value of each of its constituent cables. Then subtract out
     the bundle activity from each of its cables.
-     
+
     Parameters
     ----------
     bundles : 1D array of floats
         An array of bundle activity values. Initially it is all zeros.
     cables : 1D array of floats
-        An array of cable activity values. 
+        An array of cable activity values.
     i_rows : array of ints
         The row indices for the non-zero sparse 2D array..
     i_cols : array of ints
@@ -117,7 +117,7 @@ def find_bundle_activities(i_rows, i_cols, cables, bundles, weights, threshold):
         max_vote = 0.
         best_val = 0.
         best_bundle = 0
-        # This is the index in i_row and i_col where the 
+        # This is the index in i_row and i_col where the
         # current bundle's cable constituents are listed. Cable indices
         # are assumed to be contiguous and bundles are assumed to be
         # listed in ascending order of index.
@@ -128,7 +128,7 @@ def find_bundle_activities(i_rows, i_cols, cables, bundles, weights, threshold):
         row = i_rows[i]
         while row > -1:
 
-            # For each bundle, find the minimum cable activity that 
+            # For each bundle, find the minimum cable activity that
             # contribues to it.
             min_val = large
             n_cables = 0.
@@ -137,14 +137,14 @@ def find_bundle_activities(i_rows, i_cols, cables, bundles, weights, threshold):
                 col = i_cols[i]
                 val = cables[col]
                 if val < min_val:
-                    min_val = val  
+                    min_val = val
                 n_cables += 1.
                 i -= 1
-    
+
             # The strength of the vote for the bundle is the minimum cable
             # activity multiplied by the number of cables. This weights
             # bundles with many member cables more highly than bundles
-            # with few cables. It is a way to encourage sparsity and to 
+            # with few cables. It is a way to encourage sparsity and to
             # avoid creating more bundles than necessary.
             vote = min_val * (1. + .1 * (n_cables - 1.)) * (1. + weights[row])
 
@@ -163,7 +163,7 @@ def find_bundle_activities(i_rows, i_cols, cables, bundles, weights, threshold):
             bundles[best_bundle] = best_val
 
             # Subtract the bundle activity from each of the cables.
-            # Using i_best_bundle lets us jump right to the place in 
+            # Using i_best_bundle lets us jump right to the place in
             # the list of indices where the cables for the winning bundle
             # are listed.
             i = i_best_bundle
@@ -179,10 +179,10 @@ def nucleation_energy_gather(nonbundle_activities, nucleation_energy):
     Gather nucleation energy.
 
     This formulation takes advantage of loops and the sparsity of the data.
-    The original arithmetic looks like 
-        nucleation_energy += (nonbundle_activities * 
-                              nonbundle_activities.T * 
-                              nucleation_energy_rate) 
+    The original arithmetic looks like
+        nucleation_energy += (nonbundle_activities *
+                              nonbundle_activities.T *
+                              nucleation_energy_rate)
     Parameters
     ----------
     nonbundle_activities : array of floats
@@ -196,14 +196,14 @@ def nucleation_energy_gather(nonbundle_activities, nucleation_energy):
     -------
     Returned indirectly by modifying nucleation_energy.
     """
-    for i_cable1 in range(len(nonbundle_activities)):
+    for i_cable1, _ in enumerate(nonbundle_activities):
         activity1 = nonbundle_activities[i_cable1]
         if activity1 > 0.:
-            for i_cable2 in range(len(nonbundle_activities)):
+            for i_cable2, _ in enumerate(nonbundle_activities):
                 activity2 = nonbundle_activities[i_cable2]
                 if activity2 > 0.:
                     nucleation_energy[i_cable1, i_cable2] += (
-                            activity1 * activity2) 
+                        activity1 * activity2)
 
 
 @jit(nopython=True)
@@ -213,7 +213,7 @@ def agglomeration_energy_gather(bundle_activities, nonbundle_activities,
     Accumulate the energy binding a new feature to an existing bundle..
 
     This formulation takes advantage of loops and the sparsity of the data.
-    The original arithmetic looks like 
+    The original arithmetic looks like
         coactivities = bundle_activities * nonbundle_activities.T
         agglomeration_energy += coactivities * agglomeration_energy_rate
 
@@ -234,11 +234,11 @@ def agglomeration_energy_gather(bundle_activities, nonbundle_activities,
     -------
     Returned indirectly by modifying `agglomeration_energy.
     """
-    for i_col in range(len(nonbundle_activities)):
+    for i_col, _ in enumerate(nonbundle_activities):
         activity = nonbundle_activities[i_col]
         if activity > 0.:
             # Only decay bundles that have been created
             for i_row in range(n_bundles):
                 if bundle_activities[i_row] > 0.:
                     coactivity = activity * bundle_activities[i_row]
-                    agglomeration_energy[i_row, i_col] += coactivity 
+                    agglomeration_energy[i_row, i_col] += coactivity
