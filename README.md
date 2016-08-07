@@ -26,13 +26,9 @@ Some [videos](http://youtu.be/4kPoU8eZvio?list=PLF861CC4C40439EEB) show Becca in
 
 ### How does Becca work?
 
-I owe you an update, but here's the 
-[how it works](https://github.com/brohrer/becca-docs/blob/master/how_it_works.pdf?raw=true) 
-document from a previous version. Some of the principles are the same. 
+I owe you this. It's on my To-Do list.
 
-### How do I use Becca with my own robot? 
-
-The [wiki](https://github.com/brohrer/becca/wiki) has tutorials on how to use Becca in your application.
+### Join us
 
 [![Join the chat at https://gitter.im/brohrer/becca](https://badges.gitter.im/brohrer/becca.svg)](https://gitter.im/brohrer/becca?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) provides a forum for users to share questions, solutions, and experiences. 
 
