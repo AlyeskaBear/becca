@@ -28,6 +28,10 @@ Some [videos](http://youtu.be/4kPoU8eZvio?list=PLF861CC4C40439EEB) show Becca in
 
 I owe you this. It's on my To-Do list.
 
+In the meantime, the code is generously documented. I explain all my algorithmic tricks
+and justify some of my design decisions. I recommend starting at `connector.py` and walking
+through from there.
+
 ### Join us
 
 [![Join the chat at https://gitter.im/brohrer/becca](https://badges.gitter.im/brohrer/becca.svg)](https://gitter.im/brohrer/becca?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) provides a forum for users to share questions, solutions, and experiences. 
