@@ -42,7 +42,7 @@ through from there.
 
 The good folks at [OpenAI](https://gym.openai.com/) have created a playground called Gym for Becca and agents like it.
 Learning on simulated robots of all types and complexities is a great opportunity to show what Becca can do.
-Getting Becca integrated ith Gym is my next development goal. There are some intermediate steps, and 
+Getting Becca integrated with Gym is my next development goal. There are some intermediate steps, and 
 I'll be working through them for the next several months.
 
 ### Join us
