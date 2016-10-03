@@ -24,6 +24,12 @@ Becca is a general learning program for use in any robot or embodied system. Whe
 
 Some [videos](http://youtu.be/4kPoU8eZvio?list=PLF861CC4C40439EEB) show Becca in action. 
 
+### What can Becca do for me?
+
+Becca aspires to be a brain for any robot, doing anything. It's not there yet, but it's getting closer.
+It may be able to drive your robot. Hook it up and see, using the worlds in the `becca_test` repository
+as a model. Feel free to shoot me an email (brohrer@gmail.com) if you'd like to talk it through.
+
 ### How does Becca work?
 
 I owe you this. It's on my To-Do list.
@@ -31,6 +37,13 @@ I owe you this. It's on my To-Do list.
 In the meantime, the code is generously documented. I explain all my algorithmic tricks
 and justify some of my design decisions. I recommend starting at `connector.py` and walking
 through from there.
+
+### Next steps.
+
+The good folks at [OpenAI](https://gym.openai.com/) have created a playground called Gym for Becca and agents like it.
+Learning on simulated robots of all types and complexities is a great opportunity to show what Becca can do.
+Getting Becca integrated with Gym is my next development goal. There are some intermediate steps, and 
+I'll be working through them for the next several months.
 
 ### Join us
 
