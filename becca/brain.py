@@ -20,7 +20,11 @@ class Brain(object):
     Check out connector.py for an example for how to attach a world
     to a brain.
     """
-    def __init__(self, num_sensors, num_actions, brain_name='test_brain'):
+    def __init__(self,
+                 num_sensors,
+                 num_actions,
+                 brain_name='test_brain',
+                 log_directory=None):
         """
         Configure the Brain.
 
@@ -28,6 +32,9 @@ class Brain(object):
         ----------
         brain_name : str
             A descriptive string identifying the brain.
+        log_directory : str
+            The full path name to a directory where information and
+            backups for the world can be stored and retrieved.
         num_actions : array of ints
             The total number of action outputs that the world is expecting.
         num_sensors : array of ints
@@ -51,13 +58,16 @@ class Brain(object):
         #     Unique name for this brain.
         self.name = brain_name
 
-        # Identify the full local path of the brain.py module.
-        # This trick is used to conveniently locate other Becca resources.
-        module_path = os.path.dirname(os.path.abspath(__file__))
-        # log_dir : str
-        #     Relative path to the log directory. This is where backups
-        #     and images of the brain's state and performance are kept.
-        self.log_dir = os.path.normpath(os.path.join(module_path, 'log'))
+        if log_directory is None:
+            # Identify the full local path of the brain.py module.
+            # This trick is used to conveniently locate other Becca resources.
+            module_path = os.path.dirname(os.path.abspath(__file__))
+            # log_dir : str
+            #     Relative path to the log directory. This is where backups
+            #     and images of the brain's state and performance are kept.
+            self.log_dir = os.path.normpath(os.path.join(module_path, 'log'))
+        else:
+            self.log_dir = log_directory
         # Check whether the directory is already there. If not, create it.
         if not os.path.isdir(self.log_dir):
             os.makedirs(self.log_dir)
@@ -80,7 +90,7 @@ class Brain(object):
         #     Initialize the 0th level.
         num_inputs = self.num_sensors + self.num_actions
         level_index = 0
-        level_0 = Level(level_index, num_inputs)
+        level_0 = Level(level_index, 2 * num_inputs)
         self.levels = [level_0]
 
         # actions : array of floats
@@ -161,12 +171,14 @@ class Brain(object):
         for i in range(len(self.levels) - 1)[::-1]:
             self.levels[i].sequence_goals = self.levels[i + 1].input_goals
 
-        # Isolate the actions from the rest of the goals..
+        # Isolate the actions from the rest of the goals.
         self.actions = self.levels[0].input_goals[
             self.num_sensors:self.num_sensors + self.num_actions]
 
         # debug: Random actions
-        #self.actions = self.random_actions()
+        take_random_actions = False
+        if take_random_actions:
+            self.actions = self.random_actions()
 
         # Periodically back up the brain.
         if (self.timestep % self.backup_interval) == 0:
@@ -189,7 +201,7 @@ class Brain(object):
         actions : array of floats
             See sense_act_learn.actions.
         """
-        threshold = .5 / float(self.num_actions)
+        threshold = .1 / float(self.num_actions)
         action_strength = np.random.random_sample(self.num_actions)
         actions = np.zeros(self.num_actions)
         actions[np.where(action_strength < threshold)] = 1.
@@ -227,9 +239,11 @@ class Brain(object):
             # happens to ^C out of the program while it is being saved,
             # the file becomes corrupted, and all the learning that the
             # brain did is lost.
-            with open('{0}.bak'.format(self.pickle_filename),
-                      'wb') as brain_data_bak:
-                pickle.dump(self, brain_data_bak)
+            make_second_backup = False
+            if make_second_backup:
+                with open('{0}.bak'.format(self.pickle_filename),
+                          'wb') as brain_data_bak:
+                    pickle.dump(self, brain_data_bak)
         except IOError as err:
             print('File error: {0} encountered while saving brain data'.
                   format(err))
@@ -291,5 +305,5 @@ class Brain(object):
         print('{0} is {1} time steps old'.format(self.name, self.timestep))
 
         self.affect.visualize(self.timestep, self.name, self.log_dir)
-        #for level in self.levels:
-        #    level.visualize()
+        for level in self.levels:
+            level.visualize()

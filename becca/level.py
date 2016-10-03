@@ -65,11 +65,12 @@ class Level(object):
         #     sequences and that this level can accept.
         #     max_num_elements = max_num_inputs + max_num_bundles
         self.max_num_inputs = max_num_inputs
-        self.max_num_bundles = self.max_num_inputs
         if max_num_elements is None:
+            self.max_num_bundles = 3 * self.max_num_inputs
             self.max_num_elements = self.max_num_inputs + self.max_num_bundles
         else:
             self.max_num_elements = max_num_elements
+            self.max_num_bundles = self.max_num_elements - self.max_num_inputs
         if max_num_sequences is None:
             self.max_num_sequences = self.max_num_inputs
         else:
@@ -80,14 +81,17 @@ class Level(object):
         # max_num_elements - 1.
         # This totals to:
         # 1 + max_num_elements + max_num_elements * (max_num_elements - 1)
-        #     = 1 max_num_elements ** 2
+        #     = 1 + max_num_elements ** 2
         self.max_num_nodes = self.max_num_elements ** 2 + 1
-        # num_sequences, num_nodes : int
+        # last_num_sequences, num_sequences, num_nodes : int
         #     The number of nodes and sequences that this level
         #     has already created.
         #     num_sequences < num_nodes
+        #     last_num_sequences is the value of num_sequences from the
+        #     previous time step.
         self.num_nodes = 1
         self.num_sequences = 0
+        self.last_num_sequences = self.num_sequences
         # num_active_elements : int
         #     The number of elements that have exhibited some non-trivial
         #     activity. Initially, the elements corresponding to bundles
@@ -112,7 +116,22 @@ class Level(object):
         # activity_decay_rate : float
         #     The rate at which element activity decays between time steps.
         #     Decay takes five times longer for each additional level.
-        self.activity_decay_rate = 1. / (5. ** self.level_index)
+        #self.activity_decay_rate = 1.
+        self.activity_decay_rate = 1. / (5. ** (self.level_index))
+        #self.activity_decay_rate = 1. / (5. ** (self.level_index + 1.))
+
+        # jumpiness : float
+        #     A factor describing the rate at which inaction causes an
+        #     an increased desire to take action. After a certain length
+        #     of time spent sitting still, the level will begin 
+        #     spontaneously taking actions.
+        self.jumpiness = 1e-3
+        # time_since_action : float
+        #     The number of time steps since an action has been taken
+        #     or a goal has been set.
+        #     This is used together with jumpiness to adjust the threshold
+        #     for accepting new proposed actions.
+        self.time_since_goal = 0.
 
         # reward_trace_length : int
         #     The maximum number of time steps between when an action
@@ -160,8 +179,11 @@ class Level(object):
         #     the current location within the buffer.
         self.trace_index = 0
 
+        # previous_inputs,
         # input_activities,
+        # previous_elements,
         # element_activities,
+        # delta_elements,
         # sequence_activitiies : array of floats
         #     inputs, elements, and sequences are all characterized by their
         #     activity--their level of activation at each time step.
@@ -170,11 +192,15 @@ class Level(object):
         #     a level. Input activities result in element activities,
         #     which result in sequence activities, which are then passed
         #     up to the next level as its input activities.
+        self.previous_inputs = np.zeros(self.max_num_inputs)
         self.input_activities = np.zeros(self.max_num_inputs)
+        self.previous_elements = np.zeros(self.max_num_elements)
         self.element_activities = np.zeros(self.max_num_elements)
+        self.delta_elements = np.zeros(self.max_num_elements)
         self.sequence_activities = np.zeros(self.max_num_sequences)
 
         # input_goals,
+        # input_mask,
         # element_goals,
         # sequence_goals : array of floats
         #     Goals can be set for inputs, elements and sequences.
@@ -188,7 +214,10 @@ class Level(object):
         #     new sequence goals. When the bottom level is reached,
         #     input goals corresponding to actions are used for
         #     action selection.
+        #     An input mask is used to track recent goals and treat them
+        #     a little differently than sensed inputs.
         self.input_goals = np.zeros(self.max_num_inputs)
+        self.input_mask = np.zeros(self.max_num_inputs)
         self.element_goals = np.zeros(self.max_num_elements)
         self.sequence_goals = np.zeros(self.max_num_sequences)
 
@@ -217,7 +246,8 @@ class Level(object):
         #     features, which sparsity helps keep Becca fast.
         self.ziptie = Ziptie(self.max_num_inputs,
                              num_bundles=self.max_num_bundles,
-                             level=self.level_index)
+                             level=self.level_index,
+                             debug=self.debug)
 
         # Nodes are the data structure used to represent time.
         # They are arranged into a tree with a single root node,
@@ -278,12 +308,16 @@ class Level(object):
         #     get elevated to the status of sequence.
         self.node_element_index = -np.ones(self.max_num_nodes, 'int32')
         self.node_sequence_index = -np.ones(self.max_num_nodes, 'int32')
+        # sequence_node_index : array ints
+        #     For each sequence that has been created, reference the node
+        #     that it corresponds to.
+        self.sequence_node_index = -np.ones(self.max_num_sequences, 'int32')
         # node_sequence_threshold : float
         #     If a node's cumulative activity exceeds the
         #     node_sequence_threshold, then the node is elevated to the status
         #     of a sequence, an ouput from one level that becomes an input
         #     to the level above it.
-        self.node_sequence_threshold = 1e2 * 4. ** self.level_index
+        self.node_sequence_threshold = 1e4 * 4. ** self.level_index
         # node_sequence_length : array of ints
         #     The length of the sequence represented by a node.
         #     For root node, this is 0. For its children, 1.
@@ -337,7 +371,6 @@ class Level(object):
                     self.node_num_children[new_node_index] += 1
                     self.num_nodes += 1
 
-        self.last_num_nodes = self.num_nodes
 
 
     def step(self, new_inputs, reward, satisfaction):
@@ -359,7 +392,13 @@ class Level(object):
             reward recently, it won't be very satisfied.
         """
         node_index = 0
-        self.update_inputs(new_inputs)
+        self.input_activities = self.update_inputs(new_inputs,
+                                                   self.previous_inputs)
+        self.previous_inputs = new_inputs
+        # Find the input without intentional goals and actions included.
+        self.masked_inputs = self.input_activities - self.input_mask
+        self.masked_inputs = np.maximum(self.masked_inputs, 0.)
+        self.input_mask = self.input_mask * (1. - self.activity_decay_rate)
 
         # Run the inputs through the ziptie to find bundle activities
         # and to learn how to bundle them. nonbundle_activities
@@ -368,13 +407,25 @@ class Level(object):
         # inputs to be expressed as concisely as possible,
         # in bundles wherever possible, rather than separately.
         (nonbundle_activities, bundle_activities) = (
-            self.ziptie.featurize(self.input_activities))
+            self.ziptie.featurize(self.masked_inputs))
+            #self.ziptie.featurize(self.input_activities))
+        #print('nonbundle_activities', nonbundle_activities)
+        #print('bundle_activities', bundle_activities)
         # The element activities are the combination of the residual
         # input activities and the bundle activities.
-        self.element_activities = np.concatenate((nonbundle_activities,
+        #self.element_activities = np.concatenate((nonbundle_activities,
+        #                                          bundle_activities))
+        self.element_activities = np.concatenate((self.input_activities,
                                                   bundle_activities))
+        # Calculate the change in element activities and do a leaky
+        # integration on them.
+        new_delta = self.element_activities - self.previous_elements
+        new_delta = np.maximum(new_delta, 0.)
+        self.delta_elements = np.maximum(new_delta, self.delta_elements * 
+                                         (1. - self.activity_decay_rate))
+
         # Incrementally update the bundles in the ziptie.
-        self.ziptie.learn()
+        self.ziptie.learn(self.masked_inputs)
         self.num_active_elements = self.max_num_inputs + self.ziptie.num_bundles
 
         # Re-initialize a few quantities for this time step.
@@ -402,11 +453,13 @@ class Level(object):
                       self.node_num_children,
                       self.node_child_indices,
                       self.node_parent_index,
-                      self.element_activities,
+                      self.delta_elements,
+                      #self.element_activities,
                       self.num_active_elements,
                       parent_activity,
                       prev_parent_activity,
                       self.sequence_activities,
+                      self.sequence_node_index,
                       self.num_nodes,
                       self.num_sequences,
                       self.max_num_sequences,
@@ -419,18 +472,28 @@ class Level(object):
                       satisfaction))
 
         # If any nodes were added, reflect that.
-        if self.num_nodes > self.last_num_nodes:
+        if self.num_sequences > self.last_num_sequences:
             # Print any element sequences that have been added this time step.
             if self.debug:
-                for i in xrange(self.last_num_nodes, self.num_nodes):
-                    sequence_indices = [self.node_element_index[i]]
-                    temp_index = i
-                    while self.node_parent_index[temp_index] != 0:
-                        sequence_indices.append(self.node_element_index[
-                            self.node_parent_index[temp_index]])
-                        temp_index = self.node_parent_index[temp_index]
-                    print('  added sequence', sequence_indices[::-1])
-            self.last_num_nodes = self.num_nodes
+                for i in xrange(self.last_num_sequences, self.num_sequences):
+                    i_node = self.sequence_node_index[i]
+                    i_element = self.node_element_index[i_node]
+                    i_element_list = [i_element]
+                    i_temp = i
+                    while self.node_parent_index[i_temp] != 0:
+                        i_element_list.append(self.node_element_index[
+                            self.node_parent_index[i_temp]])
+                        i_temp = self.node_parent_index[i_temp]
+                    print('  added sequence', i_element_list[::-1])
+            self.last_num_sequences = self.num_sequences
+
+        # debug
+        #i_seq_cand = np.where((self.node_sequence_index == -1) * 
+        #                      (self.node_num_children == 0))
+        #max_cum_act = np.max(self.node_cumulative_activities[i_seq_cand])
+        #arg_max_cum_act = np.where(
+        #    self.node_cumulative_activities[i_seq_cand] == max_cum_act)
+        #print(self.node_sequence_threshold, max_cum_act, arg_max_cum_act)
 
         # Decide which element goals to select, based on
         # all the votes tallied up across nodes.
@@ -439,25 +502,37 @@ class Level(object):
         # randomly select between them.
         self.element_goals = np.zeros(self.max_num_elements)
         self.input_goals = np.zeros(self.max_num_inputs)
-        matches = np.where(self.element_goal_votes ==
-                           np.max(self.element_goal_votes))[0]
-        goal_index = matches[np.argmax(np.random.random_sample(matches.size))]
-        # Track which node cast the winning vote.
-        responsible_node = self.responsible_nodes[goal_index]
-        self.element_goals[goal_index] = 1.
-        # Express the element goal in terms of input goals.
-        if goal_index < self.max_num_inputs:
-            self.input_goals[goal_index] = 1.
+        max_vote = np.max(self.element_goal_votes)
+        # Only take an action or set a goal if the best option is better
+        # than a random threshold.
+        responsible_node = -1
+        if max_vote > (np.random.random_sample() - 
+                       self.time_since_goal * self.jumpiness):
+            matches = np.where(self.element_goal_votes == max_vote)[0]
+            goal_index = matches[np.argmax(
+                np.random.random_sample(matches.size))]
+            self.element_goals[goal_index] = 1.
+            responsible_node = self.responsible_nodes[goal_index]
+            self.time_since_goal = 0.
+            # Express the element goal in terms of input goals.
+            if goal_index < self.max_num_inputs:
+                self.input_goals[goal_index] = 1.
+            else:
+                # If the goal element is a bundle, cast it in terms of inputs.
+                # Project element goals down to input goals.
+                self.input_goals = self.ziptie.get_index_projection(
+                    goal_index - self.max_num_inputs)
+            self.input_mask = np.maximum(self.input_mask, self.input_goals)
+        # If no goal being set or action taken this time step.
         else:
-            # If the goal element is a bundle, cast it in terms of inputs.
-            # Project element goals down to input goals.
-            self.input_goals = self.ziptie.get_index_projection(
-                goal_index - self.max_num_inputs)
+            goal_index = -2
+            self.time_since_goal += 1.
 
         if self.debug:
             print('element goal votes', self.element_goal_votes)
             print('element goals', self.element_goals)
             print('input goals', self.input_goals)
+            responsible_node = self.responsible_nodes[goal_index]
             self.print_node(responsible_node)
 
         # Assign credit for the current reward to any goals set
@@ -476,6 +551,7 @@ class Level(object):
                                 self.node_element_index,
                                 self.node_parent_index,
                                 goal_index,
+                                responsible_node,
                                 self.num_nodes
                                ))
         # If any of the nodes are assigned to this level's
@@ -485,7 +561,7 @@ class Level(object):
         return self.sequence_activities
 
 
-    def update_inputs(self, inputs, start_index=0):
+    def update_inputs(self, inputs, previous_inputs, start_index=0):
         """
         Normalize and update inputs.
 
@@ -508,8 +584,8 @@ class Level(object):
 
         Parameters
         ----------
-        inputs : array of floats
-            The current activity of the inputs.
+        inputs, previous_inputs : array of floats
+            The current and previous activity of the inputs.
         start_index : int
             The first input to update.
 
@@ -538,6 +614,7 @@ class Level(object):
             self.input_max[i] += ((val - self.input_max[i]) /
                                   self.input_max_decay_time)
 
+            # Eventually move this to single-pass pre-processing?
             # Grow the maximum value, when appropriate.
             if val > self.input_max[i]:
                 self.input_max[i] += ((val - self.input_max[i]) /
@@ -549,10 +626,69 @@ class Level(object):
             val = max(0., val)
             val = min(1., val)
 
-            self.input_activities[i] = max(val,
-                                           self.input_activities[i] *
-                                           (1. - self.activity_decay_rate))
+            self.input_activities[i] = val
+            #self.input_activities[i] = max(val,
+            #                               self.input_activities[i] *
+            #                               (1. - self.activity_decay_rate))
             j += 1
+        return self.input_activities
+
+
+    def expand(self, sequences_to_expand):
+        """
+        Parameters
+        ----------
+        sequences_to_expand : list of arrays of floats
+            Expand each array in the list into the sequence of inputs
+            that contribute to its activity.
+
+        Returns
+        -------
+        expanded_sequences : list of arrays of floats
+            The set of inputs to this level that maximally activate the
+            sequences_to_expand. A 1 represents a relevant input,
+            0 is irrelevant.
+        """
+        # Expand each sequence array in the list.
+        expanded_sequences = []
+        for sequence_set in sequences_to_expand:
+            # First, represent the sequence set as a pair of element sets.
+            element_set_a = np.zeros(self.max_num_elements)
+            element_set_b = np.zeros(self.max_num_elements)
+            for i_sequence, sequence_activity in enumerate(sequence_set):
+                if sequence_activity > 0.:
+                    node_b_index = self.sequence_node_index[i_sequence]
+                    node_a_index = self.node_parent_index[node_b_index]
+                    element_a_index = self.node_element_index[node_a_index]
+                    element_b_index = self.node_element_index[node_b_index]
+                    element_set_a[element_a_index] = max(
+                        element_set_a[element_a_index], sequence_activity)
+                    element_set_b[element_b_index] = max(
+                        element_set_b[element_b_index], sequence_activity)
+
+            # Then project each bundle in the element down to its input.
+            input_set_a = element_set_a[:self.max_num_inputs].copy()
+            input_set_b = element_set_b[:self.max_num_inputs].copy()
+            # Iterate through each bundle index.
+            for i_bundle in xrange(self.max_num_bundles):
+                i_element = i_bundle + self.max_num_inputs
+                bundle_activity_a = element_set_a[i_element]
+                bundle_activity_b = element_set_b[i_element]
+                # Expand any relevant bundles down to their component cables.
+                if bundle_activity_a > 0.:
+                    i_cables = self.ziptie.get_index_projection_cables(i_bundle)
+                    for i_cable in i_cables:
+                        input_set_a[i_cable] = max(input_set_a[i_cable],
+                                                   bundle_activity_a)
+                if bundle_activity_b > 0.:
+                    i_cables = self.ziptie.get_index_projection_cables(i_bundle)
+                    for i_cable in i_cables:
+                        input_set_b[i_cable] = max(input_set_b[i_cable],
+                                                   bundle_activity_b)
+
+            expanded_sequences.append(input_set_a)
+            expanded_sequences.append(input_set_b)
+        return expanded_sequences
 
 
     def visualize(self):
@@ -576,37 +712,43 @@ class Level(object):
                 print(" ".join(["sequence", str(i_sequence), ":",
                                 "activity ", str(activity)]))
 
-        # Enumerate all sequences, doing a depth-first descent
-        # through the tree.
-        def descend(node_index,
-                    sequence_nodes):
-            """
-            Recursively descend the node trees and enumerate the sequences.
-            """
-            # If the current node index has a corresponding sequence,
-            # add it to the list.
-            sequence_nodes.append(node_index)
+        if self.debug:        
+            # Enumerate all sequences, doing a depth-first descent
+            # through the tree.
+            def descend(node_index,
+                        sequence_nodes):
+                """
+                Recursively descend the node trees and enumerate the sequences.
+                """
+                # If the current node index has a corresponding sequence,
+                # add it to the list.
+                sequence_nodes.append(node_index)
 
-            # If this is a terminal node, backtrack up the tree.
-            if self.node_num_children[node_index] == 0:
-                return
+                # If this is a terminal node, backtrack up the tree.
+                if self.node_num_children[node_index] == 0:
+                    return
 
-            # If this isn't a terminal node, descend through all the
-            # child children.
-            for child_index in self.node_child_indices[
-                    node_index, :self.node_num_children[node_index]]:
-                if (self.node_element_index[child_index] <
-                        self.num_active_elements):
-                    descend(child_index, sequence_nodes)
+                # If this isn't a terminal node, descend through all the
+                # child children.
+                for child_index in self.node_child_indices[
+                        node_index, :self.node_num_children[node_index]]:
+                    if (self.node_element_index[child_index] <
+                            self.num_active_elements):
+                        descend(child_index, sequence_nodes)
 
-        root_index = 0
-        sequence_nodes = []
-        descend(root_index,
-                sequence_nodes)
-        for i in sequence_nodes:
-            self.print_node(i)
+            root_index = 0
+            sequence_nodes = []
+            descend(root_index,
+                    sequence_nodes)
+            for i in sequence_nodes:
+                self.print_node(i)
         print("==============================================================")
 
+        self.ziptie.visualize()
+
+        for i_sequence in xrange(self.num_sequences): 
+            print("Sequence", i_sequence, ":")
+            self.print_node(self.sequence_node_index[i_sequence])
 
     def print_node(self, i):
         """
@@ -618,10 +760,9 @@ class Level(object):
         full_sequence = [self.node_element_index[i]]
         temp_index = i
         while self.node_parent_index[temp_index] > 0:
-            full_sequence.append(self.node_element_index[
-                self.node_parent_index[temp_index]])
+            full_sequence = [self.node_element_index[
+                self.node_parent_index[temp_index]]] + full_sequence
             temp_index = self.node_parent_index[temp_index]
-        full_sequence = full_sequence[::-1]
         sequence_index = self.node_sequence_index[i]
         if sequence_index == -1:
             sequence_index = "none"

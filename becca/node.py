@@ -45,6 +45,7 @@ import numpy as np
          nb.float64, #parent_activity,
          nb.float64, #prev_parent_activity,
          nb.float64[:], #sequence_activities,
+         nb.int32[:], #sequence_node_index,
          nb.int32, #num_nodes,
          nb.int32, #num_sequences,
          nb.int32, #max_num_sequences,
@@ -80,6 +81,7 @@ def step(node_index, # node parameters
          parent_activity,
          prev_parent_activity,
          sequence_activities,
+         sequence_node_index,
          num_nodes,
          num_sequences,
          max_num_sequences,
@@ -235,6 +237,7 @@ def step(node_index, # node parameters
                          parent_activity,
                          prev_parent_activity,
                          sequence_activities,
+                         sequence_node_index,
                          num_nodes,
                          num_sequences,
                          max_num_sequences,
@@ -255,11 +258,14 @@ def step(node_index, # node parameters
             # This balances an aggresive rapid-learning strategy with a
             # more conservative slow-learning approach.
             mod_threshold = sequence_threshold * (
-                1. + num_sequences / max_num_sequences)
-            if cumulative_activities[i] > mod_threshold:
+                1. + float(num_sequences) / float(max_num_sequences))
+            if (cumulative_activities[i] * (1. + 5. * reward[i]) > 
+                mod_threshold and
+                sequence_index[i] == -1):
                 # Assign this node its own output sequence, now that it
                 # has been observed enough times.
                 sequence_index[i] = num_sequences
+                sequence_node_index[num_sequences] = i
                 num_sequences += 1
 
     # Pass the node activity to the next time step.
@@ -282,6 +288,7 @@ def step(node_index, # node parameters
          nb.int32[:], #element_index
          nb.int32[:], #parent_index
          nb.int32, #goal_index
+         nb.int32, #responsible_node
          nb.int32, #num_nodes
         ), nopython=True)
 
@@ -298,6 +305,7 @@ def update_rewards(node_reward,
                    element_index,
                    parent_index,
                    goal_index,
+                   responsible_node,
                    num_nodes
                   ):
     """
@@ -349,6 +357,14 @@ def update_rewards(node_reward,
                                trace_history[i, t_history[time]] *
                                mod_reward_rate *
                                trace_decay[time])
+
+            #if i == responsible_node:
+            # Update cumulative activities based on the magnitude of reward.
+            #cumulative_activities[i] += (np.abs(reward) *
+            #cumulative_activities[i] += (np.abs(node_reward[i]) *
+            #                             trace_history[i, t_history[time]] *
+            #                             1e-2 * #mod_reward_rate *
+            #                             trace_decay[time])
 
         # Update the trace history. Write over the oldest record with
         # the newest one.

@@ -96,7 +96,8 @@ class Ziptie(object):
         # agglomeration_threshold
         #     Threshold above which agglomeration energy results
         #     in agglomeration.
-        self.agglomeration_threshold = .5 * self.nucleation_threshold
+        #self.agglomeration_threshold = .5 * self.nucleation_threshold
+        self.agglomeration_threshold = 1. * self.nucleation_threshold
         # activity_threshold : float
         #     Threshold below which input activity is teated as zero.
         #     By ignoring the small activity values,
@@ -151,26 +152,37 @@ class Ziptie(object):
         in the set of cables in the bundle. The bulk of the computation
         occurs in ziptie_numba.find_bundle_activities.
         """
-        self.nonbundle_activities = new_cable_activities.copy()
-        self.bundle_activities = np.zeros(self.max_num_bundles)
+        self.cable_activities = new_cable_activities.copy()
+        #self.nonbundle_activities = self.cable_activities.copy()
+        #self.bundle_activities = np.zeros(self.max_num_bundles)
+        self.bundle_activities = 1e3 * np.ones(self.max_num_bundles)
         if bundle_weights is None:
             bundle_weights = np.ones(self.max_num_bundles)
         if self.n_map_entries > 0:
-            nb.find_bundle_activities(
-                self.bundle_map_rows[:self.n_map_entries],
-                self.bundle_map_cols[:self.n_map_entries],
-                self.nonbundle_activities,
-                self.bundle_activities,
-                bundle_weights, self.activity_threshold)
+            #nb.find_bundle_activities(
+            #    self.bundle_map_rows[:self.n_map_entries],
+            #    self.bundle_map_cols[:self.n_map_entries],
+            #    self.nonbundle_activities,
+            #    self.bundle_activities,
+            #    bundle_weights, self.activity_threshold)
+            for i_map_entry in xrange(self.n_map_entries):
+                i_bundle = self.bundle_map_rows[i_map_entry]
+                i_cable = self.bundle_map_cols[i_map_entry]
+                activity = self.cable_activities[i_cable]
+                self.bundle_activities[i_bundle] = (
+                    np.minimum(self.bundle_activities[i_bundle],
+                               self.cable_activities[i_cable]))
+        self.bundle_activities[np.where(self.bundle_activities == 1e3)] = 0.
+        self.bundle_activities *= bundle_weights
         # The residual cable_activities after calculating
         # bundle_activities are the nonbundle_activities.
         # Sparsify them by setting all the small values to zero.
-        self.nonbundle_activities[np.where(self.nonbundle_activities <
-                                           self.activity_threshold)] = 0.
+        #self.nonbundle_activities[np.where(self.nonbundle_activities <
+        #                                   self.activity_threshold)] = 0.
         return self.nonbundle_activities, self.bundle_activities
 
 
-    def learn(self):
+    def learn(self, masked_cable_activities):
         """
         Update co-activity estimates and calculate bundle activity
 
@@ -187,17 +199,19 @@ class Ziptie(object):
         none
         """
         if not self.bundles_full:
-            self._create_new_bundles()
-            self._grow_bundles()
+            self._create_new_bundles(masked_cable_activities)
+            self._grow_bundles(masked_cable_activities)
         return
 
 
-    def _create_new_bundles(self):
+    def _create_new_bundles(self, masked_cable_activities):
         """
         If the right conditions have been reached, create a new bundle.
         """
         # Incrementally accumulate nucleation energy.
-        nb.nucleation_energy_gather(self.nonbundle_activities,
+        #nb.nucleation_energy_gather(self.nonbundle_activities,
+        #                            self.nucleation_energy)
+        nb.nucleation_energy_gather(masked_cable_activities,
                                     self.nucleation_energy)
 
         # Don't accumulate nucleation energy between a cable and itself
@@ -254,13 +268,21 @@ class Ziptie(object):
             self.agglomeration_energy[:, cable_index_b] = 0.
 
 
-    def _grow_bundles(self):
+    def _grow_bundles(self, masked_cable_activities):
         """
         Update an estimate of co-activity between all cables.
         """
         # Incrementally accumulate agglomeration energy.
+        #nb.agglomeration_energy_gather(self.bundle_activities,
+        #                               self.nonbundle_activities,
+        #                               self.num_bundles,
+        #                               self.agglomeration_energy)
+        #nb.agglomeration_energy_gather(self.bundle_activities,
+        #                               self.cable_activities,
+        #                               self.num_bundles,
+        #                               self.agglomeration_energy)
         nb.agglomeration_energy_gather(self.bundle_activities,
-                                       self.nonbundle_activities,
+                                       masked_cable_activities,
                                        self.num_bundles,
                                        self.agglomeration_energy)
 
@@ -371,6 +393,29 @@ class Ziptie(object):
             if self.bundle_map_rows[i] == bundle_index:
                 projection[self.bundle_map_cols[i]] = 1.
         return projection
+
+
+    def get_index_projection_cables(self, bundle_index):
+        """
+        Project bundle_index down to its cable indices.
+
+        Parameters
+        ----------
+        bundle_index : int
+            The index of the bundle to project onto its constituent cables.
+
+        Returns
+        -------
+        projection_indices : array of ints
+            An array of cable indices, representing all the cables that
+            contribute to the bundle.
+        """
+        projection = []
+        for i in range(self.n_map_entries):
+            if self.bundle_map_rows[i] == bundle_index:
+                projection.append(self.bundle_map_cols[i])
+        projection_indices = np.array(projection)
+        return projection_indices
 
 
     def visualize(self):
