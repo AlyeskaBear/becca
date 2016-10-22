@@ -168,7 +168,6 @@ class Ziptie(object):
             for i_map_entry in xrange(self.n_map_entries):
                 i_bundle = self.bundle_map_rows[i_map_entry]
                 i_cable = self.bundle_map_cols[i_map_entry]
-                activity = self.cable_activities[i_cable]
                 self.bundle_activities[i_bundle] = (
                     np.minimum(self.bundle_activities[i_bundle],
                                self.cable_activities[i_cable]))
@@ -200,6 +199,7 @@ class Ziptie(object):
         """
         if not self.bundles_full:
             self._create_new_bundles(masked_cable_activities)
+        if not self.bundles_full:
             self._grow_bundles(masked_cable_activities)
         return
 
@@ -416,6 +416,24 @@ class Ziptie(object):
                 projection.append(self.bundle_map_cols[i])
         projection_indices = np.array(projection)
         return projection_indices
+
+
+    def project_bundle_activities(self, bundle_activities):
+        """
+        Take a set of bundle activities and project them to cable activities.
+        """
+        cable_activities = np.zeros(self.max_num_cables)
+        for i in range(self.n_map_entries):
+            i_bundle = self.bundle_map_rows[i]
+            i_cable = self.bundle_map_cols[i]
+            #print('i', i)
+            #print('i_cable', i_cable)
+            #print('i_bundle', i_bundle)
+            #print('cable_activities[i_cable]', cable_activities[i_cable])
+            #print('bundle_activities[i_bundle]', bundle_activities[i_bundle])
+            cable_activities[i_cable] = max(cable_activities[i_cable],
+                                            bundle_activities[i_bundle])
+        return cable_activities
 
 
     def visualize(self):

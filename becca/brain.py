@@ -8,7 +8,9 @@ import os
 import numpy as np
 
 from becca.affect import Affect
-from becca.level import Level
+#from becca.level import Level
+from becca.featurizer import Featurizer
+from becca.model import Model
 
 
 class Brain(object):
@@ -46,9 +48,8 @@ class Brain(object):
         self.num_sensors = num_sensors
         # num_actions : int
         #     The number of distinct actions that the brain can choose to
-        #     execute in the world. Always include an extra action.
-        #     The last is the 'do nothing' action.
-        self.num_actions = num_actions + 1
+        #     execute in the world.
+        self.num_actions = num_actions
 
         # backup_interval : int
         #     The number of time steps between saving a copy of the brain
@@ -73,8 +74,8 @@ class Brain(object):
             os.makedirs(self.log_dir)
         # pickle_filename : str
         #     Relative path and filename of the backup pickle file.
-        self.pickle_filename = os.path.join(self.log_dir,
-                                            '{0}.pickle'.format(brain_name))
+        self.pickle_filename = os.path.join(
+            self.log_dir, '{0}.pickle'.format(brain_name))
         # affect : Affect
         #     See the pydocs in the module affect.py for the class Affect.
         self.affect = Affect()
@@ -89,13 +90,21 @@ class Brain(object):
         #     Refer to level.py for a detailed description of a level.
         #     Initialize the 0th level.
         num_inputs = self.num_sensors + self.num_actions
-        level_index = 0
-        level_0 = Level(level_index, 2 * num_inputs)
-        self.levels = [level_0]
+        max_num_inputs = num_inputs
+        max_num_features = 2 * max_num_inputs
+
+        # featurizer : Featurizer
+        #     The featurizer is an unsupervised learner that learns
+        #     features from the inputs.
+        self.featurizer = Featurizer(max_num_inputs, max_num_features)
+        # model : Model
+        #     The model builds sequences of features and goals and uses
+        #     them to choose new goals.
+        self.model = Model(max_num_features, self)
 
         # actions : array of floats
         #     The set of actions to execute this time step.
-        self.actions = np.zeros(self.num_actions)
+        self.actions = np.ones(self.num_actions) * .1
 
         # timestep : int
         #     The age of the brain in discrete time steps.
@@ -143,37 +152,20 @@ class Brain(object):
         # Calculate the "mood" of the agent.
         self.satisfaction = self.affect.update(reward)
 
-        # Calcuate activities of all the sequences in the hierarchy.
-        input_activities = np.concatenate((sensors, self.actions))
-        for level in self.levels:
-            sequence_activities = level.step(input_activities,
-                                             reward,
-                                             self.satisfaction)
-            # For the next level
-            input_activities = sequence_activities
-
-        # If the top level has more than half of its allocated sequences
-        # created, then create a new level on top of it.
-        level = self.levels[-1]
-        if level.num_sequences > level.max_num_sequences / 2.:
-            # Initialize the next level.
-            num_inputs = level.max_num_sequences
-            level_index = level.level_index + 1
-            print('------------------------------------------ Creating level',
-                  level_index)
-            next_level = Level(level_index, num_inputs)
-            self.levels.append(next_level)
-
-            sequence_activities = next_level.step(input_activities,
-                                                  reward,
-                                                  self.satisfaction)
+        #input_activities = np.concatenate((sensors, self.actions))
+        input_activities = np.concatenate((self.actions, sensors))
+        feature_activities, live_features = self.featurizer.featurize(
+            input_activities)
+        feature_goals = self.model.step(feature_activities,
+                                        live_features,
+                                        reward,
+                                        self.satisfaction)
         # Pass goals back down.
-        for i in range(len(self.levels) - 1)[::-1]:
-            self.levels[i].sequence_goals = self.levels[i + 1].input_goals
+        input_goals = self.featurizer.defeaturize(feature_goals)
 
         # Isolate the actions from the rest of the goals.
-        self.actions = self.levels[0].input_goals[
-            self.num_sensors:self.num_sensors + self.num_actions]
+        #self.actions = input_goals[self.num_sensors:]
+        self.actions = input_goals[:self.num_actions]
 
         # debug: Random actions
         take_random_actions = False
@@ -186,7 +178,7 @@ class Brain(object):
 
         # Account for the fact that the last "do nothing" action
         # was added by the brain.
-        return self.actions[:-1]
+        return self.actions
 
 
     def random_actions(self):
@@ -305,5 +297,5 @@ class Brain(object):
         print('{0} is {1} time steps old'.format(self.name, self.timestep))
 
         self.affect.visualize(self.timestep, self.name, self.log_dir)
-        for level in self.levels:
-            level.visualize()
+        self.featurizer.visualize()
+        self.model.visualize(self)

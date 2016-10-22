@@ -102,7 +102,7 @@ class Affect(object):
         if self.time_since_reward_log > 0:
             # Update the lifetime record of the reward.
             self.reward_history.append(float(self.cumulative_reward) /
-                                       (self.time_since_reward_log + 1))
+                                       float(self.time_since_reward_log))
             self.cumulative_reward = 0
             self.time_since_reward_log = 0
             self.reward_steps.append(timestep)

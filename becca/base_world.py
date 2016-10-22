@@ -105,10 +105,10 @@ class World(object):
             world can interpret and visualize it in the context of the
             world.
         """
-        if (self.timestep % self.world_visualize_period) == 0:
-            self.visualize_world(brain)
         if (self.timestep % self.brain_visualize_period) == 0:
             brain.visualize()
+        if (self.timestep % self.world_visualize_period) == 0:
+            self.visualize_world(brain)
 
 
     def visualize_world(self, brain):
