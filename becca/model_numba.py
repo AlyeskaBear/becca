@@ -1,6 +1,8 @@
 """
 Numba functions that support model.py
 """
+
+from __future__ import print_function
 from numba import jit
 import numpy as np
 
@@ -25,12 +27,14 @@ def update_sequences(
             continue
         for i_goal in live_features:
             for i_feature in live_features:
+                if (prefix_activities[i_feature][i_goal] < small):
+                    continue
                 sequence_occurrences[i_feature][i_goal][j_feature] += (
                     prefix_activities[i_feature][i_goal] *
                     new_FAIs[j_feature])
     return
 
-@jit(nopython=True)
+#@jit(nopython=True)
 def update_prefixes(
     live_features,
     prefix_decay_rate,
@@ -49,26 +53,35 @@ def update_prefixes(
     g is the current goal_increase.
     p, the prefix activity, is a decayed version of n.
     """
+    print('active prefixes')
     for i_feature in live_features:
         for i_goal in live_features:
-            new_prefix_activity = (
-                previous_FAIs[i_feature] *
-                FGIs[i_goal])
+            new_prefix_activity = previous_FAIs[i_feature] * FGIs[i_goal]
 
-            prefix_activities_age[i_feature][i_goal] += 1.
-            if new_prefix_activity > prefix_activities[i_feature][i_goal]:
-                prefix_activities_base[i_feature][i_goal] = new_prefix_activity
-                prefix_activities_age[i_feature][i_goal] = 0.
+            exponential = True
 
-            # Decay activities hyperbolically.
-            prefix_activities[i_feature][i_goal] = (
-                prefix_activities_base[i_feature][i_goal] *(
-                (1. / (1. + 2. * prefix_activities_age[i_feature][i_goal]))))
+            if exponential:
+                prefix_activities[i_feature][i_goal] *= (
+                    1. - prefix_decay_rate)
+                prefix_activities[i_feature][i_goal] += new_prefix_activity 
+                prefix_activities[i_feature][i_goal] = min(
+                    prefix_activities[i_feature][i_goal], 1.)
+
+            else:
+                prefix_activities_age[i_feature][i_goal] += 1.
+                if new_prefix_activity > prefix_activities[i_feature][i_goal]:
+                    prefix_activities_base[i_feature][i_goal] = (
+                        new_prefix_activity)
+                    prefix_activities_age[i_feature][i_goal] = 0.
+
+                # Decay activities hyperbolically.
+                prefix_activities[i_feature][i_goal] = (
+                    prefix_activities_base[i_feature][i_goal] *(
+                    (1. / (1. + 2. * prefix_activities_age[i_feature][i_goal]))))
 
             # Use a leaky integration filter to give the prefix
             # activity a bit of a lifetime. This gives it a reward
             # credit and lets it learn time-delayed terminal features.
-            # TODO: Add hyperbolic discounting
             #prefix_activities[i_feature][i_goal] = np.maximum(
             #    new_prefix_activity,
             #    prefix_activities[i_feature][i_goal] *
@@ -76,21 +89,26 @@ def update_prefixes(
 
             prefix_occurrences[i_feature][i_goal] += (
                 prefix_activities[i_feature][i_goal])
+
+            if prefix_activities[i_feature][i_goal] > .1:
+                print('    feat', i_feature, '   goal', i_goal, '  act',
+                      prefix_activities[i_feature][i_goal])
     return
 
 
-@jit(nopython=True)
+#@jit(nopython=True)
 def update_rewards(
     live_features,
     reward_update_rate,
     reward,
-    prefix_activities,
+    #prefix_activities,
     prefix_occurrences,
     prefix_credit,
     prefix_rewards):
     """
     Assign credit for the current reward to any recently active prefixes.
     """
+    print('prefix_credit')
     for i_feature in live_features:
         for i_goal in live_features:
             # Adjust the reward update rate so that the node adjusts
@@ -117,8 +135,14 @@ def update_rewards(
             prefix_rewards[i_feature][i_goal] += (
                 (reward - prefix_rewards[i_feature][i_goal]) *
                 prefix_credit[i_feature][i_goal] *
-                #prefix_activities[i_feature][i_goal] *
                 mod_reward_rate)
+            if prefix_credit[i_feature][i_goal] > .1:
+                print('    feat', i_feature, '  goal', i_goal, '  act',
+                      prefix_credit[i_feature][i_goal], '  rew inc',
+                        (reward - prefix_rewards[i_feature][i_goal]) *
+                        prefix_credit[i_feature][i_goal] *
+                        mod_reward_rate
+                      )
     return
 
 
@@ -141,8 +165,6 @@ def update_curiosities(
 
             # Fulfill curiosity on the previous time step's goals.
             curiosity_fulfillment = previous_FAIs[i_feature] * FGIs[i_goal] 
-            #prefix_curiosities[i_feature][i_goal] -= (
-            #    feature_goal_activities[i_goal])
             prefix_curiosities[i_feature][i_goal] -= curiosity_fulfillment
             prefix_curiosities[i_feature][i_goal] = max(
                 prefix_curiosities[i_feature][i_goal], 0.)
@@ -169,22 +191,6 @@ def update_curiosities(
                 FAIs[i_feature] *
                 (1. - prefix_curiosities[i_feature][i_goal]) *
                 (1. - satisfaction))
-            ''' 
-            print(' ')
-            print('i_feature', i_feature)
-            print('i_goal', i_goal)
-            print('previous_FAIs[i_feature]', previous_FAIs[i_feature])
-            print('FGIs[i_goal]', FGIs[i_goal])
-            print('curiosity_fulfillment', curiosity_fulfillment)
-            print('prefix_curiosities[i_feature][i_goal]',
-                  prefix_curiosities[i_feature][i_goal])
-            print('uncertainty', uncertainty)
-            print('prefix_occurrences[i_feature][i_goal]',
-                  prefix_occurrences[i_feature][i_goal])
-            print('curiosity_update_rate', curiosity_update_rate)
-            print('FAIs[i_feature]', FAIs[i_feature])
-            print('satisfaction', satisfaction)
-            '''
     return
 
 
@@ -192,8 +198,8 @@ def update_curiosities(
 def calculate_goal_votes(
     num_features,
     live_features,
-    time_since_goal,
-    jumpiness,
+    #time_since_goal,
+    #jumpiness,
     prefix_goal_votes,
     prefix_credit,
     prefix_rewards,
@@ -225,29 +231,31 @@ def calculate_goal_votes(
     small = .1
     feature_goal_votes = np.zeros(num_features)
     for i_feature in live_features:
-        if (FAIs[i_feature] < small):
-            continue
         for i_goal in live_features:
 
-            # Add up the value of sequences.
-            weighted_values = 1.
-            total_weights = 1.
-            for j_feature in live_features:
-                weight = (
-                    sequence_occurrences[i_feature][i_goal][j_feature]*
-                    prefix_occurrences[i_feature][i_goal])
-                weighted_values += (
-                    weight * feature_goal_activities[j_feature])
-                total_weights += weight
-            sequence_value = weighted_values / total_weights
+            if (FAIs[i_feature] < small):
+                goal_vote = 0.
 
-            # Add up the other value components.
-            goal_vote = FAIs[i_feature] * (
-                prefix_rewards[i_feature][i_goal] +
-                prefix_curiosities[i_feature][i_goal] +
-                time_since_goal * jumpiness)# +
-                # TODO reinstate
-                #sequence_value)
+            else:
+                # Add up the value of sequences.
+                weighted_values = 1.
+                total_weights = 1.
+                for j_feature in live_features:
+                    weight = (
+                        sequence_occurrences[i_feature][i_goal][j_feature]*
+                        prefix_occurrences[i_feature][i_goal])
+                    weighted_values += (
+                        weight * feature_goal_activities[j_feature])
+                    total_weights += weight
+                sequence_value = weighted_values / total_weights
+
+                # Add up the other value components.
+                goal_vote = FAIs[i_feature] * (
+                    prefix_rewards[i_feature][i_goal] +
+                    prefix_curiosities[i_feature][i_goal])# +
+                    #time_since_goal * jumpiness)# +
+                    # TODO reinstate
+                    #sequence_value)
 
             prefix_goal_votes[i_feature][i_goal] = goal_vote
 
@@ -270,25 +278,46 @@ def update_reward_credit(
     """
     Update the credit due each prefix for upcoming reward.
     """
+    # TODO: move to model.py
+    credit_decay_rate = .999
+    exponential = True
+
     # Age the prefix credit.
     for i_feature in live_features:
         for i_goal in live_features:
-            prefix_credit_age[i_feature][i_goal] += 1.
-            prefix_credit[i_feature][i_goal] = (
-                prefix_credit_base[i_feature][i_goal] * (1. / (
-                1. + 4. * prefix_credit_age[i_feature][i_goal])))
+            if exponential:
+                # Exponential discounting
+                prefix_credit[i_feature][i_goal] *= (1. - credit_decay_rate)
+            else:
+                # Hyperbolic discounting.
+                prefix_credit_age[i_feature][i_goal] += 1.
+                prefix_credit[i_feature][i_goal] = (
+                    prefix_credit_base[i_feature][i_goal] * (1. / (
+                    1. + 4. * prefix_credit_age[i_feature][i_goal])))
 
-    # Update the prefix credit.
-    if i_new_goal > -1:
-        for i_feature in live_features:
-            # Measure credit as a fraction of the largest vote for the
-            # current goal.
-            new_credit_base = (prefix_goal_votes[i_feature][i_new_goal] /
-                               max_vote)
-            new_credit_base = max(new_credit_base, 0.)
-            # If that credit is larger than the current credit, replace it.
-            if new_credit_base > prefix_credit[i_feature][i_new_goal]:
-                prefix_credit[i_feature][i_new_goal] = new_credit_base
-                prefix_credit_base[i_feature][i_new_goal] = new_credit_base
-                prefix_credit_age[i_feature][i_new_goal] = 0.
+    if max_vote > 0.:
+        # Update the prefix credit.
+        if i_new_goal > -1:
+            for i_feature in live_features:
+                # Measure credit as a fraction of the largest vote for the
+                # current goal.
+                new_credit_base = (prefix_goal_votes[i_feature][i_new_goal] /
+                                   max_vote)
+                new_credit_base = max(new_credit_base, 0.)
+
+                if exponential:
+                    # Accumulation strategy.
+                    # Add new credit to existing credit, with a max of 1.
+                    prefix_credit[i_feature][i_new_goal] += new_credit_base
+                    prefix_credit[i_feature][i_new_goal] = min(
+                        prefix_credit[i_feature][i_new_goal], 1.)
+                '''
+                else:
+                    # Replacement strategy.
+                    # If that credit is larger than the current credit, replace it.
+                    if new_credit_base > prefix_credit[i_feature][i_new_goal]:
+                        prefix_credit[i_feature][i_new_goal] = new_credit_base
+                        prefix_credit_base[i_feature][i_new_goal] = new_credit_base
+                        prefix_credit_age[i_feature][i_new_goal] = 0.
+                '''
     return
