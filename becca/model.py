@@ -18,28 +18,41 @@ class Model(object):
 
     This version of Becca is model-based, meaning that it builds a
     predictive model of its world in the form of a set of sequences.
-    Each sequence is of the form feature-goal-feature-reward.
-    (Similar to
-    state-action-reward-state, in the terminology of
-    reinforcement learning. These are similar to
-    state-action-reward-state-action (SARSA) tuples, as in
-    Online Q-Learning using Connectionist Systems" Rummery & Niranjan (1994))
+    It builds prefixes of the form feature-goal and associates a reward
+    and curiosity with each. This is similar to the state-action
+    value functions of Q-learning.
 
-    This formulation allows for prediction. Knowing the current active features
+    The model also builds feature-goal-feature sequences. These are
+    similar to state-action-reward-state-action (SARSA) tuples, as in
+    Online Q-Learning using Connectionist Systems" Rummery & Niranjan (1994))
+    This formulation allows for prediction, action selection and planning.
+
+    Prediction.
+    Knowing the current active features
     and recent goals, both the reward and the resulting features can be
     anticipated.
 
-    This formulation allows for action selection. Knowing the
-    current active features, goals can be chosen in order to reach a
-    desired feature or to maximize reward.
+    Action selection.
+    Knowing the
+    current active features, goals can be chosen in order to reach
+    a desired feature or to maximize reward.
 
-    This formulation allows for planning. Feature-goal-feature tuples can
+    Planning.
+    Feature-goal-feature tuples can
     be chained together to formulate multi-step plans while maximizing
     reward and prabability of successfully reaching the goal.
     """
     def __init__(self, num_features, brain):
         """
         Get the Model set up by allocating its variables.
+
+        Parameters
+        ----------
+        brain : Brain
+            The Brain to which this model belongs. Some of the brain's
+            parameters are useful in initializing the model.
+        num_features : int
+            The total number of features allowed in this model.
         """
         # num_features : int
         #     The maximum number of features that the model can expect
@@ -57,8 +70,8 @@ class Model(object):
         self.previous_feature_activities = np.zeros(self.num_features)
         self.feature_activities = np.zeros(self.num_features)
 
-        # previous_feature_goals,
         # feature_goals,
+        # previous_feature_goals,
         # feature_goal_votes : array of floats
         #     Goals can be set for features.
         #     They are temporary incentives, used for planning and
@@ -69,8 +82,9 @@ class Model(object):
         self.feature_goal_votes = np.zeros(self.num_features)
 
         # FAIs : array of floats
+        #     Feature activity increases.
         #     Of particular interest to us are **increases** in
-        #     feature activities and goals. These tend to occur at a
+        #     feature activities. These tend to occur at a
         #     specific point in time, so they are particularly useful
         #     in building meaningful temporal sequences.
         self.FAIs = np.zeros(self.num_features)
@@ -83,13 +97,13 @@ class Model(object):
         #     The properties associated with each sequence and prefix.
         #     If N is the number of features,
         #     the size of 2D arrays is N**2 and the shape of
-        #     3D arrays is N**3. As a heads up, this can eat up 
+        #     3D arrays is N**3. As a heads up, this can eat up
         #     memory as M gets large. They are indexed as follows:
         #         index 0 : feature_1 (past)
         #         index 1 : feature_goal
         #         index 2 : feature_2 (future)
         #     The prefix arrays can be 2D because they lack
-        #     information about the result.
+        #     information about the resulting feature.
         _2D_size = (self.num_features, self.num_features)
         #_3D_size = (self.num_features, self.num_features, self.num_features)
         # Making believe that everything has occurred once in the past
@@ -99,7 +113,6 @@ class Model(object):
         self.prefix_occurrences = np.ones(_2D_size)
         self.prefix_curiosities = np.zeros(_2D_size)
         self.prefix_rewards = np.zeros(_2D_size)
-        self.prefix_goal_votes = np.zeros(_2D_size)
         #self.sequence_occurrences = np.ones(_3D_size)
 
         # prefix_decay_rate : float
@@ -124,11 +137,7 @@ class Model(object):
         self.set_up_visualization(brain)
 
 
-    def step(self,
-             feature_activities,
-             brain_live_features,
-             reward,
-             satisfaction):
+    def step(self, feature_activities, brain_live_features, reward):
         """
         Update the model and choose a new goal.
 
@@ -140,8 +149,6 @@ class Model(object):
             A binary array of all features that have every been active.
         reward : float
             The reward reported by the world during the most recent time step.
-        satisfaction : float
-            A filtered version of recent reward history.
         """
         live_features = self._update_activities(
             feature_activities, brain_live_features)
@@ -165,7 +172,6 @@ class Model(object):
             live_features,
             self.reward_update_rate,
             reward,
-            self.prefix_occurrences,
             self.prefix_credit,
             self.prefix_rewards)
 
@@ -181,7 +187,6 @@ class Model(object):
         self.feature_goal_votes = nb.calculate_goal_votes(
             self.num_features,
             live_features,
-            self.prefix_goal_votes,
             self.prefix_rewards,
             self.prefix_curiosities,
             self.prefix_occurrences,
@@ -205,11 +210,20 @@ class Model(object):
     def _update_activities(self, feature_activities, brain_live_features):
         """
         Calculate the change in feature activities and goals.
+
+        Parameters
+        ----------
+        brain_live_features : array of ints
+            The set of indices of features that have had some activity
+            in their lifetime.
+        feature_activities : array of floats
+            The current activities of each of the features.
         """
-        
+
         # Augment the feature_activities with the two internal features,
-        # the "always on" and the "null" (nothing else is on) feature.
-        self.previous_feature_activities = self.feature_activities  
+        # the "always on" (index of 0) and
+        # the "null" or "nothing else is on" (index of 1).
+        self.previous_feature_activities = self.feature_activities
         self.feature_activities = np.concatenate((
             np.zeros(2), feature_activities))
         live_features = brain_live_features + 2
@@ -217,8 +231,7 @@ class Model(object):
         live_features = [0, 1] + live_features
         live_features = np.array(live_features).astype('int32')
 
-        # Do some juggling here to track the increases from both the current
-        # and the previous time steps.
+        # Track the increases in feature activities.
         self.FAIs = np.maximum(
             self.feature_activities - self.previous_feature_activities, 0.)
         # Assign the always on and the null feature.
@@ -234,17 +247,14 @@ class Model(object):
         """
         Using the feature_goal_votes, choose a goal.
         """
-        # Choose no more than one goal at each time step.
-        # Choose the feature with the largest vote. If there is a tie,
-        # randomly select between them.
+        # Choose one goal at each time step, the feature with
+        # the largest vote.
         self.previous_feature_goals = self.feature_goal_activities
         self.feature_goal_activities = np.zeros(self.num_features)
-        max_vote = np.max(self.feature_goal_votes)  
-        # Only set a goal if the best option is better
-        # than a random threshold. A goal_index of -1 indicates a non-goal.
+        max_vote = np.max(self.feature_goal_votes)
         goal_index = 0
-        #if total_vote > np.random.random_sample():
         matches = np.where(self.feature_goal_votes == max_vote)[0]
+        # If there is a tie, randomly select between them.
         goal_index = matches[np.argmax(
             np.random.random_sample(matches.size))]
         self.feature_goal_activities[goal_index] = 1.
@@ -253,6 +263,18 @@ class Model(object):
 
 
     def set_up_visualization(self, brain):
+        """
+        Initialize the visualization of the model.
+
+        To make the visualization interpretable, there are some
+        annotations and visual guides added.
+
+        Parameters
+        ----------
+        brain : Brain
+            The number of actions in the brain is referenced
+            to customize the display.
+        """
         # Prepare visualization.
         plt.bone()
         # fig : matplotlib figure
@@ -268,9 +290,12 @@ class Model(object):
         self.fig, (
             (self.ax_rewards, self.ax_curiosities),
             (self.ax_activities, self.ax_occurrences)) = (
-            plt.subplots(2, 2, num=73857))
+                plt.subplots(2, 2, num=73857))
 
         def dress_axes(ax):
+            """
+            Decorate the axes appropriately with visual cues.
+            """
             plt.sca(ax)
             ax.add_patch(patches.Rectangle(
                 (-.5, - .5),
@@ -335,12 +360,12 @@ class Model(object):
             plt.xlim([-.5, self.num_features - .5])
             plt.ylim([-.5, self.num_features - .5])
             ax.invert_yaxis()
-           
+
         dress_axes(self.ax_rewards)
         dress_axes(self.ax_curiosities)
         dress_axes(self.ax_activities)
         dress_axes(self.ax_occurrences)
-        
+
 
     def visualize(self, brain):
         """

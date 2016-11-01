@@ -26,7 +26,7 @@ class Featurizer(object):
             See Featurizer.max_num_features.
         """
         # debug : boolean
-        #     Print out extra information about the level's operation.
+        #     Print out extra information about the featurizer's operation.
         self.debug = False
 
         # name : string
@@ -46,6 +46,8 @@ class Featurizer(object):
         #     max_num_features = max_num_inputs + max_num_bundles
         self.max_num_inputs = max_num_inputs
         if max_num_features is None:
+            # Choose the total number of bundles (created features) allowed,
+            # in terms of the number of inputs allowed.
             self.max_num_bundles = 3 * self.max_num_inputs
             self.max_num_features = self.max_num_inputs + self.max_num_bundles
         else:
@@ -109,11 +111,7 @@ class Featurizer(object):
         self.input_activities = self.update_inputs(new_inputs)
 
         # Run the inputs through the ziptie to find bundle activities
-        # and to learn how to bundle them. nonbundle_activities
-        # are all the input activities that don't contribute to
-        # bundle_activites. It's what's left over. This forces all the
-        # inputs to be expressed as concisely as possible,
-        # in bundles wherever possible, rather than separately.
+        # and to learn how to bundle them.
         bundle_activities = self.ziptie.featurize(self.input_activities)[1]
         # The element activities are the combination of the residual
         # input activities and the bundle activities.
@@ -140,8 +138,8 @@ class Featurizer(object):
         # TODO: iterate over multiple zipties
         ziptie_input_activities = self.ziptie.project_bundle_activities(
             bundle_activities)
-        input_activities = np.maximum(input_activities,
-                                      ziptie_input_activities)
+        input_activities = np.maximum(
+            input_activities, ziptie_input_activities)
         return input_activities
 
 
@@ -168,10 +166,8 @@ class Featurizer(object):
 
         Parameters
         ----------
-        inputs, previous_inputs : array of floats
+        inputs : array of floats
             The current and previous activity of the inputs.
-        start_index : int
-            The first input to update.
 
         Returns
         -------

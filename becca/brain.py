@@ -18,7 +18,7 @@ class Brain(object):
 
     Becca's Brain contains all of its learning algorithms,
     integrated into a single whole.
-    
+
     Check out connector.py for an example for how to attach a world
     to a brain.
     """
@@ -151,8 +151,7 @@ class Brain(object):
             input_activities)
         feature_goals = self.model.step(feature_activities,
                                         live_features,
-                                        reward,
-                                        self.satisfaction)
+                                        reward)
         # Pass goals back down.
         input_goals = self.featurizer.defeaturize(feature_goals)
 
@@ -206,7 +205,7 @@ class Brain(object):
             self.name,
             self.log_dir)
         return performance
-        
+
 
     def backup(self):
         """

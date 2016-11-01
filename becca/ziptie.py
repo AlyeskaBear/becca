@@ -23,10 +23,6 @@ class Ziptie(object):
     incrementally, that is, the algorithm updates the estimate after
     each new set of signals is received.
 
-    Zipties are arranged hierarchically within the agent's drivetrain.
-    The agent begins with only one ziptie and creates subsequent
-    zipties as previous ones mature.
-
     When stacked with other levels,
     zipties form a sparse deep neural network (DNN).
     This DNN has the extremely desirable characteristic of
@@ -35,41 +31,34 @@ class Ziptie(object):
     and the rest are one.
     This makes sparse computation feasible and allows for
     straightforward interpretation and visualization of the
-    features at each level.
+    features.
     """
-
 
     def __init__(self,
                  num_cables,
                  num_bundles=None,
-                 level=0,
                  name=None,
                  debug=False):
         """
-        Initialize each level, pre-allocating data structures.
+        Initialize the ziptie, pre-allocating data structures.
 
         Parameters
         ----------
-        debug : boolean
+        debug : boolean, optional
             Indicate whether to print informative status messages
-            during execution.
-        level : int
-            The position of this Ziptie in the hierarchy.
-        num_bundles : int
+            during execution. Default is False.
+        num_bundles : int, optional
             The number of bundle outputs from the Ziptie.
         num_cables : int
             The number of inputs to the Ziptie.
-        name : str
+        name : str, optional
             The name assigned to the Ziptie.
-            Default is 'anonymous'.
+            Default is 'ziptie'.
         """
-        # level : int
-        #     The position of this Ziptie in the hierarchy.
-        self.level = level
         # name : str
         #     The name associated with the Ziptie.
         if name is None:
-            self.name = '_'.join(['ziptie', str(self.level)])
+            self.name = 'ziptie'
         else:
             self.name = name
         # debug : boolean
@@ -90,14 +79,11 @@ class Ziptie(object):
         self.num_bundles = 0
         # nucleation_threshold : float
         #     Threshold above which nucleation energy results in nucleation.
-        #     With each level, increase this by a factor of 5. This gives
-        #     Each level a chance to mature before the one above it.
-        self.nucleation_threshold = 50. * 5. ** self.level
+        self.nucleation_threshold = 50.
         # agglomeration_threshold
         #     Threshold above which agglomeration energy results
         #     in agglomeration.
-        #self.agglomeration_threshold = .5 * self.nucleation_threshold
-        self.agglomeration_threshold = 1. * self.nucleation_threshold
+        self.agglomeration_threshold = self.nucleation_threshold
         # activity_threshold : float
         #     Threshold below which input activity is teated as zero.
         #     By ignoring the small activity values,
@@ -181,7 +167,7 @@ class Ziptie(object):
         return self.nonbundle_activities, self.bundle_activities
 
 
-    def learn(self, masked_cable_activities):
+    def learn(self, cable_activities):
         """
         Update co-activity estimates and calculate bundle activity
 
@@ -198,20 +184,20 @@ class Ziptie(object):
         none
         """
         if not self.bundles_full:
-            self._create_new_bundles(masked_cable_activities)
+            self._create_new_bundles(cable_activities)
         if not self.bundles_full:
-            self._grow_bundles(masked_cable_activities)
+            self._grow_bundles(cable_activities)
         return
 
 
-    def _create_new_bundles(self, masked_cable_activities):
+    def _create_new_bundles(self, cable_activities):
         """
         If the right conditions have been reached, create a new bundle.
         """
         # Incrementally accumulate nucleation energy.
         #nb.nucleation_energy_gather(self.nonbundle_activities,
         #                            self.nucleation_energy)
-        nb.nucleation_energy_gather(masked_cable_activities,
+        nb.nucleation_energy_gather(cable_activities,
                                     self.nucleation_energy)
 
         # Don't accumulate nucleation energy between a cable and itself
@@ -268,7 +254,7 @@ class Ziptie(object):
             self.agglomeration_energy[:, cable_index_b] = 0.
 
 
-    def _grow_bundles(self, masked_cable_activities):
+    def _grow_bundles(self, cable_activities):
         """
         Update an estimate of co-activity between all cables.
         """
@@ -277,12 +263,8 @@ class Ziptie(object):
         #                               self.nonbundle_activities,
         #                               self.num_bundles,
         #                               self.agglomeration_energy)
-        #nb.agglomeration_energy_gather(self.bundle_activities,
-        #                               self.cable_activities,
-        #                               self.num_bundles,
-        #                               self.agglomeration_energy)
         nb.agglomeration_energy_gather(self.bundle_activities,
-                                       masked_cable_activities,
+                                       cable_activities,
                                        self.num_bundles,
                                        self.agglomeration_energy)
 
@@ -426,11 +408,6 @@ class Ziptie(object):
         for i in range(self.n_map_entries):
             i_bundle = self.bundle_map_rows[i]
             i_cable = self.bundle_map_cols[i]
-            #print('i', i)
-            #print('i_cable', i_cable)
-            #print('i_bundle', i_bundle)
-            #print('cable_activities[i_cable]', cable_activities[i_cable])
-            #print('bundle_activities[i_bundle]', bundle_activities[i_bundle])
             cable_activities[i_cable] = max(cable_activities[i_cable],
                                             bundle_activities[i_bundle])
         return cable_activities
@@ -440,7 +417,7 @@ class Ziptie(object):
         """
         Turn the state of the Ziptie into an image.
         """
-        print(' '.join(['ziptie', str(self.level)]))
+        print(self.name)
         # First list the bundles andthe cables in each.
         i_bundles = self.bundle_map_rows[:self.n_map_entries]
         i_cables = self.bundle_map_cols[:self.n_map_entries]
