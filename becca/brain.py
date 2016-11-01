@@ -8,7 +8,6 @@ import os
 import numpy as np
 
 from becca.affect import Affect
-#from becca.level import Level
 from becca.featurizer import Featurizer
 from becca.model import Model
 
@@ -19,6 +18,7 @@ class Brain(object):
 
     Becca's Brain contains all of its learning algorithms,
     integrated into a single whole.
+    
     Check out connector.py for an example for how to attach a world
     to a brain.
     """
@@ -50,7 +50,16 @@ class Brain(object):
         #     The number of distinct actions that the brain can choose to
         #     execute in the world.
         self.num_actions = num_actions
+        num_inputs = self.num_sensors + self.num_actions
+        max_num_inputs = num_inputs
+        max_num_features = 1 + 3 * max_num_inputs
+        # actions : array of floats
+        #     The set of actions to execute this time step.
+        self.actions = np.ones(self.num_actions) * .1
 
+        # timestep : int
+        #     The age of the brain in discrete time steps.
+        self.timestep = 0
         # backup_interval : int
         #     The number of time steps between saving a copy of the brain
         #     out to a pickle file for easy recovery.
@@ -76,6 +85,7 @@ class Brain(object):
         #     Relative path and filename of the backup pickle file.
         self.pickle_filename = os.path.join(
             self.log_dir, '{0}.pickle'.format(brain_name))
+
         # affect : Affect
         #     See the pydocs in the module affect.py for the class Affect.
         self.affect = Affect()
@@ -83,15 +93,6 @@ class Brain(object):
         #     The level of contentment experienced by the brain.
         #     Higher contentment dampens curiosity and the drive to explore.
         self.satisfaction = 0.
-
-        # levels : list of Level
-        #     Collectively, the levels form a hierarchy with levels[0]
-        #     on the bottom.
-        #     Refer to level.py for a detailed description of a level.
-        #     Initialize the 0th level.
-        num_inputs = self.num_sensors + self.num_actions
-        max_num_inputs = num_inputs
-        max_num_features = 1 + 3 * max_num_inputs
 
         # featurizer : Featurizer
         #     The featurizer is an unsupervised learner that learns
@@ -101,14 +102,6 @@ class Brain(object):
         #     The model builds sequences of features and goals and uses
         #     them to choose new goals.
         self.model = Model(max_num_features, self)
-
-        # actions : array of floats
-        #     The set of actions to execute this time step.
-        self.actions = np.ones(self.num_actions) * .1
-
-        # timestep : int
-        #     The age of the brain in discrete time steps.
-        self.timestep = 0
 
 
     def sense_act_learn(self, sensors, reward):
@@ -120,8 +113,9 @@ class Brain(object):
         sensors : array of floats
             The information coming from the sensors in the world.
             The array should have self.num_sensors inputs.
-            Each value in the array is expected to be between 0 and 1,
-            inclusive. Sensor values are interpreted as fuzzy binary
+            Whatever the low and high value of each sensor, its value
+            will be rescaled to fall between 0 and 1.
+            Sensor values are interpreted as fuzzy binary
             values, rather than continuous values. For instance,
             the brain doesn't interpret a contact sensor value of .5
             to mean that the contact
@@ -152,7 +146,6 @@ class Brain(object):
         # Calculate the "mood" of the agent.
         self.satisfaction = self.affect.update(reward)
 
-        #input_activities = np.concatenate((sensors, self.actions))
         input_activities = np.concatenate((self.actions, sensors))
         feature_activities, live_features = self.featurizer.featurize(
             input_activities)
@@ -164,10 +157,10 @@ class Brain(object):
         input_goals = self.featurizer.defeaturize(feature_goals)
 
         # Isolate the actions from the rest of the goals.
-        #self.actions = input_goals[self.num_sensors:]
         self.actions = input_goals[:self.num_actions]
 
-        # debug: Random actions
+        # Create a set of random actions.
+        # This is occasionally helpful when debugging.
         take_random_actions = False
         if take_random_actions:
             self.actions = self.random_actions()
@@ -176,8 +169,6 @@ class Brain(object):
         if (self.timestep % self.backup_interval) == 0:
             self.backup()
 
-        # Account for the fact that the last "do nothing" action
-        # was added by the brain.
         return self.actions
 
 
@@ -186,7 +177,7 @@ class Brain(object):
         Generate a random set of actions.
 
         This is used for debugging. Running a world with random
-        actions gives a baseline performance floor.
+        actions gives a baseline performance floor on a world.
 
         Returns
         -------
@@ -210,8 +201,12 @@ class Brain(object):
             The average reward per time step collected by
             the brain over its lifetime.
         """
-        return self.affect.visualize(self.timestep, self.name, self.log_dir)
-
+        performance = self.affect.visualize(
+            self.timestep,
+            self.name,
+            self.log_dir)
+        return performance
+        
 
     def backup(self):
         """
