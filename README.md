@@ -33,7 +33,7 @@ as a model. Feel free to shoot me an email (brohrer@gmail.com) if you'd like to 
 
 I owe you this. It's on my To-Do list.
 
-The reinforcement learner is similar to the one from Becca 7 (described in [this video](https://youtu.be/EXs3nHwLIt0)) and the unsupervised ziptie algorithm hasn't changed from Becca 6 (described on pages 3-6 of [this pdf](https://github.com/brohrer/deprecated-becca-docs/raw/master/how_it_works.pdf)).
+In the meantime, the reinforcement learner is similar to the one from Becca 7 (described in [this video](https://youtu.be/EXs3nHwLIt0)) and the unsupervised ziptie algorithm hasn't changed from Becca 6 (described on pages 3-6 of [this pdf](https://github.com/brohrer/deprecated-becca-docs/raw/master/how_it_works.pdf)).
 
 The code is also generously documented. I explain all my algorithmic tricks and justify some of my design decisions. I recommend starting at `connector.py` and walking
 through from there.
