@@ -8,5 +8,5 @@ those who want to experiment with and improve the underlying
 learning algorithms and their implementations, should need to muck
 around with it.
 
-See the becca_test package for examples of how to implement it with a world.
+See the brohrer/becca_test repository for examples of how to implement it with a world.
 """
