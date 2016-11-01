@@ -15,7 +15,7 @@ class World(object):
 
         Parameters
         ----------
-        lifespan : int or None
+        lifespan : int, optional
             The number of time steps that the world will be
             allowed to continue.
         """
@@ -75,7 +75,6 @@ class World(object):
         """
         self.timestep += 1
         self.sensors = np.zeros(self.num_sensors)
-        self.actions = np.zeros(self.num_actions)
         self.reward = 0
         return self.sensors, self.reward
 
