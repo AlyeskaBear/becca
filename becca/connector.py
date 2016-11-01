@@ -10,11 +10,14 @@ def run(world, restore=False):
     """
     Run Becca with a world.
 
-    Connect the brain and the world together and runs them for as long
+    Connect the brain and the world together and run them for as long
     as the world dictates.
 
     Parameters
     ----------
+    world : World
+        The world that Becca will learn.
+        See the world.py documentation for a full description.
     restore : bool, optional
         If restore is True, try to restore the brain
         from a previously saved
@@ -40,6 +43,7 @@ def run(world, restore=False):
 
     if restore:
         brain = brain.restore()
+
     # Start at a resting state.
     actions = np.zeros(world.num_actions)
     sensors, reward = world.step(actions)
