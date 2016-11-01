@@ -11,9 +11,9 @@ import becca.tools as tools
 
 class Affect(object):
     """
-    Assign reward to the appropriate features and track it over time.
+    Track reward over time.
 
-    Affect or mood, is the level of arousal of the brain.
+    Affect, or mood, is the level of arousal of the brain.
     It is influenced by the recent history of reward and in turn
     influences the intensity with which a brain pursues
     its goals and makes plans.
@@ -21,12 +21,6 @@ class Affect(object):
     def __init__(self):
         """
         Set up Affect.
-
-        Parameters
-        ----------
-        num_features : int
-            The number of features in the brain. Affect will
-            learn the reward associated with each of these.
         """
         # satisfaction_time_constant : float
         #     The time constant of the leaky integrator used to filter
@@ -44,7 +38,7 @@ class Affect(object):
         self.time_since_reward_log = 0.
         # reward_history : list of floats
         #     A time series of reward accumulated during the periods between
-        #     each time Affect is visualized..
+        #     each time Affect is visualized.
         self.reward_history = []
         # reward_steps : list of ints
         #     A time series of the brain's age in time steps corresponding
