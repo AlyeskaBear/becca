@@ -91,7 +91,7 @@ class Brain(object):
         #     Initialize the 0th level.
         num_inputs = self.num_sensors + self.num_actions
         max_num_inputs = num_inputs
-        max_num_features = 3 * max_num_inputs
+        max_num_features = 1 + 3 * max_num_inputs
 
         # featurizer : Featurizer
         #     The featurizer is an unsupervised learner that learns
@@ -298,4 +298,4 @@ class Brain(object):
 
         self.affect.visualize(self.timestep, self.name, self.log_dir)
         self.featurizer.visualize()
-        self.model.visualize(self)
+        #self.model.visualize(self)

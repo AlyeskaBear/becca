@@ -45,7 +45,9 @@ class Model(object):
         #     The maximum number of features that the model can expect
         #     to incorporate. Knowing this allows the model to
         #     pre-allocate all the data structures it will need.
-        self.num_features = num_features
+        #     Add 2 features/goals that are internal to the model,
+        #     An "always on" and a "nothing else is on".
+        self.num_features = num_features + 2
 
         # previous_feature_activities,
         # feature_activities : array of floats
@@ -66,28 +68,17 @@ class Model(object):
         self.previous_feature_goals = np.zeros(self.num_features)
         self.feature_goal_votes = np.zeros(self.num_features)
 
-        # FAIs,
-        # new_FAIs,
-        # previous_FAIs,
-        # FAI_base, 
-        # FAI_age : array of floats
-        # FGIs : array of floats
+        # FAIs : array of floats
         #     Of particular interest to us are **increases** in
         #     feature activities and goals. These tend to occur at a
         #     specific point in time, so they are particularly useful
         #     in building meaningful temporal sequences.
-        self.new_FAIs = np.zeros(self.num_features)
         self.FAIs = np.zeros(self.num_features)
-        self.previous_FAIs = np.zeros(self.num_features)
-        self.FAI_base = np.zeros(self.num_features)
-        self.FAI_age = np.zeros(self.num_features)
-        self.FGIs = np.zeros(self.num_features)
 
-        # curiosities,
+        # prefix_curiosities,
         # prefix_occurrences,
         # prefix_activities,
-        # rewards : 2D array of floats
-        # sequence_activities,
+        # prefix_rewards : 2D array of floats
         # sequence_occurrences : 3D array of floats
         #     The properties associated with each sequence and prefix.
         #     If N is the number of features,
@@ -100,58 +91,44 @@ class Model(object):
         #     The prefix arrays can be 2D because they lack
         #     information about the result.
         _2D_size = (self.num_features, self.num_features)
-        _3D_size = (self.num_features, self.num_features, self.num_features)
+        #_3D_size = (self.num_features, self.num_features, self.num_features)
         # Making believe that everything has occurred once in the past
         # makes it easy to believe that it might happen again in the future.
         self.prefix_activities = np.zeros(_2D_size)
-        self.prefix_activities_base = np.zeros(_2D_size)
-        self.prefix_activities_age = np.zeros(_2D_size)
         self.prefix_credit = np.zeros(_2D_size)
-        self.prefix_credit_base = np.zeros(_2D_size)
-        self.prefix_credit_age = np.zeros(_2D_size)
         self.prefix_occurrences = np.ones(_2D_size)
         self.prefix_curiosities = np.zeros(_2D_size)
         self.prefix_rewards = np.zeros(_2D_size)
         self.prefix_goal_votes = np.zeros(_2D_size)
-        self.sequence_occurrences = np.ones(_3D_size)
+        #self.sequence_occurrences = np.ones(_3D_size)
 
-        # TODO: add goal-agnostic sequences
-
-        # feature_decay_rate : float
-        #     The rate at which element activity decays between time steps.
-        #     Decay takes five times longer for each additional level.
-        self.feature_decay_rate = .999
         # prefix_decay_rate : float
         #     The rate at which prefix activity decays between time steps
         #     for the purpose of calculating reward and finding the outcome.
         #     Decay takes five times longer for each additional level.
-        self.prefix_decay_rate = .999
+        self.prefix_decay_rate = .5
+        # credit_decay_rate : float
+        #     The rate at which the trace, a prefix's credit for the
+        #     future reward, decays with each time step.
+        self.credit_decay_rate = .5
+
         # reward_update_rate : float
         #     The rate at which a prefix modifies its reward estimate
         #     based on new observations.
-        self.reward_update_rate = 1e-2
+        self.reward_update_rate = 3e-2
         # curiosity_update_rate : float
         #     One of the factors that determines he rate at which
         #     a prefix increases its curiosity.
-        self.curiosity_update_rate = 1e-2
-        # Include passive element-element sequences
-        # jumpiness : float
-        #     A factor describing the rate at which inaction causes an
-        #     an increased desire to take action. After a certain length
-        #     of time spent sitting still, the level will begin
-        #     spontaneously taking actions.
-        self.jumpiness = .01
-        # time_since_goal : float
-        #     The number of time steps since an action has been taken
-        #     or a goal has been set.
-        #     This is used together with jumpiness to adjust the threshold
-        #     for accepting new proposed actions.
-        self.time_since_goal = 0.
+        self.curiosity_update_rate = 3e-2
 
         self.set_up_visualization(brain)
 
 
-    def step(self, feature_activities, live_features, reward, satisfaction):
+    def step(self,
+             feature_activities,
+             brain_live_features,
+             reward,
+             satisfaction):
         """
         Update the model and choose a new goal.
 
@@ -166,126 +143,94 @@ class Model(object):
         satisfaction : float
             A filtered version of recent reward history.
         """
-        print('=========================================================================================================',)
-        self._update_activities(feature_activities)
+        live_features = self._update_activities(
+            feature_activities, brain_live_features)
+
         # Update sequences before prefixes.
+        #nb.update_sequences(
+        #    live_features,
+        #    self.FAIs,
+        #    self.prefix_activities,
+        #    self.sequence_occurrences)
 
-
-        print('reward', reward)
-        print('satisfaction', satisfaction)
-        print('previous_feature_activities',
-              np.where(self.previous_feature_activities > .1)[0])
-        print('feature_activities', np.where(self.feature_activities > .1)[0])
-        print('previousFAIs', np.where(self.previous_FAIs > .1)[0])
-        print('new_FAIs', np.where(self.new_FAIs > .1)[0])
-        print('FAIs', np.where(self.FAIs > .1)[0])
-        print('FGIs', np.where(self.FGIs > .1)[0])
-        nb.update_sequences(
-            live_features,
-            self.new_FAIs,
-            self.prefix_activities,
-            self.sequence_occurrences)
         nb.update_prefixes(
             live_features,
             self.prefix_decay_rate,
-            self.previous_FAIs,
-            self.FGIs,
+            self.previous_feature_activities,
+            self.feature_goal_activities,
             self.prefix_activities,
-            self.prefix_activities_base,
-            self.prefix_activities_age,
             self.prefix_occurrences)
-        #print('',)
-        #print('',)
+
         nb.update_rewards(
             live_features,
             self.reward_update_rate,
             reward,
-            #self.prefix_activities,
             self.prefix_occurrences,
             self.prefix_credit,
             self.prefix_rewards)
-        #print('',)
-        #print('',)
-        #print('',)
+
         nb.update_curiosities(
-            satisfaction,
             live_features,
             self.curiosity_update_rate,
             self.prefix_occurrences,
             self.prefix_curiosities,
-            self.FAIs,
-            self.previous_FAIs,
-            self.FGIs,
+            self.previous_feature_activities,
+            self.feature_activities,
             self.feature_goal_activities)
-        #print('',)
-        #print('',)
-        #print('',)
+
         self.feature_goal_votes = nb.calculate_goal_votes(
             self.num_features,
             live_features,
-            #self.time_since_goal,
-            #self.jumpiness,
             self.prefix_goal_votes,
-            self.prefix_credit,
             self.prefix_rewards,
             self.prefix_curiosities,
             self.prefix_occurrences,
-            self.sequence_occurrences,
-            self.FAIs,
+            #self.sequence_occurrences,
+            self.feature_activities,
             self.feature_goal_activities)
-        #print('',)
-        #print('',)
-        #print('',)
-        goal_index, max_vote = self._choose_feature_goals(satisfaction)
-        print('self.time_since_goal', self.time_since_goal,
-              'self.jumpiness', self.jumpiness)
-        print('goal_index', goal_index, 'max_vote', max_vote)
+
+        goal_index, max_vote = self._choose_feature_goals()
+
         nb.update_reward_credit(
             live_features,
             goal_index,
             max_vote,
-            self.prefix_goal_votes,
-            self.prefix_credit,
-            self.prefix_credit_base,
-            self.prefix_credit_age)
-        #print('',)
-        return self.feature_goal_activities
+            self.feature_activities,
+            self.credit_decay_rate,
+            self.prefix_credit)
+
+        return self.feature_goal_activities[2:]
 
 
-    def _update_activities(self, feature_activities):
+    def _update_activities(self, feature_activities, brain_live_features):
         """
         Calculate the change in feature activities and goals.
         """
+        
+        # Augment the feature_activities with the two internal features,
+        # the "always on" and the "null" (nothing else is on) feature.
         self.previous_feature_activities = self.feature_activities  
-        self.feature_activities = feature_activities
+        self.feature_activities = np.concatenate((
+            np.zeros(2), feature_activities))
+        live_features = brain_live_features + 2
+        live_features = list(live_features)
+        live_features = [0, 1] + live_features
+        live_features = np.array(live_features).astype('int32')
 
         # Do some juggling here to track the increases from both the current
         # and the previous time steps.
-        self.previous_FAIs = self.FAIs.copy()
-        self.new_FAIs = np.maximum(
+        self.FAIs = np.maximum(
             self.feature_activities - self.previous_feature_activities, 0.)
+        # Assign the always on and the null feature.
+        self.FAIs[0] = 1.
+        total_activity = np.sum(self.FAIs[2:])
+        inactivity = max(1. - total_activity, 0.)
+        self.FAIs[1] = inactivity
 
-        exponential = True
-        if exponential:
-            # Do a leaky integration on feature activities to allow for some
-            # time delay between a feature occurring and a goal being set.
-            self.FAIs *= (1. - self.feature_decay_rate)
-            self.FAIs += self.new_FAIs
-            self.FAIs = np.minimum(self.FAIs, 1.)
-        else:
-            self.FAI_age += 1.
-            i_reset = np.where(self.new_FAIs > self.previous_FAIs)
-            self.FAI_base[i_reset] = self.new_FAIs[i_reset]
-            self.FAI_age[i_reset] = 0.
-            # Decay the feature activity increases hyperbolically.
-            self.FAIs = self.FAI_base * (1. / (1. + 2. * self.FAI_age))
-
-        self.FGIs = self.feature_goal_activities - self.previous_feature_goals
-        self.FGIs = np.maximum(self.FGIs, 0.)
-        return
+        return live_features
 
 
-    def _choose_feature_goals(self, satisfaction):
+    def _choose_feature_goals(self):
         """
         Using the feature_goal_votes, choose a goal.
         """
@@ -294,21 +239,15 @@ class Model(object):
         # randomly select between them.
         self.previous_feature_goals = self.feature_goal_activities
         self.feature_goal_activities = np.zeros(self.num_features)
-        max_vote = np.max(self.feature_goal_votes) 
-        total_vote = max_vote + self.time_since_goal * self.jumpiness * (
-            1. - satisfaction)
+        max_vote = np.max(self.feature_goal_votes)  
         # Only set a goal if the best option is better
         # than a random threshold. A goal_index of -1 indicates a non-goal.
-        goal_index = -1
-        if total_vote > np.random.random_sample():
-            matches = np.where(self.feature_goal_votes == max_vote)[0]
-            goal_index = matches[np.argmax(
-                np.random.random_sample(matches.size))]
-            self.feature_goal_activities[goal_index] = 1.
-            self.time_since_goal = 0.
-        # If no goal being set this time step.
-        else:
-            self.time_since_goal += 1.
+        goal_index = 0
+        #if total_vote > np.random.random_sample():
+        matches = np.where(self.feature_goal_votes == max_vote)[0]
+        goal_index = matches[np.argmax(
+            np.random.random_sample(matches.size))]
+        self.feature_goal_activities[goal_index] = 1.
 
         return goal_index, max_vote
 
@@ -333,16 +272,29 @@ class Model(object):
 
         def dress_axes(ax):
             plt.sca(ax)
-            # patches.Rectangle((x, y), width, height)
             ax.add_patch(patches.Rectangle(
-                (-.5, brain.num_actions -.5),
+                (-.5, - .5),
+                self.num_features,
+                2.,
+                facecolor='green',
+                edgecolor='none',
+                alpha=.16))
+            ax.add_patch(patches.Rectangle(
+                (-.5, -.5),
+                2.,
+                self.num_features,
+                facecolor='green',
+                edgecolor='none',
+                alpha=.16))
+            ax.add_patch(patches.Rectangle(
+                (-.5, brain.num_actions + 2. -.5),
                 self.num_features,
                 brain.num_sensors,
                 facecolor='green',
                 edgecolor='none',
                 alpha=.16))
             ax.add_patch(patches.Rectangle(
-                (brain.num_actions -.5, -.5),
+                (brain.num_actions + 2. -.5, -.5),
                 brain.num_sensors,
                 self.num_features,
                 facecolor='green',
@@ -350,23 +302,33 @@ class Model(object):
                 alpha=.16))
             ax.plot(
                 [-.5, self.num_features - .5],
-                [brain.num_actions - .5, brain.num_actions - .5],
+                [2. - .5, 2. - .5],
                 color='blue',
                 linewidth=.2)
             ax.plot(
-                [brain.num_actions - .5, brain.num_actions - .5],
+                [2. - .5, 2. - .5],
                 [-.5, self.num_features - .5],
                 color='blue',
                 linewidth=.2)
             ax.plot(
                 [-.5, self.num_features - .5],
-                [brain.num_sensors + brain.num_actions - .5,
-                 brain.num_sensors + brain.num_actions - .5],
+                [brain.num_actions + 2. - .5, brain.num_actions + 2. - .5],
                 color='blue',
                 linewidth=.2)
             ax.plot(
-                [brain.num_sensors + brain.num_actions - .5,
-                 brain.num_sensors + brain.num_actions - .5],
+                [brain.num_actions + 2. - .5, brain.num_actions + 2. - .5],
+                [-.5, self.num_features - .5],
+                color='blue',
+                linewidth=.2)
+            ax.plot(
+                [-.5, self.num_features - .5],
+                [brain.num_sensors + brain.num_actions + 2. - .5,
+                 brain.num_sensors + brain.num_actions + 2. - .5],
+                color='blue',
+                linewidth=.2)
+            ax.plot(
+                [brain.num_sensors + brain.num_actions + 2. - .5,
+                 brain.num_sensors + brain.num_actions + 2. - .5],
                 [-.5, self.num_features - .5],
                 color='blue',
                 linewidth=.2)
@@ -406,8 +368,8 @@ class Model(object):
         # Show prefix_activities.
         ax = self.ax_activities
         ax.imshow(
-            #self.prefix_activities,
-            self.prefix_credit,
+            self.prefix_activities,
+            #self.prefix_credit,
             vmin=0.,
             vmax=1.,
             interpolation='nearest')
