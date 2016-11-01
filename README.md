@@ -2,11 +2,10 @@ Becca is a general learning program for use in any robot or embodied system. Whe
 
 ### How do I try Becca out?
 
-#### Make sure you have a current version of Anaconda, and version 0.27 or higher of numba.
+#### Make sure you have a current version of Anaconda.
     
     conda update conda
     conda update anaconda
-    conda update numba
     
 #### Pull down the code from Pypi.
 
@@ -30,12 +29,13 @@ Becca aspires to be a brain for any robot, doing anything. It's not there yet, b
 It may be able to drive your robot. Hook it up and see, using the worlds in the `becca_test` repository
 as a model. Feel free to shoot me an email (brohrer@gmail.com) if you'd like to talk it through.
 
-### How does Becca work?
+### How does Becca 9 work?
 
 I owe you this. It's on my To-Do list.
 
-In the meantime, the code is generously documented. I explain all my algorithmic tricks
-and justify some of my design decisions. I recommend starting at `connector.py` and walking
+The reinforcement learner is similar to the one from Becca 7 (described in [this video](https://youtu.be/EXs3nHwLIt0)) and the unsupervised ziptie algorithm hasn't changed from Becca 6 (described on pages 3-6 of [this pdf](https://github.com/brohrer/deprecated-becca-docs/raw/master/how_it_works.pdf)).
+
+The code is also generously documented. I explain all my algorithmic tricks and justify some of my design decisions. I recommend starting at `connector.py` and walking
 through from there.
 
 ### Next steps.
