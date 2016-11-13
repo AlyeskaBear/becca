@@ -3,7 +3,7 @@ The Brain class.
 """
 
 from __future__ import print_function
-import cPickle as pickle
+import pickle
 import os
 import numpy as np
 
@@ -18,7 +18,7 @@ class Brain(object):
 
     Becca's Brain contains all of its learning algorithms,
     integrated into a single whole.
-    
+
     Check out connector.py for an example for how to attach a world
     to a brain.
     """
@@ -151,8 +151,7 @@ class Brain(object):
             input_activities)
         feature_goals = self.model.step(feature_activities,
                                         live_features,
-                                        reward,
-                                        self.satisfaction)
+                                        reward)
         # Pass goals back down.
         input_goals = self.featurizer.defeaturize(feature_goals)
 
@@ -206,7 +205,7 @@ class Brain(object):
             self.name,
             self.log_dir)
         return performance
-        
+
 
     def backup(self):
         """
@@ -275,12 +274,12 @@ class Brain(object):
                 print('of sensors and actions as the world.')
                 print('Creating a new brain from scratch.')
         except IOError:
-            print('Couldn\'t open {0} for loading'.format(
-                self.pickle_filename))
-        except pickle.PickleError, err:
-            print('Error unpickling world: {0}'.format(err))
+            print('Couldn\'t open {0} for loading'.format(self.pickle_filename))
+        except pickle.PickleError:
+            print('Error unpickling world')
+#    except pickle.PickleError, err:
+ #   print('Error unpickling world: {0}'.format(err))
         return restored_brain
-
 
     def visualize(self):
         """

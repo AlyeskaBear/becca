@@ -25,7 +25,7 @@ dark_copper = (132./255., 73./255., 36./255.)
 copper_shadow = (25./255., 22./255, 20./255.)
 oxide = (20./255., 120./255., 150./255.)
 
-'''
+
 def pad(arr, shape, val=0., dtype=float):
     """
     Pad a numpy array to the specified shape.
@@ -52,7 +52,7 @@ def pad(arr, shape, val=0., dtype=float):
         The padded version of ``arr``.
     """
     # For  padding a 1D array
-    if isinstance(shape, (int, long)):
+    if isinstance(shape, (int, int)):
         if shape <= 0:
             rows = arr.size - shape
         else:
@@ -96,8 +96,8 @@ def pad(arr, shape, val=0., dtype=float):
     # A maximum of 4 dimensions is enforced.
     padded[:arr.shape[0], :arr.shape[1], :arr.shape[2], :arr.shape[3]] = arr
     return padded
-'''
-'''
+
+
 def str_to_int(exp):
     """
     Convert a string to an integer.
@@ -120,7 +120,7 @@ def str_to_int(exp):
     for i, character in enumerate(exp):
         sum_ += i + ord(character) + i * ord(character)
     return sum_
-'''
+
 
 def timestr(timestep, s_per_step=.25, precise=True):
     """
@@ -246,7 +246,7 @@ def get_files_with_suffix(dir_name, suffixes):
     found_filenames.sort()
     return found_filenames
 
-'''
+
 def visualize_array(image_data, label='data_figure'):
     """
     Produce a visual representation of the image_data matrix.
@@ -273,4 +273,4 @@ def visualize_array(image_data, label='data_figure'):
                                                    np.min(image_data)))
     fig.show()
     fig.canvas.draw()
-'''
+
