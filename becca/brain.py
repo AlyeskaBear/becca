@@ -151,7 +151,8 @@ class Brain(object):
             input_activities)
         feature_goals = self.model.step(feature_activities,
                                         live_features,
-                                        reward)
+                                        reward,
+                                        self.satisfaction)
         # Pass goals back down.
         input_goals = self.featurizer.defeaturize(feature_goals)
 
