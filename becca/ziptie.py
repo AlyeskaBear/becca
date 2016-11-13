@@ -165,7 +165,7 @@ class Ziptie(object):
             #    self.nonbundle_activities,
             #    self.bundle_activities,
             #    bundle_weights, self.activity_threshold)
-            for i_map_entry in xrange(self.n_map_entries):
+            for i_map_entry in range(self.n_map_entries):
                 i_bundle = self.bundle_map_rows[i_map_entry]
                 i_cable = self.bundle_map_cols[i_map_entry]
                 self.bundle_activities[i_bundle] = (
