@@ -278,8 +278,6 @@ class Brain(object):
             print('Couldn\'t open {0} for loading'.format(self.pickle_filename))
         except pickle.PickleError:
             print('Error unpickling world')
-#    except pickle.PickleError, err:
- #   print('Error unpickling world: {0}'.format(err))
         return restored_brain
 
     def visualize(self):
