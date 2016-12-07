@@ -32,10 +32,7 @@ class World(object):
         self.timestep = -1
         # world_visualization_period : int
         #     How often to turn the world into a picture.
-        self.world_visualize_period = 1e6
-        # brain_visualization_period : int
-        #     How often to turn the brain's state into a picture.
-        self.brain_visualize_period = 1e4
+        self.visualize_interval = 1e6
         # name : String
         #     The name of the world.
         self.name = 'abstract base world'
@@ -94,23 +91,6 @@ class World(object):
 
 
     def visualize(self, brain):
-        """
-        Let the world show Becca's internal state as well as its own.
-
-        Parameters
-        ----------
-        brain : Brain
-            A copy of the Brain, provided to the world so that the
-            world can interpret and visualize it in the context of the
-            world.
-        """
-        if (self.timestep % self.brain_visualize_period) == 0:
-            brain.visualize()
-        if (self.timestep % self.world_visualize_period) == 0:
-            self.visualize_world(brain)
-
-
-    def visualize_world(self, brain):
         """
         Show the user the state of the world.
         """

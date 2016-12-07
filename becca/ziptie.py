@@ -418,7 +418,7 @@ class Ziptie(object):
         Turn the state of the Ziptie into an image.
         """
         print(self.name)
-        # First list the bundles andthe cables in each.
+        # First list the bundles and the cables in each.
         i_bundles = self.bundle_map_rows[:self.n_map_entries]
         i_cables = self.bundle_map_cols[:self.n_map_entries]
         i_bundles_unique = np.unique(i_bundles)

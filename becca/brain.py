@@ -26,6 +26,7 @@ class Brain(object):
                  num_sensors,
                  num_actions,
                  brain_name='test_brain',
+                 visualize_interval=int(1e3),
                  log_directory=None):
         """
         Configure the Brain.
@@ -41,6 +42,8 @@ class Brain(object):
             The total number of action outputs that the world is expecting.
         num_sensors : array of ints
             The total number of sensor inputs that the world is providing.
+        visualize_interval : int
+            How often to visualize the world, in time steps.
         """
         # num_sensors : int
         #     The number of distinct sensors that the world will be passing in
@@ -52,7 +55,7 @@ class Brain(object):
         self.num_actions = num_actions
         num_inputs = self.num_sensors + self.num_actions
         max_num_inputs = num_inputs
-        max_num_features = 1 + 3 * max_num_inputs
+        max_num_features = 1 + 4 * max_num_inputs
         # actions : array of floats
         #     The set of actions to execute this time step.
         self.actions = np.ones(self.num_actions) * .1
@@ -60,6 +63,9 @@ class Brain(object):
         # timestep : int
         #     The age of the brain in discrete time steps.
         self.timestep = 0
+        # visualize_interval : int
+        #     How often to visualize the world, in time steps.
+        self.visualize_interval = visualize_interval
         # backup_interval : int
         #     The number of time steps between saving a copy of the brain
         #     out to a pickle file for easy recovery.
@@ -97,7 +103,7 @@ class Brain(object):
         # featurizer : Featurizer
         #     The featurizer is an unsupervised learner that learns
         #     features from the inputs.
-        self.featurizer = Featurizer(max_num_inputs, max_num_features)
+        self.featurizer = Featurizer(self, max_num_inputs, max_num_features)
         # model : Model
         #     The model builds sequences of features and goals and uses
         #     them to choose new goals.
@@ -200,10 +206,7 @@ class Brain(object):
             The average reward per time step collected by
             the brain over its lifetime.
         """
-        performance = self.affect.visualize(
-            self.timestep,
-            self.name,
-            self.log_dir)
+        performance = self.affect.visualize(self)
         return performance
 
 
@@ -225,7 +228,7 @@ class Brain(object):
             # happens to ^C out of the program while it is being saved,
             # the file becomes corrupted, and all the learning that the
             # brain did is lost.
-            make_second_backup = False
+            make_second_backup = True
             if make_second_backup:
                 with open('{0}.bak'.format(self.pickle_filename),
                           'wb') as brain_data_bak:
@@ -236,6 +239,9 @@ class Brain(object):
         except pickle.PickleError as perr:
             print('Pickling error: {0} encountered while saving brain data'.
                   format(perr))
+        except err:
+            print('Unknown error: {0} encountered while saving brain data'.
+                  format(err))
         else:
             success = True
         return success
@@ -276,12 +282,17 @@ class Brain(object):
         except IOError:
             print('Couldn\'t open {0} for loading'.format(
                 self.pickle_filename))
+        except EOFError:
+            print('The pickle file is incomplete.')
+            print('It was probably interrupted during saving.')
+            print('Revert to the pickle.bak file if you have one.')
+            print('Otherwise a new world will be created from scratch.')
         except pickle.PickleError, err:
             print('Error unpickling world: {0}'.format(err))
         return restored_brain
 
 
-    def visualize(self):
+    def visualize(self, world):
         """
         Show the current state and some history of the brain.
 
@@ -290,6 +301,6 @@ class Brain(object):
         print(' ')
         print('{0} is {1} time steps old'.format(self.name, self.timestep))
 
-        self.affect.visualize(self.timestep, self.name, self.log_dir)
-        self.featurizer.visualize()
+        self.affect.visualize(self)
+        #self.featurizer.visualize(self, world)
         #self.model.visualize(self)

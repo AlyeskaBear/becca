@@ -5,6 +5,7 @@ The Featurizer class.
 from __future__ import print_function
 import numpy as np
 
+import becca.featurizer_viz as viz
 from becca.ziptie import Ziptie
 
 
@@ -14,7 +15,7 @@ class Featurizer(object):
 
     Inputs are transformed into bundles, sets of inputs that tend to co-occur.
     """
-    def __init__(self, max_num_inputs, max_num_features=None):
+    def __init__(self, brain, max_num_inputs, max_num_features=None):
         """
         Configure the featurizer.
 
@@ -97,6 +98,7 @@ class Featurizer(object):
         self.ziptie = Ziptie(self.max_num_inputs,
                              num_bundles=self.max_num_bundles,
                              debug=self.debug)
+
 
     def featurize(self, new_inputs):
         """
@@ -211,20 +213,8 @@ class Featurizer(object):
         return self.input_activities
 
 
-    def visualize(self):
+    def visualize(self, brain, world=None):
         """
         Show the current state of the featurizer.
         """
-        # activity_threshold the level at which we can ignore
-        # an element's activity in order to simplify display.
-        activity_threshold = .01
-        print(self.name)
-
-        print("Input activities")
-        for i_input, activity in enumerate(self.input_activities):
-            if activity > activity_threshold:
-                print(" ".join(["input", str(i_input), ":",
-                                "activity ", str(activity)]))
-        # TODO visualize feature activities
-
-        self.ziptie.visualize()
+        viz.visualize(self, brain, world)
