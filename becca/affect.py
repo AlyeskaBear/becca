@@ -96,8 +96,7 @@ class Affect(object):
             self.cumulative_reward = 0
             self.time_since_reward_log = 0
             self.reward_steps.append(brain.timestep)
-
-        performance = np.mean(self.reward_history)
+            performance = np.mean(self.reward_history)
 
         # Plot the lifetime record of the reward.
         fig = plt.figure(11111)
@@ -124,5 +123,7 @@ class Affect(object):
         filename = 'reward_history_{0}.png'.format(brain.name)
         pathname = os.path.join(brain.log_dir, filename)
         plt.savefig(pathname, format='png')
+
+        performance = np.mean(self.reward_history)
 
         return performance

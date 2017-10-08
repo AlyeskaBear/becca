@@ -52,7 +52,7 @@ def pad(arr, shape, val=0., dtype=float):
         The padded version of ``arr``.
     """
     # For  padding a 1D array
-    if isinstance(shape, (int, long)):
+    if isinstance(shape, int):
         if shape <= 0:
             rows = arr.size - shape
         else:
@@ -199,6 +199,28 @@ def timestr(timestep, s_per_step=.25, precise=True):
 
     return time_str
 
+
+def fatigue(raw_activities, energies, fatigue_rate=3e-4, recharge_rate=1e-4):
+    """
+    Limit the frequency and intensity of activities with a model of fatigue.
+    
+    @param raw_activities: array of floats
+        The activities before fatigue has been applied.
+    @param energies: array of floats
+        The accumulated energy a channel has at its disposal. 
+    @param fatigue_rate
+        The rate at which energy is depleted when a channel is active.
+    @param recharge_rate: 
+        The rate at which energy is re-accumulated.
+
+    @return activities: array of floats
+        The activities after fatigue has been applied.
+    """
+    # 
+    energies -= fatigue_rate * raw_activities * energies
+    energies += recharge_rate * (1. - raw_activities) * (1. - energies)
+    activities = raw_activities * energies
+    return activities
 
 def format_decimals(array):
     """

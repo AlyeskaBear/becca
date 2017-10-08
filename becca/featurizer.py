@@ -15,20 +15,28 @@ class Featurizer(object):
 
     Inputs are transformed into bundles, sets of inputs that tend to co-occur.
     """
-    def __init__(self, brain, max_num_inputs, max_num_features=None):
+    def __init__(
+            self,
+            max_n_inputs,
+            # max_n_features=None,
+            threshold=None,
+            debug=False,
+            ):
         """
         Configure the featurizer.
 
         Parameters
         ---------
-        max_num_inputs : int
-            See Featurizer.max_num_inputs.
-        max_num_features : int
-            See Featurizer.max_num_features.
+        max_n_inputs : int
+            See Featurizer.max_n_inputs.
+        max_n_features : int
+            See Featurizer.max_n_features.
+        threshold : float
+            See Ziptie.nucleation_threshold
         """
         # debug : boolean
         #     Print out extra information about the featurizer's operation.
-        self.debug = False
+        self.debug = debug
 
         # name : string
         #     A label for this object.
@@ -39,21 +47,23 @@ class Featurizer(object):
         #     non-zero-ness.
         self.epsilon = 1e-8
 
-        # max_num_inputs : int
-        # max_num_bundles : int
-        # max_num_features : int
+        # max_n_inputs : int
+        # max_n_bundles : int
+        # max_n_features : int
         #     The maximum numbers of inputs, bundles and features
         #     that this level can accept.
-        #     max_num_features = max_num_inputs + max_num_bundles
-        self.max_num_inputs = max_num_inputs
-        if max_num_features is None:
-            # Choose the total number of bundles (created features) allowed,
-            # in terms of the number of inputs allowed.
-            self.max_num_bundles = 3 * self.max_num_inputs
-            self.max_num_features = self.max_num_inputs + self.max_num_bundles
-        else:
-            self.max_num_features = max_num_features
-            self.max_num_bundles = self.max_num_features - self.max_num_inputs
+        #     max_n_features = max_n_inputs + max_n_bundles
+        self.max_n_inputs = max_n_inputs
+        self.max_n_features = self.max_n_inputs
+        self.max_n_bundles = self.max_n_inputs
+        # if max_n_features is None:
+        #     # Choose the total number of bundles (created features) allowed,
+        #     # in terms of the number of inputs allowed.
+        #     self.max_n_bundles = 3 * self.max_n_inputs
+        #     self.max_n_features = self.max_n_inputs + self.max_n_bundles
+        # else:
+        #     self.max_n_features = max_n_features
+        #     self.max_n_bundles = self.max_n_features - self.max_n_inputs
 
         # Normalization constants.
         # input_max : array of floats
@@ -65,9 +75,9 @@ class Featurizer(object):
         #     The time constant over which maximum estimates are
         #     decreased/increased. Growing time being lower allows the
         #     estimate to be weighted toward the maximum value.
-        self.input_max = np.zeros(self.max_num_inputs)
-        self.input_max_grow_time = 1e2
-        self.input_max_decay_time = self.input_max_grow_time * 1e2
+        #self.input_max = np.zeros(self.max_n_inputs)
+        #self.input_max_grow_time = 1e2
+        #self.input_max_decay_time = self.input_max_grow_time * 1e2
 
         # input_activities,
         # bundle_activities,
@@ -76,14 +86,14 @@ class Featurizer(object):
         #     activity--their level of activation at each time step.
         #     Activity for each input or bundle or feature
         #     can vary between zero and one.
-        self.input_activities = np.zeros(self.max_num_inputs)
-        self.bundle_activities = np.zeros(self.max_num_bundles)
-        self.feature_activities = np.zeros(self.max_num_features)
+        #self.input_activities = np.zeros(self.max_n_inputs)
+        #self.bundle_activities = np.zeros(self.max_n_bundles)
+        #self.feature_activities = np.zeros(self.max_n_features)
 
         # live_features : array of floats
         #     A binary array tracking which of the features have ever
         #     been active.
-        self.live_features = np.zeros(self.max_num_features)
+        self.live_features = np.zeros(self.max_n_features)
 
         # TODO:
         #     Move ziptie creation into step, along with clustering.
@@ -95,9 +105,11 @@ class Featurizer(object):
         #     inputs tend to be co-active and creates bundles of them.
         #     This feature creation mechanism results in l0-sparse
         #     features, which sparsity helps keep Becca fast.
-        self.ziptie = Ziptie(self.max_num_inputs,
-                             num_bundles=self.max_num_bundles,
-                             debug=self.debug)
+        self.ziptie = Ziptie(
+            self.max_n_inputs,
+            n_bundles=self.max_n_bundles,
+            threshold=threshold,
+            debug=self.debug)
 
 
     def featurize(self, new_inputs):
@@ -110,11 +122,12 @@ class Featurizer(object):
             The inputs collected by the brain for the current time step.
         """
         # Start by normalizing all the inputs.
-        self.input_activities = self.update_inputs(new_inputs)
+        #self.input_activities = self.update_inputs(new_inputs)
+        self.input_activities = new_inputs
 
         # Run the inputs through the ziptie to find bundle activities
         # and to learn how to bundle them.
-        bundle_activities = self.ziptie.featurize(self.input_activities)[1]
+        bundle_activities = self.ziptie.featurize(self.input_activities)
         # The element activities are the combination of the residual
         # input activities and the bundle activities.
         self.feature_activities = np.concatenate((self.input_activities,
@@ -134,9 +147,9 @@ class Featurizer(object):
         """
         Take a set of feature activities and represent them in inputs.
         """
-        input_activities = feature_activities[:self.max_num_inputs]
+        input_activities = feature_activities[:self.max_n_inputs]
         # Project each ziptie down to inputs.
-        bundle_activities = feature_activities[self.max_num_inputs:]
+        bundle_activities = feature_activities[self.max_n_inputs:]
         # TODO: iterate over multiple zipties
         ziptie_input_activities = self.ziptie.project_bundle_activities(
             bundle_activities)
@@ -144,7 +157,18 @@ class Featurizer(object):
             input_activities, ziptie_input_activities)
         return input_activities
 
+    def update_masks(self, new_input_indices):
+        """
+        Upate the energy masks in the ziptie.
 
+        @param new_input_indices: list of tuples of (int, int)
+           Tuples of (child_index, parent_index). Each time a new child
+           node is added, it is recorded on this list.
+        """
+        for pair in new_input_indices:
+            self.ziptie.update_masks(pair[0], pair[1])
+
+    '''
     def update_inputs(self, inputs):
         """
         Normalize and update inputs.
@@ -179,14 +203,14 @@ class Featurizer(object):
         """
         # TODO: numpy-ify this
 
-        if inputs.size > self.max_num_inputs:
+        if inputs.size > self.max_n_inputs:
             print("Featurizer.update_inputs:")
             print("    Attempting to update out of range input activities.")
 
         # This is written to be easily compilable by numba, however,
         # it hasn't proven to be at all significant in profiling, so it
         # has stayed in slow-loop python for now.
-        stop_index = min(inputs.size, self.max_num_inputs)
+        stop_index = min(inputs.size, self.max_n_inputs)
         # Input index
         j = 0
         for i in range(stop_index):
@@ -211,6 +235,7 @@ class Featurizer(object):
             self.input_activities[i] = val
             j += 1
         return self.input_activities
+    '''
 
 
     def visualize(self, brain, world=None):

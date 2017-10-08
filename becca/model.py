@@ -3,11 +3,8 @@ The Model class.
 """
 
 from __future__ import print_function
-import os
 
 import numpy as np
-#import matplotlib.patches as patches
-#import matplotlib.pyplot as plt
 
 import becca.model_numba as nb
 import becca.model_viz as viz
@@ -43,7 +40,7 @@ class Model(object):
     be chained together to formulate multi-step plans while maximizing
     reward and prabability of successfully reaching the goal.
     """
-    def __init__(self, num_features, brain):
+    def __init__(self, n_features, brain):
         """
         Get the Model set up by allocating its variables.
 
@@ -52,24 +49,24 @@ class Model(object):
         brain : Brain
             The Brain to which this model belongs. Some of the brain's
             parameters are useful in initializing the model.
-        num_features : int
+        n_features : int
             The total number of features allowed in this model.
         """
-        # num_features : int
+        # n_features : int
         #     The maximum number of features that the model can expect
         #     to incorporate. Knowing this allows the model to
         #     pre-allocate all the data structures it will need.
         #     Add 2 features/goals that are internal to the model,
         #     An "always on" and a "nothing else is on".
-        self.num_features = num_features + 2
+        self.n_features = n_features + 2
 
         # previous_feature_activities,
         # feature_activities : array of floats
         #     Features are characterized by their
         #     activity, that is, their level of activation at each time step.
         #     Activity can vary between zero and one.
-        self.previous_feature_activities = np.zeros(self.num_features)
-        self.feature_activities = np.zeros(self.num_features)
+        self.previous_feature_activities = np.zeros(self.n_features)
+        self.feature_activities = np.zeros(self.n_features)
 
         # feature_goals,
         # previous_feature_goals,
@@ -78,9 +75,9 @@ class Model(object):
         #     They are temporary incentives, used for planning and
         #     goal selection. These can vary between zero and one.
         #     Votes are used to help choose a new goal each time step.
-        self.feature_goal_activities = np.zeros(self.num_features)
-        self.previous_feature_goals = np.zeros(self.num_features)
-        self.feature_goal_votes = np.zeros(self.num_features)
+        self.feature_goal_activities = np.zeros(self.n_features)
+        self.previous_feature_goals = np.zeros(self.n_features)
+        self.feature_goal_votes = np.zeros(self.n_features)
 
         # FAIs : array of floats
         #     Feature activity increases.
@@ -88,7 +85,7 @@ class Model(object):
         #     feature activities. These tend to occur at a
         #     specific point in time, so they are particularly useful
         #     in building meaningful temporal sequences.
-        self.FAIs = np.zeros(self.num_features)
+        self.FAIs = np.zeros(self.n_features)
 
         # prefix_curiosities,
         # prefix_occurrences,
@@ -105,8 +102,8 @@ class Model(object):
         #         index 2 : feature_2 (future)
         #     The prefix arrays can be 2D because they lack
         #     information about the resulting feature.
-        _2D_size = (self.num_features, self.num_features)
-        #_3D_size = (self.num_features, self.num_features, self.num_features)
+        _2D_size = (self.n_features, self.n_features)
+        _3D_size = (self.n_features, self.n_features, self.n_features)
         # Making believe that everything has occurred once in the past
         # makes it easy to believe that it might happen again in the future.
         self.prefix_activities = np.zeros(_2D_size)
@@ -114,17 +111,16 @@ class Model(object):
         self.prefix_occurrences = np.ones(_2D_size)
         self.prefix_curiosities = np.zeros(_2D_size)
         self.prefix_rewards = np.zeros(_2D_size)
-        #self.sequence_occurrences = np.ones(_3D_size)
+        self.sequence_occurrences = np.ones(_3D_size)
 
         # prefix_decay_rate : float
         #     The rate at which prefix activity decays between time steps
         #     for the purpose of calculating reward and finding the outcome.
-        #     Decay takes five times longer for each additional level.
         self.prefix_decay_rate = .5
         # credit_decay_rate : float
         #     The rate at which the trace, a prefix's credit for the
         #     future reward, decays with each time step.
-        self.credit_decay_rate = .2#.25#.35 # 5
+        self.credit_decay_rate = .35
 
         # reward_update_rate : float
         #     The rate at which a prefix modifies its reward estimate
@@ -133,9 +129,7 @@ class Model(object):
         # curiosity_update_rate : float
         #     One of the factors that determines he rate at which
         #     a prefix increases its curiosity.
-        self.curiosity_update_rate = 3e-2
-
-        viz.set_up_visualization(self, brain)
+        self.curiosity_update_rate = 3e-3
 
 
     def step(self, feature_activities, brain_live_features, reward):
@@ -155,11 +149,11 @@ class Model(object):
             feature_activities, brain_live_features)
 
         # Update sequences before prefixes.
-        #nb.update_sequences(
-        #    live_features,
-        #    self.FAIs,
-        #    self.prefix_activities,
-        #    self.sequence_occurrences)
+        nb.update_sequences(
+            live_features,
+            self.FAIs,
+            self.prefix_activities,
+            self.sequence_occurrences)
 
         nb.update_prefixes(
             live_features,
@@ -186,12 +180,12 @@ class Model(object):
             self.feature_goal_activities)
 
         self.feature_goal_votes = nb.calculate_goal_votes(
-            self.num_features,
+            self.n_features,
             live_features,
             self.prefix_rewards,
             self.prefix_curiosities,
             self.prefix_occurrences,
-            #self.sequence_occurrences,
+            self.sequence_occurrences,
             self.feature_activities,
             self.feature_goal_activities)
 
@@ -205,6 +199,7 @@ class Model(object):
             self.credit_decay_rate,
             self.prefix_credit)
 
+        # Trim off the first two elements. The are internal to the model only.
         return self.feature_goal_activities[2:]
 
 
@@ -227,6 +222,7 @@ class Model(object):
         self.previous_feature_activities = self.feature_activities
         self.feature_activities = np.concatenate((
             np.zeros(2), feature_activities))
+        # TODO: Make this less ugly.
         live_features = brain_live_features + 2
         live_features = list(live_features)
         live_features = [0, 1] + live_features
@@ -251,7 +247,7 @@ class Model(object):
         # Choose one goal at each time step, the feature with
         # the largest vote.
         self.previous_feature_goals = self.feature_goal_activities
-        self.feature_goal_activities = np.zeros(self.num_features)
+        self.feature_goal_activities = np.zeros(self.n_features)
         max_vote = np.max(self.feature_goal_votes)
         goal_index = 0
         matches = np.where(self.feature_goal_votes == max_vote)[0]

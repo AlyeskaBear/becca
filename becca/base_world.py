@@ -5,6 +5,7 @@ from __future__ import print_function
 import numpy as np
 
 
+# pylint: disable=too-many-instance-attributes
 class World(object):
     """
     The base class for creating a new world.
@@ -23,7 +24,7 @@ class World(object):
         #     The number of time steps for which the world should continue
         #     to exist.
         if lifespan is None:
-            self.lifespan = 10 ** 5
+            self.lifespan = int(1e7)
         else:
             self.lifespan = lifespan
         # timestep : int
@@ -35,7 +36,8 @@ class World(object):
         self.visualize_interval = 1e6
         # name : String
         #     The name of the world.
-        self.name = 'abstract base world'
+        self.name = 'abstract_base_world'
+        self.name_long = 'abstract base world'
         # num_actions, num_sensors : int
         #     The number of actions and sensors, respectively.
         #     These will likely be overridden in any subclass
@@ -71,7 +73,7 @@ class World(object):
             The current reward provided by the world.
         """
         self.timestep += 1
-        self.sensors = np.zeros(self.num_sensors)
+        self.sensors = np.ones(self.num_sensors) * actions
         self.reward = 0
         return self.sensors, self.reward
 

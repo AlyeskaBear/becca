@@ -34,11 +34,14 @@ def run(world, restore=False):
     #if 'world.log_directory' in locals() and world.log_directory is not None:
     #if world.log_directory is not None:
     try:
-        brain = Brain(world.num_sensors,
-                      world.num_actions,
-                      brain_name=brain_name,
-                      log_directory=world.log_directory)
-    except:
+        brain = Brain(
+            world.num_sensors,
+            world.num_actions,
+            brain_name=brain_name,
+            log_directory=world.log_directory,
+        )
+    # Catch the case where world has no log_directory.
+    except AttributeError:
         brain = Brain(world.num_sensors,
                       world.num_actions,
                       brain_name=brain_name)
@@ -50,7 +53,7 @@ def run(world, restore=False):
         brain.visualize_interval = world.brain_visualize_interval
         print('Brain visualize interval set to',
               world.brain_visualize_interval)
-    except:
+    except Exception:
         pass
 
     # Start at a resting state.
@@ -67,7 +70,7 @@ def run(world, restore=False):
         if brain.timestep % brain.visualize_interval == 0:
             brain.visualize(world)
         if world.timestep % world.visualize_interval == 0:
-            world.visualize(brain)
+            world.visualize()
 
     # Wrap up the run.
     try:
