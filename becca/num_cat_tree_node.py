@@ -122,11 +122,16 @@ class NumCatTreeNode(object):
         self.n_observations += 1
 
     # def split(self, split_value, i_input):
-    def split(self, split_value, input_pool):
+    # def split(self, split_value, input_pool):
+    def split(self, split_value, i_input):
         """
         Create two new child nodes.
 
-        @param split_value : float
+        Parameters
+        ----------
+        i_input: int
+            The index of the next leaf node to create.
+        split_value: float
             Where to subdivide the node to create children.
         """
         delta = 2. ** (-1. * float(self.depth + 3))
@@ -136,13 +141,14 @@ class NumCatTreeNode(object):
         self.lo_child = NumCatTreeNode(
             bounds=lo_bounds,
             depth=self.depth + 1,
-            i_input=input_pool.pop(),
+            # i_input=input_pool.pop(),
+            i_input=i_input,
             position=self.position + delta,
         )
         self.hi_child = NumCatTreeNode(
             bounds=hi_bounds,
             depth=self.depth + 1,
-            i_input=input_pool.pop(),
+            i_input=i_input + 1,
             position=self.position - delta,
         )
         for value in self.observations:

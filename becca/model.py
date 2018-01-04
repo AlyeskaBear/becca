@@ -67,6 +67,20 @@ class Model(object):
         #     Activity can vary between zero and one.
         self.previous_feature_activities = np.zeros(self.n_features)
         self.feature_activities = np.zeros(self.n_features)
+        # feature_fitness : array of floats
+        #     The predictive fitness of each feature is regularly updated.
+        #     This helps determine which features to keep and which to
+        #     swap out for new candidates.
+        self.feature_fitness = np.zeros(self.n_features)
+
+        # filter: InputFilter
+        #     Reduce the possibly large number of inputs to the number
+        #     of cables that the Ziptie can handle. Each Ziptie will
+        #     have its own InputFilter.
+        self.filter = InputFilter(
+            n_inputs_final = self.n_inputs,
+            verbose=self.verbose,
+        )
 
         # feature_goals,
         # previous_feature_goals,
@@ -111,6 +125,7 @@ class Model(object):
         self.prefix_occurrences = np.ones(_2D_size)
         self.prefix_curiosities = np.zeros(_2D_size)
         self.prefix_rewards = np.zeros(_2D_size)
+        self.prefix_uncertainties = np.zeros(_2D_size)
         self.sequence_occurrences = np.ones(_3D_size)
 
         # prefix_decay_rate : float
@@ -131,7 +146,18 @@ class Model(object):
         #     a prefix increases its curiosity.
         self.curiosity_update_rate = 3e-3
 
+    def calculate_fitness():
 
+        pass
+
+    def update_inputs(self):
+        """
+        Propogate feature resets, 
+        """
+        pass
+
+    # TODO: Write a method to handle feature resets
+    
     def step(self, feature_activities, brain_live_features, reward):
         """
         Update the model and choose a new goal.
@@ -145,6 +171,7 @@ class Model(object):
         reward : float
             The reward reported by the world during the most recent time step.
         """
+        # TODO: Remove live_features. Assume all are live.
         live_features = self._update_activities(
             feature_activities, brain_live_features)
 
@@ -161,7 +188,8 @@ class Model(object):
             self.previous_feature_activities,
             self.feature_goal_activities,
             self.prefix_activities,
-            self.prefix_occurrences)
+            self.prefix_occurrences,
+            self.prefix_uncertainties)
 
         nb.update_rewards(
             live_features,
@@ -177,7 +205,15 @@ class Model(object):
             self.prefix_curiosities,
             self.previous_feature_activities,
             self.feature_activities,
-            self.feature_goal_activities)
+            self.feature_goal_activities,
+            self.prefix_uncertainties)
+
+        nb.update_fitness(
+            self.feature_fitness,
+            self.prefix_occurrences,
+            self.prefix_rewards,
+            self.prefix_uncertainties,
+            self.sequence_occurrences)
 
         self.feature_goal_votes = nb.calculate_goal_votes(
             self.n_features,
@@ -189,6 +225,7 @@ class Model(object):
             self.feature_activities,
             self.feature_goal_activities)
 
+        # TODO: break this out into a separate object.
         goal_index, max_vote = self._choose_feature_goals()
 
         nb.update_reward_credit(
@@ -228,6 +265,8 @@ class Model(object):
         live_features = [0, 1] + live_features
         live_features = np.array(live_features).astype('int32')
 
+        # No need to filter here. Filtering occurs in preprocessor.
+        # TODO: change from FAIs to feature activities
         # Track the increases in feature activities.
         self.FAIs = np.maximum(
             self.feature_activities - self.previous_feature_activities, 0.)

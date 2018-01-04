@@ -47,6 +47,7 @@ def update_prefixes(
     feature_goal_activities,
     prefix_activities,
     prefix_occurrences,
+    prefix_uncertainties,
 ):
     """
     Update the activities and occurrences of the prefixes.
@@ -72,6 +73,12 @@ def update_prefixes(
             # Increment the lifetime sum of prefix activity.
             prefix_occurrences[i_feature][i_goal] += (
                 prefix_activities[i_feature][i_goal])
+
+            # Adjust uncertainty accordingly.
+            # TODO: Remove the factor of 3 and test
+            prefix_uncertainties[i_feature][i_goal] = 1. / (
+                1. + 3. * prefix_occurrences[i_feature][i_goal])
+
     return
 
 
@@ -117,6 +124,7 @@ def update_curiosities(
     previous_feature_activities,
     feature_activities,
     feature_goal_activities,
+    prefix_uncertainties,
 ):
     """
     Use a collection of factors to increment the curiosity for each prefix.
@@ -140,12 +148,50 @@ def update_curiosities(
             #     feature_activities : The activity of the prefix's feature.
             #         Only increase the curiosity if the feature
             #         corresponding to the prefix is active.
-            uncertainty = 1. / (
-                1. + 3. * prefix_occurrences[i_feature][i_goal])
             prefix_curiosities[i_feature][i_goal] += (
                 curiosity_update_rate *
-                uncertainty *
+                prefix_uncertainties[i_feature][i_goal] *
                 feature_activities[i_feature])
+    return
+
+
+# @jit(nopython=True)
+def update_fitness(
+    feature_fitness,
+    prefix_occurrences,
+    prefix_rewards,
+    prefix_uncertainties,
+    sequence_occurrences,
+):
+    """
+    Calculate the fitness of each feature 
+
+    Parameters
+    ----------
+    feature_fitness: array of floats
+        The fitness score as of this time step for each of the feature
+        inputs to the model. This is modified with calculated values.
+    prefix_occurrences: 2D array of floats
+    prefix_rewards: 2D array of floats
+    prefix_uncertainties: 2D array of floats
+    sequence_occurrences: 3D array of floats
+    """
+    # Calculate the ability of each prefix to predict the features that
+    # follow it.
+    # Base it on the single most successfully predicted sequence.
+    postfeature_prediction_score = (
+        np.max(sequence_occurrences, axis=2) / prefix_occurrences)
+    # Calculate the ability of each prefix to predict reward or punishment.
+    reward_prediction_score = np.abs(prefix_rewards)
+    prefix_score = feature_prediction_score + reward_prediction_score
+    # Scale fitness by confidence (1 - uncertainty)
+    prefix_fitness = prefix_score * (1 - prefix_uncertainties)
+    # Find the maximum fitness for each feature across all prefixes,
+    # whether as a prefeature or as a goal.
+    prefeature_fitness = np.max(prefix_fitness, axis=1)
+    goal_fitness = np.max(prefix_fitness, axis=0)
+    feature_fitness = np.maximum(prefeature_fitness, goal_fitness)
+
     return
 
 

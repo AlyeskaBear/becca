@@ -1,7 +1,3 @@
-"""
-The CatTree class
-"""
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -19,8 +15,8 @@ class CatTree(object):
     def __init__(
         self,
         base_position=0.,
-        # i_input=0,
-        input_pool=None,
+        i_input=0,
+        # input_pool=None,
         split_period=int(1e2),
         split_size=1e-2,
         type='default',
@@ -30,10 +26,10 @@ class CatTree(object):
         @param base_position: float
             The location on a number line, used for ordering categories
             from trees into a visually interpretable tree.
-        # @param i_input: int
-        #     The next unassigned index in the input array.
-        @param input_pool: set of int
-            The input indices not currently assigned to bundles or sensors.
+        @param i_input: int
+            The next unassigned index in the input array.
+        # @param input_pool: set of int
+        #     The input indices not currently assigned to bundles or sensors.
         @param split_period: int
             The number of time steps between attempts to create new
             categories. This is included because evaluating categories
@@ -61,14 +57,16 @@ class CatTree(object):
             print('\'' + type + '\'' + ' tree requested.')
         if type.lower() in ['string', 'str']:
             self.root = StrCatTreeNode(
-                i_input=input_pool.pop(),
+                # i_input=input_pool.pop(),
+                i_input=i_input,
                 position=base_position)
             self.observation_set = StrCatTreeNode()
             if self.verbose:
                 print('string tree created.')
         else:
             self.root = NumCatTreeNode(
-                i_input=input_pool.pop(),
+                # i_input=input_pool.pop(),
+                i_input=i_input,
                 position=base_position)
             self.observation_set = NumCatTreeNode()
             if self.verbose:
@@ -198,32 +196,46 @@ class CatTree(object):
         @param parent_indices: list of ints
             The collection so far of parents' input indices.
 
-        @return: list of ints 
+        @return: list of ints
             The completed list.
         """
         if node is not None:
             parent_indices.append(node.i_input)
             self.get_parent_indices(node.parent, parent_indices)
 
-    def categorize(self, value, input_activities, discount_rate=100.):
+    def categorize(
+        self,
+        value,
+        input_activities,
+        generational_discount=.5,
+        # discount_rate=100.,
+    ):
         """
         For a value, get the category or categories it belongs to.
 
-        @param value: type determined by CatTreeNode
+        Parameters
+        ----------
+        value: type determined by CatTreeNode
             Categorize this.
-        @param input_activities: array of floats
+        input_activities: array of floats
             The under-construction array of input activities
             for this time step.
-        @param discount_rate: float
-            A constant controlling the rate at which parent node
-            activities are reduced. This allows new child nodes to gradually
-            take over their parent's job, and then fade the parent activity
-            out so that it doesn't interfere. A discount_rate of 100
-            means that after 100 observations in the child node, the parent's
-            activity will be reduced to 1/2.
+        # discount_rate: float
+        #     A constant controlling the rate at which parent node
+        #     activities are reduced. This allows new child nodes to gradually
+        #     take over their parent's job, and then fade the parent activity
+        #     out so that it doesn't interfere. A discount_rate of 100
+        #     means that after 100 observations in the child node, the parent's
+        #     activity will be reduced to 1/2.
+        generational_discount: float
+            Between 0 and 1.
+            The amount by which activities are reduced for parents.
+            This allows new child nodes to take over their parent's job.
 
-        @return: array of float
-            Category membership. Each element represents a category.
+        Returns
+        -------
+        No explicit returns, but input activities is modified to show
+            Category membership for value.
             Membership varies from 0. (non-member)
             to 1. (full member).
         """
@@ -238,36 +250,40 @@ class CatTree(object):
 
     def add(self, value):
         """
-        Add a value to a collection of observations and to the tree.
+        Add a value to the collection of observations for the corresponding
+        leaf and for the tree as a whole.
         """
         self.observation_set.add(value)
         self.get_leaf(value).add(value)
 
-    def grow(self, input_pool, new_input_indices):
-        # def grow(self, input_pool, n_inpu ts, n_max_inputs, new_input_indices):
+    # def grow(self, input_pool, new_input_indices):
+    def grow(self, n_inputs):
         """
         Find a leaf to split.
 
-        @param input_pool: set of ints
-            Available indices to assign to categories.
-        # @param n_inputs : int
-        #     The total number of inputs that the discretizer is passing
-        #     to the featurizer.
-        # @param n_max_inputs : int
+        Parameters
+        ----------
+        # input_pool: set of ints
+        #     Available indices to assign to categories.
+        n_inputs : int
+            The total number of inputs being passed by the preprocessor.
+        # n_max_inputs : int
         #     The total number of inputs allowed.
-        @param new_input_indices: list of tuples of (int, list of int)
-           Tuples of (child_index, parent_indices). Each time a new child
-           node is added, it is recorded on this list, together with
-           the input indices of all its parents and grandparents.
+        # new_input_indices: list of tuples of (int, list of int)
+        #    Tuples of (child_index, parent_indices). Each time a new child
+        #    node is added, it is recorded on this list, together with
+        #    the input indices of all its parents and grandparents.
 
-        @return success: bool
-            Was there a split worthy of splitting?
+        Returns
+        -------
+        n_inputs: int
+            When a split is made, this is modified.
+        # success: bool
+        #     Was there a split worthy of splitting?
+
         """
-        success = False
-        if (
-                # n_inputs < n_max_inputs and
-            self.observation_set.n_observations % self.split_period == 0
-        ):
+        # success = False
+        if self.observation_set.n_observations % self.split_period == 0:
             leaves = self.get_list(leaves_only=True)
             # Test splits on each leaf. Find the best.
             best_candidate = 0.
@@ -284,19 +300,20 @@ class CatTree(object):
             # Calculate the reduction threshold that is interesting.
             good_enough = self.observation_set.variance() * self.split_size
             if biggest_change > good_enough:
-                best_leaf.split(best_candidate, input_pool)
-                # TODO: pick up here
+                # best_leaf.split(best_candidate, input_pool)
+                best_leaf.split(best_candidate, n_inputs)
                 best_leaf.lo_child.parent = best_leaf
                 best_leaf.hi_child.parent = best_leaf
                 self.depth = np.maximum(self.depth, best_leaf.hi_child.depth)
-                
+
                 parent_indices = []
                 self.get_parent_indices(best_leaf, parent_indices)
-                new_input_indices.append(
-                    (best_leaf.lo_child.i_input, parent_indices))
-                new_input_indices.append(
-                    (best_leaf.hi_child.i_input, parent_indices))
+                # new_input_indices.append(
+                #     (best_leaf.lo_child.i_input, parent_indices))
+                # new_input_indices.append(
+                #     (best_leaf.hi_child.i_input, parent_indices))
                 self.n_cats += 2
-                # n_inputs += 2
-                success = True
-        return success, new_input_indices
+                n_inputs += 2
+                # success = True
+        # return success, new_input_indices
+        return n_inputs

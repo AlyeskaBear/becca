@@ -1,5 +1,3 @@
-""" The Brain class  """
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -9,10 +7,9 @@ import os
 import numpy as np
 
 from becca.affect import Affect
-from becca.discretizer import Discretizer
 from becca.featurizer import Featurizer
 from becca.model import Model
-import becca.tools as tools
+from becca.preprocessor import Preprocessor
 import becca.viz as viz
 
 
@@ -33,7 +30,7 @@ class Brain(object):
         log_directory=None,
         n_actions=int(2**2),
         n_features=int(2**6),
-        n_inputs=int(2**6),
+        # n_inputs=int(2**6),
         n_sensors=int(2**2),
         timestep=0,
         visualize_interval=int(2**18),
@@ -51,9 +48,9 @@ class Brain(object):
         log_directory : str
             The full path name to a directory where information and
             backups for the world can be stored and retrieved.
-        n_inputs: int
-            An upper bound on the number of inputs to the featurizer.
-            This includes discretized sensors as well as actions.
+        # n_inputs: int
+        #     An upper bound on the number of inputs to the featurizer.
+        #     This includes discretized sensors as well as actions.
         n_actions: int
             The number of distinct actions that the brain can choose to
             execute in the world.
@@ -62,7 +59,7 @@ class Brain(object):
         n_sensors: int
             The number of distinct sensors that the world will be passing in
             to the brain.
-        n_features: int 
+        n_features: int
             The limit on the number of features passed to the model.
             If this is smaller, Becca will run faster. If it is larger
             Becca will have more capacity to learn. It's an important
@@ -74,23 +71,18 @@ class Brain(object):
         """
         self.n_sensors = n_sensors
         self.n_actions = n_actions
-        self.n_inputs = self.n_actions
+        # self.n_inputs = self.n_actions
         self.n_features = np.maximum(
             n_features, self.n_actions + 4 * self.n_sensors)
 
+        self.input_activities = np.zeros(self.n_features)
         # input_pool: set of ints
         #     These are the indices of available inputs.
         #     There are a fixed number of them. Keeping a pool
         #     allows them to be treated like a list of addresses.
         #     They can be vacated and used by a new input if needed.
-        self.input_pool = set(np.arange(self.n_features))
-        # input_activities, input_energies: array of floats
-        #     The activities of the inputs passed to the featurizer
-        #     and their respective reservoirs of energy. Each input
-        #     is subject to fatigue. It has to be quiet for a while
-        #     before it can be strongly active again.
-        self.input_activities = np.zeros(self.n_features)
-        self.input_energies = np.ones(self.n_features)
+        # self.input_pool = set(np.arange(self.n_features))
+
         # actions, previous_actions : array of floats
         #     The set of actions to execute this time step.
         #     Initializing them to non-zero helps to kick start the
@@ -98,52 +90,45 @@ class Brain(object):
         self.previous_actions = np.zeros(self.n_actions)
         self.actions = np.ones(self.n_actions) * .1
 
-        # Initialize the Discretizers that will take in the
-        # (possibly continuous) sensor inputs and turn each one into
-        # a set of discrete values for use by the featurizer.
-        # discretizers : list of Discretizers
-        #     There is one Discretizer for each sensor.
-        #     See the pydocs in the module discretizer.py for
-        #     the class Discretizer.
-        self.discretizers = []
-        for i in range(self.n_sensors):
-            new_discretizer = Discretizer(
-                base_position=float(i) + .5,
-                input_pool=self.input_pool,
-                name='sensor_' + str(i))
-            self.discretizers.append(new_discretizer)
+        # TODO: Build Postprocessor to convert discretized actions into
+        # continuous actions.
+        # Assume all actions are in a continuous space.
+        # This means that it can be repeatedly subdivided to
+        # generate actions of various magnitudes and increase control.
 
-        # affect : Affect
-        #     See the pydocs in the module affect.py for the class Affect.
+        # The preprocessor takes raw sensors and actions and converts
+        # them into discrete inputs.
+        self.preprocessor = Preprocessor(
+            n_actions=self.n_actions,
+            n_sensors=self.n_sensors,
+        )
+
         self.affect = Affect()
-        # satisfaction : float
+        # satisfaction: float
         #     The level of contentment experienced by the brain.
         #     Higher contentment dampens curiosity and the drive to explore.
         self.satisfaction = 0.
 
-        # TODO: Assume all actions are in a continuous space.
-        # This means that it can be repeatedly subdivided to
-        # generate actions of various magnitudes and increase control.
-
-        # featurizer : Featurizer
-        #     The featurizer is an unsupervised learner that learns
-        #     features from the inputs.
+        # The featurizer is an unsupervised learner that learns
+        # features from the inputs.
         self.featurizer = Featurizer(
-            n_features,
+            self.n_features,
             threshold=1e3,
             debug=True,
         )
-        # model : Model
-        #     The model builds sequences of features and goals and uses
-        #     them to choose new goals.
-        self.model = Model(max_n_features, self)
+        # The model builds sequences of features and goals and uses
+        # them to choose new goals.
+        self.model = Model(self.n_features, self)
+        print('n features', self.n_features)
 
         self.timestep = timestep
         self.visualize_interval = visualize_interval
         self.backup_interval = backup_interval
         self.name = brain_name
 
-        if log_directory is None:
+        if log_directory:
+            self.log_dir = log_directory
+        else:
             # Identify the full local path of the brain.py module.
             # This trick is used to conveniently locate other Becca resources.
             module_path = os.path.dirname(os.path.abspath(__file__))
@@ -151,8 +136,7 @@ class Brain(object):
             #     Relative path to the log directory. This is where backups
             #     and images of the brain's state and performance are kept.
             self.log_dir = os.path.normpath(os.path.join(module_path, 'log'))
-        else:
-            self.log_dir = log_directory
+
         # Check whether the directory is already there. If not, create it.
         if not os.path.isdir(self.log_dir):
             os.makedirs(self.log_dir)
@@ -203,20 +187,43 @@ class Brain(object):
         # Calculate the "mood" of the agent.
         self.satisfaction = self.affect.update(reward)
 
-        new_input_indices = self.construct_features(sensors)
-        self.featurizer.update_masks(new_input_indices)
-        feature_activities, live_features = self.featurizer.featurize(
-            self.input_activities)
-        print('fa', feature_activities.size)
-        feature_goals = self.model.step(feature_activities,
-                                        live_features,
-                                        reward)
+        # Turn the raw sensors into discretized inputs.
+        # self.input_activities =(
+
+        # Calculate new activities in a bottom-up pass.
+        input_activities = self.preprocessor.convert_to_inputs(
+            self.consolidated_actions, sensors)
+        print(input_activities)
+
+        # self.featurizer.update_masks(new_input_indices)
+        # feature_activities, live_features = self.featurizer.featurize(
+        #     self.input_activities)
+        feature_activities, feature_resets = self.featurizer.featurize(
+            input_activities)
+        # TODO: straighten this out
+        # feature_activities = feature_activities[:self.n_features]
+        # feature_goals = self.model.step(
+        predicted_rewards, predicted_features = self.model.step(
+            feature_activities, feature_resets, reward)
+        feature_goals = self.actor.choose(
+            predicted_rewards, predicted_features)
+
+        # live_features,
         # Pass goals back down.
         input_goals = self.featurizer.defeaturize(feature_goals)
 
         # Isolate the actions from the rest of the goals.
         self.previous_actions = self.actions
-        self.actions = input_goals[:self.n_actions]
+        # self.actions = input_goals[:self.n_actions]
+        self.actions, self.consolidated_actions = self.postprocessor(
+            input_goals)
+
+        # Update the inputs in a pair of top-down/bottom-up passes.
+        feature_fitness = self.model.calculate_fitness()
+        self.featurizer.calculate_fitness(feature_fitness)
+        resets = self.featurizer.update_inputs()
+        self.model.update_inputs(resets)
+
 
         # Create a set of random actions.
         # This is occasionally helpful when debugging.
@@ -229,31 +236,6 @@ class Brain(object):
             self.backup()
 
         return self.actions
-
-    def construct_features(self, sensors):
-        """
-        Build a set of discretized inputs for the featurizer.
-        """
-        raw_input_activities = np.zeros(self.n_features)
-        raw_input_activities[:self.n_actions] = self.actions
-        new_input_indices = []
-        for i_sensor, discretizer in enumerate(self.discretizers):
-            if len(self.input_pool) < 2:
-                # TODO: Free up inputs.
-                print('Input pool is empty.')
-                break
-
-            new_input_indices = discretizer.step(
-                sensors[i_sensor],
-                raw_input_activities,
-                self.input_pool,
-                # self.n_inputs,
-                # self.n_features,
-                new_input_indices,
-            )
-        self.input_activities = tools.fatigue(
-            raw_input_activities, self.input_energies)
-        return new_input_indices
 
     def random_actions(self):
         """

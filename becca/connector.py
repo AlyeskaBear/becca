@@ -35,16 +35,19 @@ def run(world, restore=False):
     #if world.log_directory is not None:
     try:
         brain = Brain(
-            world.num_sensors,
-            world.num_actions,
+            n_sensors=world.num_sensors,
+            n_actions=world.num_actions,
             brain_name=brain_name,
             log_directory=world.log_directory,
         )
     # Catch the case where world has no log_directory.
     except AttributeError:
-        brain = Brain(world.num_sensors,
-                      world.num_actions,
-                      brain_name=brain_name)
+        print(brain_name)
+        brain = Brain(
+            n_sensors=world.num_sensors,
+            n_actions=world.num_actions,
+            brain_name=brain_name,
+        )
 
     if restore:
         brain = brain.restore()

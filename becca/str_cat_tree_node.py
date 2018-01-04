@@ -154,14 +154,15 @@ class StrCatTreeNode(object):
             self.observations[new_name] = count
         self.n_observations += count
 
-    def split(self, split_names, input_pool):
+    # def split(self, split_names, input_pool):
+    def split(self, split_names, i_input):
         """
         Create two new child nodes.
 
-        @param i_input: int
+        i_input: int
             The new nodes will be associated with
             this index in the agent's input array, and the next.
-        @param split_names: list of strings
+        split_names: list of strings
             Where to subdivide the node to create children.
             Names in split_names the list belong to the hi_child,
             all others belong to the lo_child.
@@ -171,13 +172,15 @@ class StrCatTreeNode(object):
         self.hi_child = StrCatTreeNode(
             catch_all=False,
             depth=self.depth + 1,
-            i_input=input_pool.pop(),
+            # i_input=input_pool.pop(),
+            i_input=i_input,
             in_crowd=split_names,
             position=self.position + delta,
         )
         self.lo_child = StrCatTreeNode(
             depth=self.depth + 1,
-            i_input=input_pool.pop(),
+            # i_input=input_pool.pop(),
+            i_input=i_input + 1,
             position=self.position - delta,
         )
 
