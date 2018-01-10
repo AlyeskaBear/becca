@@ -147,33 +147,60 @@ class Model(object):
         self.curiosity_update_rate = 3e-3
 
     def calculate_fitness():
-
-        pass
-
-    def update_inputs(self):
         """
-        Propogate feature resets, 
-        """
-        pass
+        Calculate the predictive fitness of all the feature candidates.
 
-    # TODO: Write a method to handle feature resets
-    
-    def step(self, feature_activities, brain_live_features, reward):
+        Returns
+        -------
+        feature_fitness: array of floats
+            The fitness of each of the feature candidate inputs to
+            the model.
+        """
+
+        nb.update_fitness(
+            self.feature_fitness,
+            self.prefix_occurrences,
+            self.prefix_rewards,
+            self.prefix_uncertainties,
+            self.sequence_occurrences)
+
+        candidate_fitness = self.filter.update_fitness(self.feature_fitness)
+
+        return candidate_fitness
+
+    def update_inputs(self, candidate_activities):
+        """
+        Apply new activities and propogate feature resets, 
+
+        Parameters
+        ----------
+        candidate_activities: array of floats
+        resets: array of ints
+
+        Returns
+        -------
+        feature_activities: array of floats
+        """
+        # TODO: Propogate resets
+        # TODO: incorporate _update_activities() into this
+        feature_activities = self.filter.update_inputs(candidate_activities)
+        return feature_activities
+
+    def step(self, candidate_activities, reward):
         """
         Update the model and choose a new goal.
 
         Parameters
         ----------
-        feature_activities : array of floats
-            The current activity levels of each of the features.
-        live_features : array of floats
-            A binary array of all features that have every been active.
+        candidate_activities : array of floats
+            The current activity levels of each of the feature candidates.
         reward : float
             The reward reported by the world during the most recent time step.
         """
         # TODO: Remove live_features. Assume all are live.
-        live_features = self._update_activities(
-            feature_activities, brain_live_features)
+        # live_features = self._update_activities(
+        #     feature_activities, brain_live_features)
+        self.feature_activities = self.update_inputs(candidate_activities)
 
         # Update sequences before prefixes.
         nb.update_sequences(
@@ -207,13 +234,6 @@ class Model(object):
             self.feature_activities,
             self.feature_goal_activities,
             self.prefix_uncertainties)
-
-        nb.update_fitness(
-            self.feature_fitness,
-            self.prefix_occurrences,
-            self.prefix_rewards,
-            self.prefix_uncertainties,
-            self.sequence_occurrences)
 
         self.feature_goal_votes = nb.calculate_goal_votes(
             self.n_features,

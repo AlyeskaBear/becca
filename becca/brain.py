@@ -207,6 +207,7 @@ class Brain(object):
             feature_activities, feature_resets, reward)
         feature_goals = self.actor.choose(
             predicted_rewards, predicted_features)
+        self.model_update_goals(feature_goals)
 
         # live_features,
         # Pass goals back down.
@@ -219,8 +220,8 @@ class Brain(object):
             input_goals)
 
         # Update the inputs in a pair of top-down/bottom-up passes.
-        feature_fitness = self.model.calculate_fitness()
-        self.featurizer.calculate_fitness(feature_fitness)
+        candidate_fitness = self.model.calculate_fitness()
+        self.featurizer.calculate_fitness(candidate_fitness)
         resets = self.featurizer.update_inputs()
         self.model.update_inputs(resets)
 

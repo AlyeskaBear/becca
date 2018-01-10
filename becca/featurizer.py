@@ -18,7 +18,6 @@ class Featurizer(object):
     def __init__(
             self,
             n_inputs,
-            # max_n_features=None,
             threshold=None,
             verbose=False,
             ):
@@ -48,35 +47,10 @@ class Featurizer(object):
 
         # n_inputs : int
         # n_bundles : int
-        # max_n_features : int
-        #     The maximum numbers of inputs, bundles and features
+        #     The maximum numbers of inputs and bundles
         #     that this level can accept.
-        #     max_n_features = n_inputs + n_bundles
         self.n_inputs = n_inputs
-        # self.max_n_features = self.n_inputs
         self.n_bundles = 4 * self.n_inputs
-        # if max_n_features is None:
-        #     # Choose the total number of bundles (created features) allowed,
-        #     # in terms of the number of inputs allowed.
-        #     self.n_bundles = 3 * self.n_inputs
-        #     self.max_n_features = self.n_inputs + self.n_bundles
-        # else:
-        #     self.max_n_features = max_n_features
-        #     self.n_bundles = self.max_n_features - self.n_inputs
-
-        # Normalization constants.
-        # input_max : array of floats
-        #     The maximum of each input's activity.
-        #     Start with the assumption that each input has a
-        #     maximum value of zero. Then adapt up from there
-        #     based on the incoming observations.
-        # input_max_decay_time, input_max_grow_time : float
-        #     The time constant over which maximum estimates are
-        #     decreased/increased. Growing time being lower allows the
-        #     estimate to be weighted toward the maximum value.
-        #self.input_max = np.zeros(self.n_inputs)
-        #self.input_max_grow_time = 1e2
-        #self.input_max_decay_time = self.input_max_grow_time * 1e2
 
         # input_activities,
         # bundle_activities,
@@ -119,11 +93,104 @@ class Featurizer(object):
             threshold=threshold,
             verbose=self.verbose)
 
-    def calculate_fitness():
-        pass
+        # mapping_to_features: list of lists
+        #     Tracks which feature candidate index corresponds to each
+        #     ziptie input. The first level list corresponds to
+        #         0: inputs to ziptie level 0
+        #         1: inputs to ziptie level 1
+        #               (also bundles from ziptie level 0)
+        #         2: inputs to ziptie level 2
+        #               (also bundles from ziptie level 1)
+        #         ...
+        #     The second level list index of the feature candidate that
+        #     each input maps to.
+        self.mapping_to_features = [[]]
+        # mapping_from_features: list of 2-tuples,
+        #     The inverse of mapping_to_features. Tracks which input
+        #    corresponds which each feature candidate.
+        #     Each item is of the format
+        #         (level, input index)
+        self.mapping_from_features = []
+        # If mapping_from_features[i] = (j, k)
+        # then mapping_to_features[j, k] = i
 
-    def update_inputs():
-        pass
+    def calculate_fitness(self, feature_fitness):
+        """
+        Find the predictive fitness of each of cables in each ziptie.
+
+        Parameters
+        ----------
+        candidate_fitness: array of floats
+        """
+        # TODO: Handle a hierarchy of zipties and input filters
+        # Include upstream fitness
+        all_input_fitness = self.map_features_to_inputs(feature_fitness)
+
+        cable_fitness = self.ziptie.project_bundle_activities(
+            all_input_fitness[1])
+        input_fitness = np.maximum(cable_fitness, all_input_fitness[0])
+        self.filter.update_fitness(input_fitness)
+
+    def update_inputs(self):
+        """
+        Give each input filter a chance to update their inputs and propagate
+        any resets that result up through the zipties and to the model.
+
+        Returns
+        -------
+        resets: array of ints
+            The feature candidate indices that are being reset. 
+        """
+        filter_resets = self.filter.update_inputs()
+        bundle_resets = self.ziptie.update_inputs()
+        all_resets = [filter_resets, bundle_resets]
+
+        resets = []
+        for i_level, level_resets in enumerate(all_resets):
+            for i_reset in level_resets:
+                resets.append(self.mapping_to_features[i_level][i_reset])
+
+        return resets
+
+    def map_features_to_inputs(self, feature_values):
+        """
+        For an array corresponding to feature candidates from the model,
+        generate and order those values corresponding to ziptie inputs.
+
+        Parameters
+        ----------
+        feature_values: array of floats
+
+        Returns
+        -------
+        input_values: list of array of floats
+        """
+        input_values = [np.zeros(self.input_activities.size)]
+        input_values.append(np.zeros(self.ziptie.n_bundles))
+        
+        for i_feature, (i_level, i_input) in enumerate(
+                self.mapping_from_features):
+            input_values[i_level][i_input] = feature_values[i_feature]
+        return input_values
+
+    def map_inputs_to_features(self, input_values):
+        """
+        Map the inputs over all levels to the appropriate feature candidates.
+
+        Parameters
+        ----------
+        input_values: list of arrays of floats
+
+        Returns
+        -------
+        feature_values: array of floats
+        """
+        feature_values = np.zeros(???)
+        for i_level, level_mapping in enumerate(self.mapping_to_features):
+            for i_input, i_feature in enumerate(level_mapping):
+                feature_values[i_feature] = input_values[i_level][i_input]
+
+        return feature_values
 
     def featurize(self, new_inputs):
         """
@@ -141,20 +208,31 @@ class Featurizer(object):
         # Start by normalizing all the inputs.
         #self.input_activities = self.update_inputs(new_inputs)
         self.input_activities = new_inputs
-        cable_activities, cable_resets, cable_fitness = self.filter.step(
-            candidate_activities=self.input_activities, 
+        cable_activities = self.filter.update_activities(
+            candidate_activities=self.input_activities)
 
         # Run the inputs through the ziptie to find bundle activities
         # and to learn how to bundle them.
         bundle_activities = self.ziptie.featurize(self.input_activities)
-        # The element activities are the combination of the residual
-        # input activities and the bundle activities.
-        self.feature_activities = np.concatenate((self.input_activities,
-                                                  bundle_activities))
 
-        # Track features that are active.
-        # self.live_features[np.where(
-        #     self.feature_activities > self.epsilon)] = 1.
+        all_input_activities = [
+            self.input_activities,
+            bundle_activities,
+        ]
+
+        # Check whether the number of inputs has expanded at any level
+        # and adapt.
+        for i_level, input_activities in enumerate(all_input_activities):
+            # Map any unmapped inputs to features.
+            for i_new_input in range(len(self.mapping_to_features[i_level]),
+                                     input_activities.size):
+                i_feature = len(self.mapping_from_features)
+                self.mapping_to_features[i_level].append(i_feature)
+                self.mapping_from_features.append((i_level, i_new_input))
+
+        # The element activities are the combination of the residual
+        # input activities and the bundle activities
+        self.feature_activities = self.map_inputs_to_features([
 
         # Incrementally update the bundles in the ziptie.
         self.ziptie.learn(self.input_activities)
