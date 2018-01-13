@@ -1,19 +1,15 @@
-""" The Brain class  """
+"""
+The Brain class.
+"""
 
-from __future__ import absolute_import
-from __future__ import division
 from __future__ import print_function
-from __future__ import unicode_literals
-import pickle
+import _pickle as pickle
 import os
 import numpy as np
 
 from becca.affect import Affect
-from becca.discretizer import Discretizer
 from becca.featurizer import Featurizer
 from becca.model import Model
-import becca.tools as tools
-import becca.viz as viz
 
 
 class Brain(object):
@@ -26,121 +22,50 @@ class Brain(object):
     Check out connector.py for an example for how to attach a world
     to a brain.
     """
-    def __init__(
-        self,
-        backup_interval=int(2**20),
-        brain_name='test_brain',
-        log_directory=None,
-        n_actions=int(2**2),
-        n_features=int(2**6),
-        n_inputs=int(2**6),
-        n_sensors=int(2**2),
-        timestep=0,
-        visualize_interval=int(2**18),
-    ):
+    def __init__(self,
+                 num_sensors,
+                 num_actions,
+                 brain_name='test_brain',
+                 log_directory=None):
         """
         Configure the Brain.
 
         Parameters
         ----------
-        backup_interval: int
-            How often the brain will save a pickle backup of itself,
-            in timesteps.
-        brain_name: str
+        brain_name : str
             A descriptive string identifying the brain.
         log_directory : str
             The full path name to a directory where information and
             backups for the world can be stored and retrieved.
-        n_inputs: int
-            An upper bound on the number of inputs to the featurizer.
-            This includes discretized sensors as well as actions.
-        n_actions: int
-            The number of distinct actions that the brain can choose to
-            execute in the world.
-            This is the total number of action outputs that
-            the world is expecting.
-        n_sensors: int
-            The number of distinct sensors that the world will be passing in
-            to the brain.
-        n_features: int 
-            The limit on the number of features passed to the model.
-            If this is smaller, Becca will run faster. If it is larger
-            Becca will have more capacity to learn. It's an important
-            input for determining performance.
-        timestep: int
-            The age of the brain in discrete time steps.
-        visualize_interval: int
-            How often to visualize the world, in time steps.
+        num_actions : array of ints
+            The total number of action outputs that the world is expecting.
+        num_sensors : array of ints
+            The total number of sensor inputs that the world is providing.
         """
-        self.n_sensors = n_sensors
-        self.n_actions = n_actions
-        self.n_inputs = self.n_actions
-        self.n_features = np.maximum(
-            n_features, self.n_actions + 4 * self.n_sensors)
-
-        # input_pool: set of ints
-        #     These are the indices of available inputs.
-        #     There are a fixed number of them. Keeping a pool
-        #     allows them to be treated like a list of addresses.
-        #     They can be vacated and used by a new input if needed.
-        self.input_pool = set(np.arange(self.n_features))
-        # input_activities, input_energies: array of floats
-        #     The activities of the inputs passed to the featurizer
-        #     and their respective reservoirs of energy. Each input
-        #     is subject to fatigue. It has to be quiet for a while
-        #     before it can be strongly active again.
-        self.input_activities = np.zeros(self.n_features)
-        self.input_energies = np.ones(self.n_features)
-        # actions, previous_actions : array of floats
+        # num_sensors : int
+        #     The number of distinct sensors that the world will be passing in
+        #     to the brain.
+        self.num_sensors = num_sensors
+        # num_actions : int
+        #     The number of distinct actions that the brain can choose to
+        #     execute in the world.
+        self.num_actions = num_actions
+        num_inputs = self.num_sensors + self.num_actions
+        max_num_inputs = num_inputs
+        max_num_features = 1 + 3 * max_num_inputs
+        # actions : array of floats
         #     The set of actions to execute this time step.
-        #     Initializing them to non-zero helps to kick start the
-        #     act-sense-decide loop.
-        self.previous_actions = np.zeros(self.n_actions)
-        self.actions = np.ones(self.n_actions) * .1
+        self.actions = np.ones(self.num_actions) * .1
 
-        # Initialize the Discretizers that will take in the
-        # (possibly continuous) sensor inputs and turn each one into
-        # a set of discrete values for use by the featurizer.
-        # discretizers : list of Discretizers
-        #     There is one Discretizer for each sensor.
-        #     See the pydocs in the module discretizer.py for
-        #     the class Discretizer.
-        self.discretizers = []
-        for i in range(self.n_sensors):
-            new_discretizer = Discretizer(
-                base_position=float(i) + .5,
-                input_pool=self.input_pool,
-                name='sensor_' + str(i))
-            self.discretizers.append(new_discretizer)
-
-        # affect : Affect
-        #     See the pydocs in the module affect.py for the class Affect.
-        self.affect = Affect()
-        # satisfaction : float
-        #     The level of contentment experienced by the brain.
-        #     Higher contentment dampens curiosity and the drive to explore.
-        self.satisfaction = 0.
-
-        # TODO: Assume all actions are in a continuous space.
-        # This means that it can be repeatedly subdivided to
-        # generate actions of various magnitudes and increase control.
-
-        # featurizer : Featurizer
-        #     The featurizer is an unsupervised learner that learns
-        #     features from the inputs.
-        self.featurizer = Featurizer(
-            n_features,
-            threshold=1e3,
-            debug=True,
-        )
-        # model : Model
-        #     The model builds sequences of features and goals and uses
-        #     them to choose new goals.
-        self.model = Model(max_n_features, self)
-
-        self.timestep = timestep
-        self.visualize_interval = visualize_interval
-        self.backup_interval = backup_interval
+        # timestep : int
+        #     The age of the brain in discrete time steps.
+        self.timestep = 0
+        # backup_interval : int
+        #     The number of time steps between saving a copy of the brain
+        #     out to a pickle file for easy recovery.
+        self.backup_interval = 1e5
+        # name : str
+        #     Unique name for this brain.
         self.name = brain_name
 
         if log_directory is None:
@@ -161,6 +86,24 @@ class Brain(object):
         self.pickle_filename = os.path.join(
             self.log_dir, '{0}.pickle'.format(brain_name))
 
+        # affect : Affect
+        #     See the pydocs in the module affect.py for the class Affect.
+        self.affect = Affect()
+        # satisfaction : float
+        #     The level of contentment experienced by the brain.
+        #     Higher contentment dampens curiosity and the drive to explore.
+        self.satisfaction = 0.
+
+        # featurizer : Featurizer
+        #     The featurizer is an unsupervised learner that learns
+        #     features from the inputs.
+        self.featurizer = Featurizer(max_num_inputs, max_num_features)
+        # model : Model
+        #     The model builds sequences of features and goals and uses
+        #     them to choose new goals.
+        self.model = Model(max_num_features, self)
+
+
     def sense_act_learn(self, sensors, reward):
         """
         Take sensor and reward data in and use them to choose an action.
@@ -169,7 +112,7 @@ class Brain(object):
         ----------
         sensors : array of floats
             The information coming from the sensors in the world.
-            The array should have self.n_sensors inputs.
+            The array should have self.num_sensors inputs.
             Whatever the low and high value of each sensor, its value
             will be rescaled to fall between 0 and 1.
             Sensor values are interpreted as fuzzy binary
@@ -193,7 +136,7 @@ class Brain(object):
         -------
         actions : array of floats
             The action commands that the brain is sending to the world
-            to be executed. The array should have self.n_actions
+            to be executed. The array should have self.num_actions
             inputs in it. Each value should be binary: 0 and 1. This
             allows the brain to learn most effectively how to interact
             with the world to obtain more reward.
@@ -203,20 +146,18 @@ class Brain(object):
         # Calculate the "mood" of the agent.
         self.satisfaction = self.affect.update(reward)
 
-        new_input_indices = self.construct_features(sensors)
-        self.featurizer.update_masks(new_input_indices)
+        input_activities = np.concatenate((self.actions, sensors))
         feature_activities, live_features = self.featurizer.featurize(
-            self.input_activities)
-        print('fa', feature_activities.size)
+            input_activities)
         feature_goals = self.model.step(feature_activities,
                                         live_features,
-                                        reward)
+                                        reward,
+                                        self.satisfaction)
         # Pass goals back down.
         input_goals = self.featurizer.defeaturize(feature_goals)
 
         # Isolate the actions from the rest of the goals.
-        self.previous_actions = self.actions
-        self.actions = input_goals[:self.n_actions]
+        self.actions = input_goals[:self.num_actions]
 
         # Create a set of random actions.
         # This is occasionally helpful when debugging.
@@ -230,30 +171,6 @@ class Brain(object):
 
         return self.actions
 
-    def construct_features(self, sensors):
-        """
-        Build a set of discretized inputs for the featurizer.
-        """
-        raw_input_activities = np.zeros(self.n_features)
-        raw_input_activities[:self.n_actions] = self.actions
-        new_input_indices = []
-        for i_sensor, discretizer in enumerate(self.discretizers):
-            if len(self.input_pool) < 2:
-                # TODO: Free up inputs.
-                print('Input pool is empty.')
-                break
-
-            new_input_indices = discretizer.step(
-                sensors[i_sensor],
-                raw_input_activities,
-                self.input_pool,
-                # self.n_inputs,
-                # self.n_features,
-                new_input_indices,
-            )
-        self.input_activities = tools.fatigue(
-            raw_input_activities, self.input_energies)
-        return new_input_indices
 
     def random_actions(self):
         """
@@ -267,11 +184,12 @@ class Brain(object):
         actions : array of floats
             See sense_act_learn.actions.
         """
-        threshold = .1 / float(self.n_actions)
-        action_strength = np.random.random_sample(self.n_actions)
-        actions = np.zeros(self.n_actions)
+        threshold = .1 / float(self.num_actions)
+        action_strength = np.random.random_sample(self.num_actions)
+        actions = np.zeros(self.num_actions)
         actions[np.where(action_strength < threshold)] = 1.
         return actions
+
 
     def report_performance(self):
         """
@@ -283,8 +201,12 @@ class Brain(object):
             The average reward per time step collected by
             the brain over its lifetime.
         """
-        performance = self.affect.visualize(self)
+        performance = self.affect.visualize(
+            self.timestep,
+            self.name,
+            self.log_dir)
         return performance
+
 
     def backup(self):
         """
@@ -304,7 +226,7 @@ class Brain(object):
             # happens to ^C out of the program while it is being saved,
             # the file becomes corrupted, and all the learning that the
             # brain did is lost.
-            make_second_backup = True
+            make_second_backup = False
             if make_second_backup:
                 with open('{0}.bak'.format(self.pickle_filename),
                           'wb') as brain_data_bak:
@@ -315,12 +237,10 @@ class Brain(object):
         except pickle.PickleError as perr:
             print('Pickling error: {0} encountered while saving brain data'.
                   format(perr))
-        except Exception as err:
-            print('Unknown error: {0} encountered while saving brain data'.
-                  format(err))
         else:
             success = True
         return success
+
 
     def restore(self):
         """
@@ -344,8 +264,8 @@ class Brain(object):
             # Sometimes the pickle file is corrputed. When this is the case
             # you can manually overwrite it by removing the .bak from the
             # .pickle.bak file. Then you can restore from the backup pickle.
-            if ((loaded_brain.n_sensors == self.n_sensors) and
-                    (loaded_brain.n_actions == self.n_actions)):
+            if ((loaded_brain.num_sensors == self.num_sensors) and
+                    (loaded_brain.num_actions == self.num_actions)):
                 print('Brain restored at timestep {0} from {1}'.format(
                     str(loaded_brain.timestep), self.pickle_filename))
                 restored_brain = loaded_brain
@@ -357,16 +277,12 @@ class Brain(object):
         except IOError:
             print('Couldn\'t open {0} for loading'.format(
                 self.pickle_filename))
-        except EOFError:
-            print('The pickle file is incomplete.')
-            print('It was probably interrupted during saving.')
-            print('Revert to the pickle.bak file if you have one.')
-            print('Otherwise a new world will be created from scratch.')
-        except pickle.PickleError as err:
+        except(pickle.PickleError, err):
             print('Error unpickling world: {0}'.format(err))
         return restored_brain
 
-    def visualize(self, world):
+
+    def visualize(self):
         """
         Show the current state and some history of the brain.
 
@@ -375,8 +291,6 @@ class Brain(object):
         print(' ')
         print('{0} is {1} time steps old'.format(self.name, self.timestep))
 
-        viz.brain_activity(self)
-        self.affect.visualize(self)
-        # print('Running', world.name)
-        # self.featurizer.visualize(self, world)
-        # self.model.visualize(self)
+        self.affect.visualize(self.timestep, self.name, self.log_dir)
+        self.featurizer.visualize()
+        #self.model.visualize(self)

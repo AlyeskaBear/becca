@@ -5,7 +5,6 @@ from __future__ import print_function
 import numpy as np
 
 
-# pylint: disable=too-many-instance-attributes
 class World(object):
     """
     The base class for creating a new world.
@@ -24,7 +23,7 @@ class World(object):
         #     The number of time steps for which the world should continue
         #     to exist.
         if lifespan is None:
-            self.lifespan = int(1e7)
+            self.lifespan = 10 ** 5
         else:
             self.lifespan = lifespan
         # timestep : int
@@ -33,11 +32,13 @@ class World(object):
         self.timestep = -1
         # world_visualization_period : int
         #     How often to turn the world into a picture.
-        self.visualize_interval = 1e6
+        self.world_visualize_period = 1e6
+        # brain_visualization_period : int
+        #     How often to turn the brain's state into a picture.
+        self.brain_visualize_period = 1e4
         # name : String
         #     The name of the world.
-        self.name = 'abstract_base_world'
-        self.name_long = 'abstract base world'
+        self.name = 'abstract base world'
         # num_actions, num_sensors : int
         #     The number of actions and sensors, respectively.
         #     These will likely be overridden in any subclass
@@ -73,7 +74,7 @@ class World(object):
             The current reward provided by the world.
         """
         self.timestep += 1
-        self.sensors = np.ones(self.num_sensors) * actions
+        self.sensors = np.zeros(self.num_sensors)
         self.reward = 0
         return self.sensors, self.reward
 
@@ -94,8 +95,24 @@ class World(object):
 
     def visualize(self, brain):
         """
+        Let the world show Becca's internal state as well as its own.
+
+        Parameters
+        ----------
+        brain : Brain
+            A copy of the Brain, provided to the world so that the
+            world can interpret and visualize it in the context of the
+            world.
+        """
+        if (self.timestep % self.brain_visualize_period) == 0:
+            brain.visualize()
+        if (self.timestep % self.world_visualize_period) == 0:
+            self.visualize_world(brain)
+
+
+    def visualize_world(self, brain):
+        """
         Show the user the state of the world.
         """
         print('{0} is {1} time steps old.'.format(self.name, self.timestep))
         print('The brain is {0} time steps old.'.format(brain.timestep))
-

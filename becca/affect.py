@@ -74,14 +74,18 @@ class Affect(object):
         return self.satisfaction
 
 
-    def visualize(self, brain):
+    def visualize(self, timestep, brain_name, log_dir):
         """
         Update the reward history, create plots, and save them to a file.
 
         Parameters
         ----------
-        brain : Brain
-            The brain to which the affect belongs.
+        timestep : int
+            See docstring for brain.py.
+        brain_name : str
+            See docstring for brain.py.
+        log_dir : str
+            See docstring for brain.py.
 
         Returns
         -------
@@ -95,8 +99,9 @@ class Affect(object):
                                        float(self.time_since_reward_log))
             self.cumulative_reward = 0
             self.time_since_reward_log = 0
-            self.reward_steps.append(brain.timestep)
-            performance = np.mean(self.reward_history)
+            self.reward_steps.append(timestep)
+
+        performance = np.mean(self.reward_history)
 
         # Plot the lifetime record of the reward.
         fig = plt.figure(11111)
@@ -107,23 +112,18 @@ class Affect(object):
         linewidth = np.random.normal(loc=2.5)
         linewidth = 2
         linewidth = np.maximum(1., linewidth)
-        plt.plot(
-            np.array(self.reward_steps) / 1000.,
-            self.reward_history,
-            color=color,
-            linewidth=linewidth)
+        plt.plot(self.reward_steps, self.reward_history, color=color,
+                 linewidth=linewidth)
         plt.gca().set_axis_bgcolor(tools.copper_highlight)
-        plt.xlabel('Thousands of time steps')
+        plt.xlabel('Time step')
         plt.ylabel('Average reward')
-        plt.title('Reward history for {0}'.format(brain.name))
+        plt.title('Reward history for {0}'.format(brain_name))
         fig.show()
         fig.canvas.draw()
 
         # Save a copy of the plot.
-        filename = 'reward_history_{0}.png'.format(brain.name)
-        pathname = os.path.join(brain.log_dir, filename)
+        filename = 'reward_history_{0}.png'.format(brain_name)
+        pathname = os.path.join(log_dir, filename)
         plt.savefig(pathname, format='png')
-
-        performance = np.mean(self.reward_history)
 
         return performance

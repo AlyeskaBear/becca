@@ -52,7 +52,7 @@ def pad(arr, shape, val=0., dtype=float):
         The padded version of ``arr``.
     """
     # For  padding a 1D array
-    if isinstance(shape, int):
+    if isinstance(shape, (int)):
         if shape <= 0:
             rows = arr.size - shape
         else:
@@ -97,7 +97,7 @@ def pad(arr, shape, val=0., dtype=float):
     padded[:arr.shape[0], :arr.shape[1], :arr.shape[2], :arr.shape[3]] = arr
     return padded
 
-
+'''
 def str_to_int(exp):
     """
     Convert a string to an integer.
@@ -120,7 +120,7 @@ def str_to_int(exp):
     for i, character in enumerate(exp):
         sum_ += i + ord(character) + i * ord(character)
     return sum_
-
+'''
 
 def timestr(timestep, s_per_step=.25, precise=True):
     """
@@ -200,28 +200,6 @@ def timestr(timestep, s_per_step=.25, precise=True):
     return time_str
 
 
-def fatigue(raw_activities, energies, fatigue_rate=3e-4, recharge_rate=1e-4):
-    """
-    Limit the frequency and intensity of activities with a model of fatigue.
-    
-    @param raw_activities: array of floats
-        The activities before fatigue has been applied.
-    @param energies: array of floats
-        The accumulated energy a channel has at its disposal. 
-    @param fatigue_rate
-        The rate at which energy is depleted when a channel is active.
-    @param recharge_rate: 
-        The rate at which energy is re-accumulated.
-
-    @return activities: array of floats
-        The activities after fatigue has been applied.
-    """
-    # 
-    energies -= fatigue_rate * raw_activities * energies
-    energies += recharge_rate * (1. - raw_activities) * (1. - energies)
-    activities = raw_activities * energies
-    return activities
-
 def format_decimals(array):
     """
     Format and print an array as a list of fixed decimal numbers in a string.
@@ -268,7 +246,7 @@ def get_files_with_suffix(dir_name, suffixes):
     found_filenames.sort()
     return found_filenames
 
-
+'''
 def visualize_array(image_data, label='data_figure'):
     """
     Produce a visual representation of the image_data matrix.
@@ -287,7 +265,7 @@ def visualize_array(image_data, label='data_figure'):
     fig = plt.figure(str_to_int(label))
     # Diane made the brilliant suggestion to leave this plot in color.
     # It looks much prettier.
-    plt.bone()
+    plt.summer()
     img = plt.imshow(image_data)
     img.set_interpolation('nearest')
     plt.title(label)
@@ -295,4 +273,4 @@ def visualize_array(image_data, label='data_figure'):
                                                    np.min(image_data)))
     fig.show()
     fig.canvas.draw()
-
+'''
