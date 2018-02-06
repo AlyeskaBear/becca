@@ -6,6 +6,7 @@ from __future__ import print_function
 
 import numpy as np
 
+from becca.input_filter import InputFilter
 import becca.model_numba as nb
 import becca.model_viz as viz
 
@@ -30,17 +31,22 @@ class Model(object):
     and recent goals, both the reward and the resulting features can be
     anticipated.
 
-    Action selection.
+    Action selection. (performed by the Actor)
     Knowing the
     current active features, goals can be chosen in order to reach
     a desired feature or to maximize reward.
 
-    Planning.
+    Planning. (yet to be implemented)
     Feature-goal-feature tuples can
     be chained together to formulate multi-step plans while maximizing
-    reward and prabability of successfully reaching the goal.
+    reward and probability of successfully reaching the goal.
     """
-    def __init__(self, n_features, brain):
+    def __init__(
+        self,
+        brain=None,
+        debug=False,
+        n_features=0,
+    ):
         """
         Get the Model set up by allocating its variables.
 
@@ -52,6 +58,8 @@ class Model(object):
         n_features : int
             The total number of features allowed in this model.
         """
+        self.debug = debug
+
         # n_features : int
         #     The maximum number of features that the model can expect
         #     to incorporate. Knowing this allows the model to
@@ -78,8 +86,9 @@ class Model(object):
         #     of cables that the Ziptie can handle. Each Ziptie will
         #     have its own InputFilter.
         self.filter = InputFilter(
-            n_inputs_final = self.n_inputs,
-            verbose=self.verbose,
+            n_inputs = self.n_features,
+            name='model',
+            debug=self.debug,
         )
 
         # feature_goals,
@@ -89,17 +98,9 @@ class Model(object):
         #     They are temporary incentives, used for planning and
         #     goal selection. These can vary between zero and one.
         #     Votes are used to help choose a new goal each time step.
-        self.feature_goal_activities = np.zeros(self.n_features)
-        self.previous_feature_goals = np.zeros(self.n_features)
-        self.feature_goal_votes = np.zeros(self.n_features)
-
-        # FAIs : array of floats
-        #     Feature activity increases.
-        #     Of particular interest to us are **increases** in
-        #     feature activities. These tend to occur at a
-        #     specific point in time, so they are particularly useful
-        #     in building meaningful temporal sequences.
-        self.FAIs = np.zeros(self.n_features)
+        self.goal_activities = np.zeros(self.n_features)
+        # self.previous_feature_goals = np.zeros(self.n_features)
+        # self.feature_goal_votes = np.zeros(self.n_features)
 
         # prefix_curiosities,
         # prefix_occurrences,
@@ -120,6 +121,9 @@ class Model(object):
         _3D_size = (self.n_features, self.n_features, self.n_features)
         # Making believe that everything has occurred once in the past
         # makes it easy to believe that it might happen again in the future.
+        self.conditional_rewards = np.zeros(self.n_features)
+        self.conditional_curiosities = np.zeros(self.n_features)
+        self.conditional_predictions = np.zeros(_2D_size)
         self.prefix_activities = np.zeros(_2D_size)
         self.prefix_credit = np.zeros(_2D_size)
         self.prefix_occurrences = np.ones(_2D_size)
@@ -146,7 +150,7 @@ class Model(object):
         #     a prefix increases its curiosity.
         self.curiosity_update_rate = 3e-3
 
-    def calculate_fitness():
+    def calculate_fitness(self):
         """
         Calculate the predictive fitness of all the feature candidates.
 
@@ -168,23 +172,76 @@ class Model(object):
 
         return candidate_fitness
 
-    def update_inputs(self, candidate_activities):
+    def update_activities(self, candidate_activities):
         """
-        Apply new activities and propogate feature resets, 
+        Apply new activities, 
 
         Parameters
         ----------
         candidate_activities: array of floats
-        resets: array of ints
 
         Returns
         -------
+        None, but updates class members
         feature_activities: array of floats
+        previous_feature_activities: array of floats
         """
-        # TODO: Propogate resets
         # TODO: incorporate _update_activities() into this
-        feature_activities = self.filter.update_inputs(candidate_activities)
-        return feature_activities
+        feature_activities = self.filter.update_activities(
+            candidate_activities)
+
+        # Augment the feature_activities with the two internal features,
+        # the "always on" (index of 0) and
+        # the "null" or "nothing else is on" (index of 1).
+        self.previous_feature_activities = self.feature_activities
+        self.feature_activities = np.concatenate((
+            np.zeros(2), feature_activities))
+        self.feature_activities[0] = 1.
+        total_activity = np.sum(self.feature_activities[2:])
+        inactivity = max(1. - total_activity, 0.)
+        self.feature_activities[1] = inactivity
+        return
+
+    def update_inputs(self, upstream_resets):
+        """
+        Add and reset feature inputs as appropriate.
+
+        Parameters
+        ----------
+        upstream_resets: array of ints
+            Indices of the feature candidates to reset.
+
+        Returns
+        -------
+        resets: array of ints
+            Indices of the features that were reset.
+        """
+        resets = self.filter.update_inputs(upstream_resets=upstream_resets)
+
+        # Reset features throughout the model.
+        # It's like they never existed.
+        for i in resets:
+            self.previous_feature_activities[i] = 0.
+            self.feature_activities[i] = 0.
+            self.feature_fitness[i] = 0.
+            self.goal_activities[i] = 0.
+            self.prefix_activities[i, :] = 0.
+            self.prefix_activities[:, i] = 0.
+            self.prefix_credit[i, :] = 0.
+            self.prefix_credit[:, i] = 0.
+            self.prefix_occurrences[i, :] = 0.
+            self.prefix_occurrences[:, i] = 0.
+            self.prefix_curiosities[i, :] = 0.
+            self.prefix_curiosities[:, i] = 0.
+            self.prefix_rewards[i, :] = 0.
+            self.prefix_rewards[:, i] = 0.
+            self.prefix_uncertainties[i, :] = 0.
+            self.prefix_uncertainties[:, i] = 0.
+            self.sequence_occurrences[i, :, :] = 0.
+            self.sequence_occurrences[:, i, :] = 0.
+            self.sequence_occurrences[:, :, i] = 0.
+
+        return resets
 
     def step(self, candidate_activities, reward):
         """
@@ -197,126 +254,90 @@ class Model(object):
         reward : float
             The reward reported by the world during the most recent time step.
         """
-        # TODO: Remove live_features. Assume all are live.
-        # live_features = self._update_activities(
-        #     feature_activities, brain_live_features)
-        self.feature_activities = self.update_inputs(candidate_activities)
+        # Update feature_activities and previous_feature_activities
+        self.update_activities(candidate_activities)
 
         # Update sequences before prefixes.
         nb.update_sequences(
-            live_features,
-            self.FAIs,
+            self.feature_activities,
             self.prefix_activities,
-            self.sequence_occurrences)
+            self.sequence_occurrences,
+        )
 
         nb.update_prefixes(
-            live_features,
             self.prefix_decay_rate,
             self.previous_feature_activities,
-            self.feature_goal_activities,
+            self.goal_activities,
             self.prefix_activities,
             self.prefix_occurrences,
-            self.prefix_uncertainties)
+            self.prefix_uncertainties,
+        )
 
         nb.update_rewards(
-            live_features,
             self.reward_update_rate,
             reward,
             self.prefix_credit,
-            self.prefix_rewards)
+            self.prefix_rewards,
+        )
 
         nb.update_curiosities(
-            live_features,
             self.curiosity_update_rate,
             self.prefix_occurrences,
             self.prefix_curiosities,
             self.previous_feature_activities,
             self.feature_activities,
-            self.feature_goal_activities,
-            self.prefix_uncertainties)
-
-        self.feature_goal_votes = nb.calculate_goal_votes(
-            self.n_features,
-            live_features,
-            self.prefix_rewards,
-            self.prefix_curiosities,
+            self.goal_activities,
+            self.prefix_uncertainties,
+        )
+        
+        nb.predict_features(
+            self.feature_activities,
             self.prefix_occurrences,
             self.sequence_occurrences,
+            self.conditional_predictions,
+        )
+        nb.predict_rewards(
             self.feature_activities,
-            self.feature_goal_activities)
+            self.prefix_rewards,
+            self.conditional_rewards,
+        )
+        nb.predict_curiosities(
+            self.feature_activities,
+            self.prefix_curiosities,
+            self.conditional_curiosities,
+        )
 
-        # TODO: break this out into a separate object.
-        goal_index, max_vote = self._choose_feature_goals()
+        return (
+            self.conditional_predictions,
+            self.conditional_rewards,
+            self.conditional_curiosities)
 
+    def update_goals(self, goals, i_new_goal):
+        """
+        Given a set of goals, record and execute them.
+
+        Parameters
+        ----------
+        goals: array of floats
+            The current set of goal activities.
+        i_new_goal: int
+            The index of the most recent feature goal.
+
+        Returns
+        -------
+        feature_pool_goals: array of floats
+        """
+        self.goal_activities = goals
         nb.update_reward_credit(
-            live_features,
-            goal_index,
-            max_vote,
+            i_new_goal,
             self.feature_activities,
             self.credit_decay_rate,
             self.prefix_credit)
 
         # Trim off the first two elements. The are internal to the model only.
-        return self.feature_goal_activities[2:]
-
-
-    def _update_activities(self, feature_activities, brain_live_features):
-        """
-        Calculate the change in feature activities and goals.
-
-        Parameters
-        ----------
-        brain_live_features : array of ints
-            The set of indices of features that have had some activity
-            in their lifetime.
-        feature_activities : array of floats
-            The current activities of each of the features.
-        """
-
-        # Augment the feature_activities with the two internal features,
-        # the "always on" (index of 0) and
-        # the "null" or "nothing else is on" (index of 1).
-        self.previous_feature_activities = self.feature_activities
-        self.feature_activities = np.concatenate((
-            np.zeros(2), feature_activities))
-        # TODO: Make this less ugly.
-        live_features = brain_live_features + 2
-        live_features = list(live_features)
-        live_features = [0, 1] + live_features
-        live_features = np.array(live_features).astype('int32')
-
-        # No need to filter here. Filtering occurs in preprocessor.
-        # TODO: change from FAIs to feature activities
-        # Track the increases in feature activities.
-        self.FAIs = np.maximum(
-            self.feature_activities - self.previous_feature_activities, 0.)
-        # Assign the always on and the null feature.
-        self.FAIs[0] = 1.
-        total_activity = np.sum(self.FAIs[2:])
-        inactivity = max(1. - total_activity, 0.)
-        self.FAIs[1] = inactivity
-
-        return live_features
-
-
-    def _choose_feature_goals(self):
-        """
-        Using the feature_goal_votes, choose a goal.
-        """
-        # Choose one goal at each time step, the feature with
-        # the largest vote.
-        self.previous_feature_goals = self.feature_goal_activities
-        self.feature_goal_activities = np.zeros(self.n_features)
-        max_vote = np.max(self.feature_goal_votes)
-        goal_index = 0
-        matches = np.where(self.feature_goal_votes == max_vote)[0]
-        # If there is a tie, randomly select between them.
-        goal_index = matches[np.argmax(
-            np.random.random_sample(matches.size))]
-        self.feature_goal_activities[goal_index] = 1.
-
-        return goal_index, max_vote
-
+        feature_pool_goals = self.filter.project_activities(
+            self.goal_activities[2:]) 
+        return feature_pool_goals
 
     def visualize(self, brain):
         """

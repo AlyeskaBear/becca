@@ -34,11 +34,12 @@ def set_dense_val(array2d, i_rows, i_cols, val):
     Occur indirectly by modifying array2d.
     """
     for i, _ in enumerate(i_rows):
-        array2d[i_rows[i], i_cols[i]] = val
+        if i_rows[i] >= 0 and i_cols[i] >= 0:
+            array2d[i_rows[i], i_cols[i]] = val
 
 
 @jit(nopython=True)
-def max_dense(array2d, results):
+def max_2d(array2d):
     """
     Find the maximum value of a dense 2D array, with its row and column
 
@@ -46,31 +47,31 @@ def max_dense(array2d, results):
     ----------
     array2d : 2D array of floats
         The array to find the maximum value of.
-    results : array of floats, size 3
-        An array for holding the results of the operation.
 
     Returns
     -------
     Results are returned indirectly by modifying results.
     The results array has three elements and holds
-        [0] the maximum value found
-        [1] the row number in which it was found
-        [2] the column number in which it was found
+    max_val: float
+        The maximum value found
+    i_row, i_col: ints
+        The row and column in which it was found
     """
-    max_val = results[0]
-    i_row_max = results[1]
-    i_col_max = results[2]
-    for i_row in range(array2d.shape[0]):
-        for i_col in range(array2d.shape[1]):
+    max_val = 0
+    i_row_max = -1
+    i_col_max = -1
+    n_rows, n_cols = array2d.shape
+    for i_row in range(n_rows):
+        for i_col in range(n_cols):
             if array2d[i_row, i_col] > max_val:
                 max_val = array2d[i_row, i_col]
                 i_row_max = i_row
                 i_col_max = i_col
-    results[0] = max_val
-    results[1] = i_row_max
-    results[2] = i_col_max
+
+    return (max_val, i_row_max, i_col_max)
 
 
+'''
 @jit(nopython=True)
 def find_bundle_activities(i_rows, i_cols, cables, bundles, weights, threshold):
     """
@@ -171,6 +172,7 @@ def find_bundle_activities(i_rows, i_cols, cables, bundles, weights, threshold):
                 col = i_cols[i]
                 cables[col] -= best_val
                 i -= 1
+'''
 
 
 @jit(nopython=True)

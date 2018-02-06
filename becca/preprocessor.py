@@ -2,45 +2,75 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-
+ 
 import numpy as np
 
+from becca.discretizer import Discretizer
+import becca.tools as tools
 
-class InputFilter(object):
+
+class Preprocessor(object):
     """
-    Takes a possibly large number of input candidates and selects a few
-    from among them.
+    The Preprocessor takes the raw sensor signals in and creates a set of
+    inputs for the Brain to learn from.
     """
     def __init__(
         self,
-        n_inputs_final=None,
-        verbose=False,
+        n_commands=None,
+        n_sensors=None,
     ):
         """
         Parameters
         ----------
-        n_inputs_final: int
-            The number of inputs that the InputFilter is expected to return.
-        verbose: boolean
+        n_commands, n_sensors: int
+            The number of commands that the world is expecting and the
+            number of sensors that the world will be providing. These
+            are the only pieces of information Becca needs about the
+            world to get started.
         """
         # Check for valid arguments.
-        if not n_inputs_final:
+        if not n_commands or not n_sensors:
             print('You have to give a number for both' +
-                  ' n_inputs_final.')
+                  ' n_commands and n_sensors.')
             return
         else:
-            self.n_inputs_final = n_inputs_final
+            self.n_commands = n_commands
+            self.n_sensors = n_sensors
 
-    
+        # n_inputs: int
+        #     The total number of inputs that the preprocessor passes on.
+        self.n_inputs = self.n_commands
 
-    def convert_to_inputs(self, actions, sensors):
+        # input_energies: array of floats
+        #     The reservoirs of energy associated with each of the inputs.
+        #     Each input is subject to fatigue.
+        #     It has to be quiet for a while
+        #     before it can be strongly active again.
+        # Initialize it to handle many more inputs than will be needed
+        # at first.
+        n_init = 10 * (self.n_commands + self.n_sensors)
+        self.input_energies = np.ones(n_init)
+
+        # Initialize the Discretizers that will take in the
+        # (possibly continuous) sensor inputs and turn each one into
+        # a set of discrete values.
+        self.discretizers = []
+        for i in range(self.n_sensors):
+            new_discretizer = Discretizer(
+                base_position=float(i) + .5,
+                n_inputs=self.n_inputs,
+                name='sensor_' + str(i))
+            self.discretizers.append(new_discretizer)
+            self.n_inputs += 2
+
+    def convert_to_inputs(self, commands, sensors):
         """
         Build a set of discretized inputs for the featurizer.
 
         Parameters
         ----------
-        actions: array of floats
-            The actions taken on the previous time step. These are assumed
+        commands: array of floats
+            The commands taken on the previous time step. These are assumed
             to be discretized already.
         sensors: list of floats, strings and/or stringifiable objects
             The sensor values from the current time step.
@@ -52,8 +82,8 @@ class InputFilter(object):
             are discretized versions of the sensors.
         """
         raw_input_activities = np.zeros(self.input_energies.size)
-        # This assumes that n_actions is constant.
-        raw_input_activities[:self.n_actions] = actions
+        # This assumes that n_commands is constant.
+        raw_input_activities[:self.n_commands] = commands
         for i_sensor, discretizer in enumerate(self.discretizers):
             raw_input_activities, self.n_inputs = discretizer.step(
                 input_activities=raw_input_activities,

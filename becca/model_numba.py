@@ -6,11 +6,12 @@ from __future__ import print_function
 from numba import jit
 import numpy as np
 
+import becca.tools as tools
+
 
 @jit(nopython=True)
 def update_sequences(
-    live_features,
-    new_FAIs,
+    feature_activities,
     prefix_activities,
     sequence_occurrences,
 ):
@@ -20,31 +21,31 @@ def update_sequences(
     The new sequence activity, n, is
         n = p * f, where
     p is the prefix activities from the previous time step and
-    f is the new_FAIs
-
-    These are temporarily disabled, since they haven't proven themselves
-    absolutely necessary yet.
+    f is the post-feature_activities
     """
-    small = .1
-    for j_feature in live_features:
-        if new_FAIs[j_feature] < small:
-            continue
-        for i_goal in live_features:
-            for i_feature in live_features:
-                if prefix_activities[i_feature][i_goal] < small:
-                    continue
-                sequence_occurrences[i_feature][i_goal][j_feature] += (
-                    prefix_activities[i_feature][i_goal] *
-                    new_FAIs[j_feature])
+    n_pre_features, n_goals, n_post_features = sequence_occurrences.shape
+    # Iterate over post-features
+    for j_feature in range(n_post_features):
+        if feature_activities[j_feature] > tools.epsilon:
+            # Iterate over goals and pre-features
+            for i_goal in range(n_goals):
+                for i_feature in range(n_pre_features):
+                    # These are still the prefix activities from the
+                    # previous time step. Together with the current
+                    # feature activities, these constitute sequences.
+                    if prefix_activities[i_feature, i_goal] > tools.epsilon:
+                        sequence_occurrences[
+                            i_feature, i_goal, j_feature] += (
+                            prefix_activities[i_feature, i_goal] *
+                            feature_activities[j_feature])
     return
 
 
 @jit(nopython=True)
 def update_prefixes(
-    live_features,
     prefix_decay_rate,
     previous_feature_activities,
-    feature_goal_activities,
+    goal_activities,
     prefix_activities,
     prefix_occurrences,
     prefix_uncertainties,
@@ -54,37 +55,35 @@ def update_prefixes(
 
     The new activity of a feature-goal prefix, n,  is
          n = f * g, where
-    f is the previous_FAI and
+    f is the previous_feature_activities and
     g is the current goal_increase.
 
     p, the prefix activity, is a decayed version of n.
     """
-    for i_feature in live_features:
-        for i_goal in live_features:
-            prefix_activities[i_feature][i_goal] *= (
-                1. - prefix_decay_rate)
+    n_features, n_goals = prefix_activities.shape
+    for i_feature in range(n_features):
+        for i_goal in range(n_goals):
+            prefix_activities[i_feature, i_goal] *= 1 - prefix_decay_rate
 
             new_prefix_activity = (previous_feature_activities[i_feature] *
-                                   feature_goal_activities[i_goal])
-            prefix_activities[i_feature][i_goal] += new_prefix_activity
-            prefix_activities[i_feature][i_goal] = min(
-                prefix_activities[i_feature][i_goal], 1.)
+                                   goal_activities[i_goal])
+            prefix_activities[i_feature, i_goal] += new_prefix_activity
+            prefix_activities[i_feature, i_goal] = min(
+                prefix_activities[i_feature, i_goal], 1)
 
             # Increment the lifetime sum of prefix activity.
-            prefix_occurrences[i_feature][i_goal] += (
-                prefix_activities[i_feature][i_goal])
+            prefix_occurrences[i_feature, i_goal] += (
+                prefix_activities[i_feature, i_goal])
 
             # Adjust uncertainty accordingly.
-            # TODO: Remove the factor of 3 and test
-            prefix_uncertainties[i_feature][i_goal] = 1. / (
-                1. + 3. * prefix_occurrences[i_feature][i_goal])
+            prefix_uncertainties[i_feature, i_goal] = 1 / (
+                1 + prefix_occurrences[i_feature, i_goal])
 
     return
 
 
 @jit(nopython=True)
 def update_rewards(
-    live_features,
     reward_update_rate,
     reward,
     prefix_credit,
@@ -102,42 +101,48 @@ def update_rewards(
     If either the reward discrepancy is very small
     or the sequence activity is very small, there is no change.
     """
-    for i_feature in live_features:
-        for i_goal in live_features:
-            if reward > prefix_rewards[i_feature][i_goal]:
-                update_scale = .5
-            else:
-                update_scale = 1.
-            prefix_rewards[i_feature][i_goal] += (
-                (reward - prefix_rewards[i_feature][i_goal]) *
-                prefix_credit[i_feature][i_goal] *
-                reward_update_rate * update_scale)
+    n_features, n_goals = prefix_rewards.shape
+    for i_feature in range(n_features):
+        for i_goal in range(n_goals):
+            # credit: How much responsibility for this reward is assigned to
+            # this prefix?
+            credit = prefix_credit[i_feature, i_goal]
+            if credit > tools.epsilon:
+                # delta: How big is the discrepancy between
+                # the observed reward and what has been seen preivously.
+                delta = reward - prefix_rewards[i_feature, i_goal]
+                if reward > prefix_rewards[i_feature, i_goal]:
+                    update_scale = .5
+                else:
+                    update_scale = 1.
+                prefix_rewards[i_feature, i_goal] += (
+                    delta * credit * reward_update_rate * update_scale)
     return
 
 
 @jit(nopython=True)
 def update_curiosities(
-    live_features,
     curiosity_update_rate,
     prefix_occurrences,
     prefix_curiosities,
     previous_feature_activities,
     feature_activities,
-    feature_goal_activities,
+    goal_activities,
     prefix_uncertainties,
 ):
     """
     Use a collection of factors to increment the curiosity for each prefix.
     """
-    for i_feature in live_features:
-        for i_goal in live_features:
+    n_features, n_goals = prefix_curiosities.shape
+    for i_feature in range(n_features):
+        for i_goal in range(n_goals):
 
             # Fulfill curiosity on the previous time step's goals.
             curiosity_fulfillment = (previous_feature_activities[i_feature] *
-                                     feature_goal_activities[i_goal])
-            prefix_curiosities[i_feature][i_goal] -= curiosity_fulfillment
-            prefix_curiosities[i_feature][i_goal] = max(
-                prefix_curiosities[i_feature][i_goal], 0.)
+                                     goal_activities[i_goal])
+            prefix_curiosities[i_feature, i_goal] -= curiosity_fulfillment
+            prefix_curiosities[i_feature, i_goal] = max(
+                prefix_curiosities[i_feature, i_goal], 0)
 
             # Increment the curiosity based on several multiplicative
             # factors.
@@ -148,10 +153,136 @@ def update_curiosities(
             #     feature_activities : The activity of the prefix's feature.
             #         Only increase the curiosity if the feature
             #         corresponding to the prefix is active.
-            prefix_curiosities[i_feature][i_goal] += (
+            prefix_curiosities[i_feature, i_goal] += (
                 curiosity_update_rate *
-                prefix_uncertainties[i_feature][i_goal] *
+                prefix_uncertainties[i_feature, i_goal] *
                 feature_activities[i_feature])
+    return
+
+
+@jit(nopython=True)
+def predict_features(
+    feature_activities,
+    prefix_occurrences,
+    sequence_occurrences,
+    conditional_predictions,
+):
+    """
+    Make a prediction about which features are going to become active soon,
+    conditional on which goals are chosen.
+    
+    For any given sequence, the probability it will occur on the next time
+    step, given the associated goal is selected, is
+
+        f * (s - 1) / (p + 1)
+
+    where
+    
+        f: feature activity
+        s: number of sequence occurrences
+        p: number of prefix occurrences
+
+    Adding 1 to p prevents badly behaved fractions.
+    Subtracting 1 from s introduces caution into the estimate.
+
+    Parameters
+    ----------
+    feature_activities: array of floats
+    prefix_occurrences: 2D array of floats
+    sequence_occurrences: 3D array of floats
+    conditional_predictions: 2D array of floats
+        This is updated to represent the new predictions for this time step.
+    """
+    n_features, n_goals = prefix_occurrences.shape
+    conditional_predictions = np.zeros((n_goals, n_features))
+    for i_feature in range(n_features):
+        if feature_activities[i_feature] > tools.epsilon:
+            for i_goal in range(n_goals):
+                for j_feature in range(n_features):
+                    p_sequence = feature_activities[i_feature] * (
+                        (sequence_occurrences[
+                            i_feature, i_goal, j_feature] - 1) /
+                        (prefix_occurrences[i_feature, i_goal] + 1))
+                    if (p_sequence >
+                            conditional_predictions[i_goal, j_feature]):
+                        conditional_predictions[i_goal, j_feature] = (
+                            p_sequence)
+    return
+
+
+@jit(nopython=True)
+def predict_rewards(
+    feature_activities,
+    prefix_rewards,
+    conditional_rewards,
+):
+    """
+    Make a prediction about how much reward will result from each goal.
+    
+    For any given prefix, the reward expected to occur on the next time
+    step, given the associated goal is selected, is
+
+        f * r
+
+    where
+    
+        f: feature activity
+        r: prefix rewards
+
+    Parameters
+    ----------
+    feature_activities: array of floats
+    prefix_rewards: 2D array of floats
+    conditional_rewards: 2D array of floats
+        This is updated to represent the new reward predictions
+        for this time step.
+    """
+    n_features, n_goals = prefix_rewards.shape
+    conditional_rewards = np.zeros(n_goals)
+    for i_feature in range(n_features):
+        for i_goal in range(n_goals):
+            expected_reward = (feature_activities[i_feature] *
+                prefix_rewards[i_feature, i_goal]) 
+            if expected_reward > conditional_rewards[i_goal]:
+                conditional_rewards[i_goal] = expected_reward
+    return
+
+
+@jit(nopython=True)
+def predict_curiosities(
+    feature_activities,
+    prefix_curiosities,
+    conditional_curiosities,
+):
+    """
+    Make a prediction about how much reward will result from each goal.
+    
+    For any given prefix, the reward expected to occur on the next time
+    step, given the associated goal is selected, is
+
+        f * r
+
+    where
+    
+        f: feature activity
+        r: prefix curiosities
+
+    Parameters
+    ----------
+    feature_activities: array of floats
+    prefix_curiosities: 2D array of floats
+    conditional_curiosities: 2D array of floats
+        This is updated to represent the new reward predictions
+        for this time step.
+    """
+    n_features, n_goals = prefix_curiosities.shape
+    conditional_curiosities = np.zeros(n_goals)
+    for i_feature in range(n_features):
+        for i_goal in range(n_goals):
+            expected_curiosity = (feature_activities[i_feature] *
+                prefix_curiosities[i_feature, i_goal]) 
+            if expected_curiosity > conditional_curiosities[i_goal]:
+                conditional_curiosities[i_goal] = expected_curiosity
     return
 
 
@@ -179,11 +310,13 @@ def update_fitness(
     # Calculate the ability of each prefix to predict the features that
     # follow it.
     # Base it on the single most successfully predicted sequence.
+    # TODO: debug numba type inference error in this line
     postfeature_prediction_score = (
-        np.max(sequence_occurrences, axis=2) / prefix_occurrences)
+        np.max(sequence_occurrences, axis=2) /
+        (prefix_occurrences + tools.epsilon))
     # Calculate the ability of each prefix to predict reward or punishment.
     reward_prediction_score = np.abs(prefix_rewards)
-    prefix_score = feature_prediction_score + reward_prediction_score
+    prefix_score = postfeature_prediction_score + reward_prediction_score
     # Scale fitness by confidence (1 - uncertainty)
     prefix_fitness = prefix_score * (1 - prefix_uncertainties)
     # Find the maximum fitness for each feature across all prefixes,
@@ -196,77 +329,8 @@ def update_fitness(
 
 
 @jit(nopython=True)
-def calculate_goal_votes(
-    num_features,
-    live_features,
-    prefix_rewards,
-    prefix_curiosities,
-    prefix_occurrences,
-    sequence_occurrences,
-    feature_activities,
-    feature_goal_activities,
-):
-    """
-    Let each prefix cast a vote for its goal, based on its value.
-
-    For each prefix and its corresponding sequences calculate
-    the expected value, v, of the goal.
-
-            v = a * (r + c + s), where
-        a is the activity of the prefix's feature,
-        r is the prefix's reward,
-        c is the prefix's curiosity, and
-        s is the overall expected value of the prefix's sequences.
-
-            s = sum((o / p) * (g + t)) / sum(o / p), where
-        o is the number of occurrences of the sequence,
-        p is the number of occurrences of the prefix,
-        g is the goal value of the sequence's terminal feature, and
-        t is the top-down plan value of the sequence's terminal feature.
-
-    For each goal, track the largest value that is calculated and
-    treat it as a vote for that goal.
-    """
-    small = .1
-    feature_goal_votes = np.zeros(num_features)
-    for i_feature in live_features:
-        for i_goal in live_features:
-            if feature_activities[i_feature] < small:
-                goal_vote = -2.
-
-            else:
-                ## Hold out this code for now. As far as I know, it works.
-                ## I'll be able to tell with more certainty after additional
-                ## testing.
-                # Add up the value of sequences.
-                weighted_values = 1.
-                total_weights = 1.
-                for j_feature in live_features:
-                    weight = (
-                        sequence_occurrences[i_feature][i_goal][j_feature]*
-                        prefix_occurrences[i_feature][i_goal])
-                    weighted_values += (
-                        weight * feature_goal_activities[j_feature])
-                    total_weights += weight
-                sequence_value = weighted_values / total_weights
-                # Add up the other value components.
-                goal_vote = feature_activities[i_feature] * (
-                    prefix_rewards[i_feature][i_goal] +
-                    prefix_curiosities[i_feature][i_goal])# +
-                    #sequence_value)
-
-            # Compile the maximum goal votes for action selection.
-            if goal_vote > feature_goal_votes[i_goal]:
-                feature_goal_votes[i_goal] = goal_vote
-
-    return feature_goal_votes
-
-
-@jit(nopython=True)
 def update_reward_credit(
-    live_features,
     i_new_goal,
-    max_vote,
     feature_activities,
     credit_decay_rate,
     prefix_credit,
@@ -275,19 +339,19 @@ def update_reward_credit(
     Update the credit due each prefix for upcoming reward.
     """
     # Age the prefix credit.
-    for i_feature in live_features:
-        for i_goal in live_features:
+    n_features, n_goals = prefix_credit.shape
+    for i_feature in range(n_features):
+        for i_goal in range(n_goals):
             # Exponential discounting
-            prefix_credit[i_feature][i_goal] *= (1. - credit_decay_rate)
+            prefix_credit[i_feature, i_goal] *= 1 - credit_decay_rate
 
-    if max_vote > 0.:
-        # Update the prefix credit.
-        if i_new_goal > -1:
-            for i_feature in live_features:
-                # Accumulation strategy:
-                # add new credit to existing credit, with a max of 1.
-                prefix_credit[i_feature][i_new_goal] += (
-                    feature_activities[i_feature])
-                prefix_credit[i_feature][i_new_goal] = min(
-                    prefix_credit[i_feature][i_new_goal], 1.)
+    # Update the prefix credit.
+    if i_new_goal > -1:
+        for i_feature in range(n_features):
+            # Accumulation strategy:
+            # add new credit to existing credit, with a max of 1.
+            prefix_credit[i_feature, i_new_goal] += (
+                feature_activities[i_feature])
+            prefix_credit[i_feature, i_new_goal] = min(
+                prefix_credit[i_feature, i_new_goal], 1)
     return

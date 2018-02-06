@@ -7,9 +7,11 @@ import os
 import numpy as np
 
 from becca.affect import Affect
+from becca.preprocessor import Preprocessor
+from becca.postprocessor import Postprocessor
 from becca.featurizer import Featurizer
 from becca.model import Model
-from becca.preprocessor import Preprocessor
+from becca.actor import Actor
 import becca.viz as viz
 
 
@@ -27,11 +29,11 @@ class Brain(object):
         self,
         backup_interval=int(2**20),
         brain_name='test_brain',
+        debug=True,
         log_directory=None,
-        n_actions=int(2**2),
-        n_features=int(2**6),
-        # n_inputs=int(2**6),
-        n_sensors=int(2**2),
+        n_actions=4,
+        n_features=64,
+        n_sensors=4,
         timestep=0,
         visualize_interval=int(2**18),
     ):
@@ -45,15 +47,12 @@ class Brain(object):
             in timesteps.
         brain_name: str
             A descriptive string identifying the brain.
+        debug: boolean
+            Print informative error messages?
         log_directory : str
             The full path name to a directory where information and
             backups for the world can be stored and retrieved.
-        # n_inputs: int
-        #     An upper bound on the number of inputs to the featurizer.
-        #     This includes discretized sensors as well as actions.
         n_actions: int
-            The number of distinct actions that the brain can choose to
-            execute in the world.
             This is the total number of action outputs that
             the world is expecting.
         n_sensors: int
@@ -69,37 +68,40 @@ class Brain(object):
         visualize_interval: int
             How often to visualize the world, in time steps.
         """
+        self.debug = debug
         self.n_sensors = n_sensors
         self.n_actions = n_actions
-        # self.n_inputs = self.n_actions
         self.n_features = np.maximum(
             n_features, self.n_actions + 4 * self.n_sensors)
 
         self.input_activities = np.zeros(self.n_features)
-        # input_pool: set of ints
-        #     These are the indices of available inputs.
-        #     There are a fixed number of them. Keeping a pool
-        #     allows them to be treated like a list of addresses.
-        #     They can be vacated and used by a new input if needed.
-        # self.input_pool = set(np.arange(self.n_features))
 
-        # actions, previous_actions : array of floats
+        # actions: array of floats
         #     The set of actions to execute this time step.
         #     Initializing them to non-zero helps to kick start the
         #     act-sense-decide loop.
-        self.previous_actions = np.zeros(self.n_actions)
         self.actions = np.ones(self.n_actions) * .1
 
-        # TODO: Build Postprocessor to convert discretized actions into
-        # continuous actions.
+        # The postprocessor converts actions to discretized actions
+        # and back.
+        self.postprocessor = Postprocessor(n_actions=self.n_actions)
+
+        # n_commands: array of floats
+        #     commands are discretized actions, suitable for use within
+        #     becca. The postprocessor translates commands into actions.
+        self.n_commands = self.postprocessor.n_commands
+        # previous_commands: array of floats
+        #     The discretized actions executed on the previous time step.
+        self.previous_commands = np.zeros(self.n_commands)
+        self.commands = np.zeros(self.n_commands)
+
+        # The preprocessor takes raw sensors and commands and converts
+        # them into discrete inputs.
         # Assume all actions are in a continuous space.
         # This means that it can be repeatedly subdivided to
         # generate actions of various magnitudes and increase control.
-
-        # The preprocessor takes raw sensors and actions and converts
-        # them into discrete inputs.
         self.preprocessor = Preprocessor(
-            n_actions=self.n_actions,
+            n_commands=self.n_commands,
             n_sensors=self.n_sensors,
         )
 
@@ -112,14 +114,21 @@ class Brain(object):
         # The featurizer is an unsupervised learner that learns
         # features from the inputs.
         self.featurizer = Featurizer(
-            self.n_features,
+            debug=self.debug,
+            n_inputs=self.n_features,
             threshold=1e3,
-            debug=True,
         )
-        # The model builds sequences of features and goals and uses
-        # them to choose new goals.
-        self.model = Model(self.n_features, self)
-        print('n features', self.n_features)
+        # The model builds sequences of features and goals and reward
+        # for making predictions about its world.
+        self.model = Model(
+            brain=self,
+            debug=self.debug,
+            n_features=self.n_features,
+        )
+
+        # The actor takes conditional predictions from the model and 
+        # uses them to choose new goals.
+        self.actor = Actor(self.n_features, self)
 
         self.timestep = timestep
         self.visualize_interval = visualize_interval
@@ -187,44 +196,40 @@ class Brain(object):
         # Calculate the "mood" of the agent.
         self.satisfaction = self.affect.update(reward)
 
-        # Turn the raw sensors into discretized inputs.
-        # self.input_activities =(
-
         # Calculate new activities in a bottom-up pass.
         input_activities = self.preprocessor.convert_to_inputs(
-            self.consolidated_actions, sensors)
-        print(input_activities)
+            self.previous_commands, sensors)
 
-        # self.featurizer.update_masks(new_input_indices)
-        # feature_activities, live_features = self.featurizer.featurize(
-        #     self.input_activities)
-        feature_activities, feature_resets = self.featurizer.featurize(
-            input_activities)
-        # TODO: straighten this out
-        # feature_activities = feature_activities[:self.n_features]
-        # feature_goals = self.model.step(
-        predicted_rewards, predicted_features = self.model.step(
-            feature_activities, feature_resets, reward)
-        feature_goals = self.actor.choose(
-            predicted_rewards, predicted_features)
-        self.model_update_goals(feature_goals)
+        feature_activities = self.featurizer.featurize(input_activities)
+        (conditional_predictions,
+            conditional_rewards,
+            conditional_curiosities
+        ) = self.model.step(feature_activities, reward)
+        feature_goals, i_goal = self.actor.choose(
+            conditional_predictions=conditional_predictions,
+            conditional_rewards=conditional_rewards,
+            conditional_curiosities=conditional_curiosities,
+        )
+        feature_pool_goals = self.model.update_goals(feature_goals, i_goal)
 
-        # live_features,
         # Pass goals back down.
-        input_goals = self.featurizer.defeaturize(feature_goals)
+        input_goals = self.featurizer.defeaturize(feature_pool_goals)
 
         # Isolate the actions from the rest of the goals.
-        self.previous_actions = self.actions
+        # self.previous_actions = self.actions
         # self.actions = input_goals[:self.n_actions]
-        self.actions, self.consolidated_actions = self.postprocessor(
-            input_goals)
+        self.previous_commands,  self.actions = (
+            self.postprocessor.convert_to_actions(
+                input_goals[:self.n_commands]))
 
         # Update the inputs in a pair of top-down/bottom-up passes.
+        # Top-down
         candidate_fitness = self.model.calculate_fitness()
         self.featurizer.calculate_fitness(candidate_fitness)
-        resets = self.featurizer.update_inputs()
-        self.model.update_inputs(resets)
-
+        # Bottom-up
+        candidate_resets = self.featurizer.update_inputs()
+        feature_resets = self.model.update_inputs(candidate_resets)
+        self.actor.reset(feature_resets)
 
         # Create a set of random actions.
         # This is occasionally helpful when debugging.

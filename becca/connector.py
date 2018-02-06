@@ -42,7 +42,6 @@ def run(world, restore=False):
         )
     # Catch the case where world has no log_directory.
     except AttributeError:
-        print(brain_name)
         brain = Brain(
             n_sensors=world.num_sensors,
             n_actions=world.num_actions,

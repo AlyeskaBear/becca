@@ -5,21 +5,29 @@ from __future__ import unicode_literals
 
 import numpy as np
 
+import becca.tools as tools
+
 
 class InputFilter(object):
     """
-    The InputFilter selects a few inputs from among many candidates.
+    The InputFilter selects a few inputs from among many candidates
+    in the input pool.
     
     The selection process is driven by candidates' fitness and by how
     much activity they have shown.
+    Each ziptie will have one, as will the model.
     """
-    def __init__(self, n_inputs=None):
+    def __init__(self, debug=False, n_inputs=None, name='filter'):
         """
         Parameters
         ----------
+        debug: boolean
         n_inputs: int
             The number of inputs that the filter is expected to maintain.
+        name: string
+            A string that helps to identify this input filter uniquely.
         """
+        self.name = name
         # Check for valid arguments.
         if not n_inputs:
             print('You have to give a number for n_inputs.')
@@ -27,6 +35,10 @@ class InputFilter(object):
         else:
             self.n_inputs = n_inputs
 
+        # n_candidates: int
+        #     The current number of candidates.
+        self.n_candidates = 0
+        
         # input_mapping: array of ints
         #     A mapping from candidates to inputs.
         #     This should be at least as large as the number of candidates.
@@ -41,9 +53,9 @@ class InputFilter(object):
         #     of each candidate.
         self.candidate_fitness = np.zeros(self.n_inputs * 2)
 
-        # cumulative_activity: array of floats
+        # cumulative_activities: array of floats
         #     The accumulated activity over the lifetime of the candidate.
-        self.cumulative_activity = np.zeros(self.n_inputs * 2)
+        self.cumulative_activities = np.zeros(self.n_inputs * 2)
 
         # bench_pressure: array of floats
         #     The 'impatience' of the candidate at not being used as
@@ -70,45 +82,66 @@ class InputFilter(object):
         input_activities: array of floats
         """
         # Grow the candidate-related attributes if necessary.
-        n_can_new = candidate_activities.size
-        n_can_old = self.input_mapping.size
-        if n_can_new >= n_can_old:
-            new_input_mapping = -np.ones(n_can_new * 2, dtype='int')
-            new_input_mapping[:n_can_old] = self.input_mapping
+        self.n_candidates = candidate_activities.size
+        capacity = self.input_mapping.size
+        if self.n_candidates >= capacity:
+            new_input_mapping = -np.ones(self.n_candidates * 2, dtype='int')
+            new_input_mapping[:capacity] = self.input_mapping
             self.input_mapping = new_input_mapping
 
-            new_candidate_fitness = np.zeros(n_can_new * 2)
-            new_candidate_fitness[:n_can_old] = self.candidate_fitness
+            new_candidate_fitness = np.zeros(self.n_candidates * 2)
+            new_candidate_fitness[:capacity] = self.candidate_fitness
             self.candidate_fitness = new_candidate_fitness
 
-            new_cumulative_activity = np.zeros(n_can_new * 2)
-            new_cumulative_activity[:n_can_old] = self.cumulative_activity
-            self.cumulative_activity = new_cumulative_activity
+            new_cumulative_activities = np.zeros(self.n_candidates * 2)
+            new_cumulative_activities[:capacity] = (
+                self.cumulative_activities)
+            self.cumulative_activities = new_cumulative_activities
 
-            new_bench_pressure = np.zeros(n_can_new * 2)
-            new_bench_pressure[:n_can_old] = self.bench_pressure
+            new_bench_pressure = np.zeros(self.n_candidates * 2)
+            new_bench_pressure[:capacity] = self.bench_pressure
             self.bench_pressure = new_bench_pressure
+
 
         input_activities = np.zeros(self.n_inputs)
         # This for loop is slow, but it's clear. It doesn't cost much.
         for i, loc in enumerate(self.input_mapping):
-            if i >= 0:
+            if loc >= 0:
                 input_activities[loc] = candidate_activities[i]        
 
-        self.cumulative_activity[:n_can_new] += candidate_activities
+        self.cumulative_activities[:self.n_candidates] += candidate_activities
 
+        
         self.i_in_use = np.where(self.input_mapping >= 0)[0]
         i_unassigned = np.where(self.input_mapping == -1)[0]
-        # TODO: change this. There may be gaps in the sequence thanks to
-        # upstream resets.
-        self.i_benched = i_unassigned[np.where(i_unassigned < n_can_new)]
-        self.bench_pressure[i_benched] += (
-            candidate_activities[i_benched] / 
-            (self.cumulative_activity[i_benched] * self.pressure_time))
+        self.i_benched = i_unassigned[np.where(
+            i_unassigned < self.n_candidates)]
+        self.bench_pressure[self.i_benched] += (
+            candidate_activities[self.i_benched] / (tools.epsilon + 
+            self.cumulative_activities[self.i_benched] * self.pressure_time))
 
         return input_activities
 
+    def project_activities(self, input_activities):
+        """
+        Project a set of input activities to their respective candidates.
+
+        Parameters
+        ----------
+        input_activities: array of floats
+
+        Returns
+        -------
+        candidate_activities: array of floats
+        """
+        candidate_activities = np.zeros(self.n_candidates)
+        for i, loc in enumerate(self.input_mapping):
+            if loc >= 0:
+                candidate_activities[i] = input_activities[loc]
+        return candidate_activities
+
     def update_fitness(self, feature_fitness):
+
         """
         Substitute the latest feature fitness values into candidate fitness.
 
@@ -150,7 +183,7 @@ class InputFilter(object):
         for i_reset in upstream_resets:
             self.candidate_fitness[i_reset] = 0.
             self.bench_pressure[i_reset] = 0.
-            self.cumulative_activity[i_reset] = 0.
+            self.cumulative_activities[i_reset] = 0.
 
         resets = []
         candidate_score = self.candidate_fitness + self.bench_pressure
@@ -169,7 +202,8 @@ class InputFilter(object):
               i_highest_scoring_benched.size > i_fill):
             i_in = self.i_benched[i_highest_scoring_benched[i_fill]]
             self.input_mapping[i_in] = self.n_inputs - n_inputs_unassigned
-            # No need to specify resets. There's no previous activity to clear.
+            # No need to specify resets.
+            # There's no previous activity to clear.
             n_inputs_unassigned -= 1
             i_fill += 1
 
@@ -179,7 +213,7 @@ class InputFilter(object):
         # the difference is greater than a threshold.
         i_swap = 0
         while (i_lowest_scoring_in_use.size > i_swap and
-               i_highest_scoring_benched.size > i_swap)
+                i_highest_scoring_benched.size > i_swap):
             i_out = self.i_in_use[i_lowest_scoring_in_use[i_swap]]
             i_in = self.i_benched[i_highest_scoring_benched[i_swap]]
             if (candidate_score[i_in] >
