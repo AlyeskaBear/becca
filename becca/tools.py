@@ -13,18 +13,6 @@ epsilon = sys.float_info.epsilon
 big = 10 ** 20
 max_int16 = np.iinfo(np.int16).max
 
-# Colors for plotting
-dark_grey = (0.2, 0.2, 0.2)
-light_grey = (0.9, 0.9, 0.9)
-red = (0.9, 0.3, 0.3)
-# Becca pallette
-copper_highlight = (253./255., 249./255., 240./255.)
-light_copper = (242./255., 166./255., 108./255.)
-copper = (175./255., 102./255, 53./255.)
-dark_copper = (132./255., 73./255., 36./255.)
-copper_shadow = (25./255., 22./255, 20./255.)
-oxide = (20./255., 120./255., 150./255.)
-
 
 def pad(arr, shape, val=0., dtype=float):
     """

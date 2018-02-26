@@ -5,6 +5,7 @@ from __future__ import print_function
 import numpy as np
 
 from becca.brain import Brain
+import becca_viz.viz as viz
 
 def run(world, restore=False):
     """
@@ -70,7 +71,7 @@ def run(world, restore=False):
 
         # Create visualizations.
         if brain.timestep % brain.visualize_interval == 0:
-            brain.visualize(world)
+            viz.visualize(brain)
         if world.timestep % world.visualize_interval == 0:
             world.visualize()
 

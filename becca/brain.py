@@ -1,7 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 import pickle
 import os
 import numpy as np
@@ -12,7 +8,6 @@ from becca.postprocessor import Postprocessor
 from becca.featurizer import Featurizer
 from becca.model import Model
 from becca.actor import Actor
-import becca.viz as viz
 
 
 class Brain(object):
@@ -101,7 +96,7 @@ class Brain(object):
         # This means that it can be repeatedly subdivided to
         # generate actions of various magnitudes and increase control.
         self.preprocessor = Preprocessor(
-            n_commands=self.n_commands,
+            # n_commands=self.n_commands,
             n_sensors=self.n_sensors,
         )
 
@@ -197,10 +192,9 @@ class Brain(object):
         self.satisfaction = self.affect.update(reward)
 
         # Calculate new activities in a bottom-up pass.
-        input_activities = self.preprocessor.convert_to_inputs(
-            self.previous_commands, sensors)
-
-        feature_activities = self.featurizer.featurize(input_activities)
+        input_activities = self.preprocessor.convert_to_inputs(sensors)
+        feature_activities = self.featurizer.featurize(
+            np.concatenate((self.previous_commands,input_activities)))
         (conditional_predictions,
             conditional_rewards,
             conditional_curiosities
@@ -353,18 +347,3 @@ class Brain(object):
         except pickle.PickleError as err:
             print('Error unpickling world: {0}'.format(err))
         return restored_brain
-
-    def visualize(self, world):
-        """
-        Show the current state and some history of the brain.
-
-        This is typically called from a world's visualize method.
-        """
-        print(' ')
-        print('{0} is {1} time steps old'.format(self.name, self.timestep))
-
-        viz.brain_activity(self)
-        self.affect.visualize(self)
-        # print('Running', world.name)
-        # self.featurizer.visualize(self, world)
-        # self.model.visualize(self)

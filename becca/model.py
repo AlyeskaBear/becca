@@ -1,19 +1,12 @@
-"""
-The Model class.
-"""
-
-from __future__ import print_function
-
 import numpy as np
 
 from becca.input_filter import InputFilter
 import becca.model_numba as nb
-import becca.model_viz as viz
 
 
 class Model(object):
     """
-    Build a predictive model based on sequences of features, goals and reward.
+    Build a predictive model based on sequences of features, goals, reward.
 
     This version of Becca is model-based, meaning that it builds a
     predictive model of its world in the form of a set of sequences.
@@ -86,7 +79,7 @@ class Model(object):
         #     of cables that the Ziptie can handle. Each Ziptie will
         #     have its own InputFilter.
         self.filter = InputFilter(
-            n_inputs = self.n_features,
+            n_inputs = self.n_features - 2,
             name='model',
             debug=self.debug,
         )
@@ -168,7 +161,8 @@ class Model(object):
             self.prefix_uncertainties,
             self.sequence_occurrences)
 
-        candidate_fitness = self.filter.update_fitness(self.feature_fitness)
+        candidate_fitness = self.filter.update_fitness(
+            self.feature_fitness[2:])
 
         return candidate_fitness
 
@@ -334,18 +328,8 @@ class Model(object):
             self.credit_decay_rate,
             self.prefix_credit)
 
-        # Trim off the first two elements. The are internal to the model only.
+        # Trim off the first two elements.
+        # The are internal to the model only.
         feature_pool_goals = self.filter.project_activities(
             self.goal_activities[2:]) 
         return feature_pool_goals
-
-    def visualize(self, brain):
-        """
-        Make a picture of the model.
-
-        Parameters
-        ----------
-        brain : Brain
-            The brain that this model belongs to.
-        """
-        viz.visualize(self, brain)

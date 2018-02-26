@@ -97,7 +97,9 @@ class Ziptie(object):
         #     [i_bundles = self.cable_to_bundle_mapping[i_cable]
         #     An empty list shows that the cable is not a part
         #     of any bundle.
-        self.cable_to_bundle_mapping = [[]] * self.n_cables
+        self.cable_to_bundle_mapping = []
+        for _ in range(self.n_cables):
+            self.cable_to_bundle_mapping.append([])
 
         # bundle_map_cols, bundle_map_rows : array of ints
         #     To represent the sparse 2D bundle map, a pair of row and col

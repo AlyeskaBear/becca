@@ -1,11 +1,5 @@
-"""
-The Featurizer class.
-"""
-
-from __future__ import print_function
 import numpy as np
 
-import becca.featurizer_viz as viz
 from becca.input_filter import InputFilter
 from becca.ziptie import Ziptie
 
@@ -157,12 +151,6 @@ class Featurizer(object):
          
         for i_feature, (i_level, i_candidate) in enumerate(
                 self.mapping_from_features):
-            # print('cv', candidate_values,
-            #       'il',   i_level,
-            #        'ic',  i_candidate,
-            #       'fv',   feature_values,
-            #       'if',   i_feature,
-            #         )
             candidate_values[i_level][i_candidate] = feature_values[i_feature]
         return candidate_values
 
@@ -247,9 +235,3 @@ class Featurizer(object):
             ziptie_0_cable_pool[:n_candidates_0],
             ziptie_0_cable_pool_upstream)
         return ziptie_0_cable_pool
-
-    def visualize(self, brain, world=None):
-        """
-        Show the current state of the featurizer.
-        """
-        viz.visualize(self, brain, world)

@@ -98,14 +98,3 @@ class Actor(object):
         self.goal_collection[i_goal] = 1
 
         return goals, i_goal
-
-    def visualize(self, brain):
-        """
-        Make a picture of the model.
-
-        Parameters
-        ----------
-        brain : Brain
-            The brain that this model belongs to.
-        """
-        viz.visualize(self, brain)

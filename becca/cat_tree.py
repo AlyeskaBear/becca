@@ -1,7 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 import numpy as np
 
 from becca.str_cat_tree_node import StrCatTreeNode
@@ -16,34 +12,33 @@ class CatTree(object):
         self,
         base_position=0.,
         i_input=0,
-        # input_pool=None,
         split_period=int(1e2),
         split_size=1e-2,
         type='default',
         verbose=False,
     ):
         """
-        @param base_position: float
+        Parameters
+        ----------
+        base_position: float
             The location on a number line, used for ordering categories
             from trees into a visually interpretable tree.
-        @param i_input: int
+        i_input: int
             The next unassigned index in the input array.
-        # @param input_pool: set of int
-        #     The input indices not currently assigned to bundles or sensors.
-        @param split_period: int
+        split_period: int
             The number of time steps between attempts to create new
             categories. This is included because evaluating categories
             for splits is expensive. Performing it every time step
             would slow Becca down quite a bit.
-        @param split_size: float
+        split_size: float
             A constant that determines how much of a benefit needs to
             exist to justify a category split
-        @param type: string
+        type: string
             Which type of tree to create, 'string' or 'numeric'.
             If the argument isn't interpretable, it will default to
             numeric. Other types can be created too, if the appropriate
             <type>CatTreeNode class is created.
-        @param verbose: boolean
+        verbose: boolean
             Over-communicate about cat_tree's internal state and workings.
         """
         # root: <type>CatTreeNode
@@ -57,7 +52,6 @@ class CatTree(object):
             print('\'' + type + '\'' + ' tree requested.')
         if type.lower() in ['string', 'str']:
             self.root = StrCatTreeNode(
-                # i_input=input_pool.pop(),
                 i_input=i_input,
                 position=base_position)
             self.observation_set = StrCatTreeNode()
@@ -65,7 +59,6 @@ class CatTree(object):
                 print('string tree created.')
         else:
             self.root = NumCatTreeNode(
-                # i_input=input_pool.pop(),
                 i_input=i_input,
                 position=base_position)
             self.observation_set = NumCatTreeNode()
@@ -106,11 +99,15 @@ class CatTree(object):
         """
         Return the nodes as a list.
 
-        @param leaves_only: bool
+        Parameters
+        ----------
+        leaves_only: bool
             Return only the nodes of the tree that are
             eligibile for splitting.
 
-        @return : list of nodes.
+        Returns
+        -------
+        list of nodes
             The set of nodes in the tree.
         """
         def get_list_descend(node):
@@ -135,12 +132,16 @@ class CatTree(object):
         """
         Retrieve the leaf associated with value.
 
-        @param value: type determined by CatTreeNode
+        Parameters
+        ----------
+        value: type determined by CatTreeNode
             The value to find in one of the tree nodes.
             It can be a number, a string, or any other type,
             depending on how CatTreeNode is implemented.
 
-        @return CatTreeNode
+        Returns
+        -------
+        CatTreeNode
             The leaf node containing value.
         """
         def get_leaf_descend(node):
@@ -160,12 +161,16 @@ class CatTree(object):
         """
         Retrieve the leaf associated with value and all its parents.
 
-        @param value: type determined by CatTreeNode
+        Parameters
+        ----------
+        value: type determined by CatTreeNode
             The value to find in one of the tree nodes.
             It can be a number, a string, or any other type,
             depending on how CatTreeNode is implemented.
 
-        @return list of CatTreeNode
+        Returns
+        -------
+        list of CatTreeNode
             A list of nodes, starting with the root, ending with
             the leaf node containing the value and including every
             node in between, in order.
@@ -191,12 +196,16 @@ class CatTree(object):
         This is a recurrent function that walks its way up the tree, building
         out a list of ancestors' input indices.
 
-        @param node: CatTreeNode
+        Parameters
+        ----------
+        node: CatTreeNode
             The current location on the tree.
-        @param parent_indices: list of ints
+        parent_indices: list of ints
             The collection so far of parents' input indices.
 
-        @return: list of ints
+        Returns
+        -------
+        list of ints
             The completed list.
         """
         if node is not None:
@@ -208,7 +217,6 @@ class CatTree(object):
         value,
         input_activities,
         generational_discount=.5,
-        # discount_rate=100.,
     ):
         """
         For a value, get the category or categories it belongs to.
@@ -220,13 +228,6 @@ class CatTree(object):
         input_activities: array of floats
             The under-construction array of input activities
             for this time step.
-        # discount_rate: float
-        #     A constant controlling the rate at which parent node
-        #     activities are reduced. This allows new child nodes to gradually
-        #     take over their parent's job, and then fade the parent activity
-        #     out so that it doesn't interfere. A discount_rate of 100
-        #     means that after 100 observations in the child node, the parent's
-        #     activity will be reduced to 1/2.
         generational_discount: float
             Between 0 and 1.
             The amount by which activities are reduced for parents.
@@ -243,8 +244,6 @@ class CatTree(object):
         cumulative_discount = 1.
         for node in lineage[::-1]:
             input_activities[node.i_input] = cumulative_discount
-            # generational_discount = 1. / (
-            #     1. + node.n_observations / discount_rate)
             generational_discount = .5
             cumulative_discount *= generational_discount
 
@@ -256,33 +255,21 @@ class CatTree(object):
         self.observation_set.add(value)
         self.get_leaf(value).add(value)
 
-    # def grow(self, input_pool, new_input_indices):
     def grow(self, n_inputs):
         """
         Find a leaf to split.
 
         Parameters
         ----------
-        # input_pool: set of ints
-        #     Available indices to assign to categories.
         n_inputs : int
             The total number of inputs being passed by the preprocessor.
-        # n_max_inputs : int
-        #     The total number of inputs allowed.
-        # new_input_indices: list of tuples of (int, list of int)
-        #    Tuples of (child_index, parent_indices). Each time a new child
-        #    node is added, it is recorded on this list, together with
-        #    the input indices of all its parents and grandparents.
 
         Returns
         -------
         n_inputs: int
             When a split is made, this is modified.
-        # success: bool
-        #     Was there a split worthy of splitting?
 
         """
-        # success = False
         if self.observation_set.n_observations % self.split_period == 0:
             leaves = self.get_list(leaves_only=True)
             # Test splits on each leaf. Find the best.
@@ -300,7 +287,6 @@ class CatTree(object):
             # Calculate the reduction threshold that is interesting.
             good_enough = self.observation_set.variance() * self.split_size
             if biggest_change > good_enough:
-                # best_leaf.split(best_candidate, input_pool)
                 best_leaf.split(best_candidate, n_inputs)
                 best_leaf.lo_child.parent = best_leaf
                 best_leaf.hi_child.parent = best_leaf
@@ -308,12 +294,6 @@ class CatTree(object):
 
                 parent_indices = []
                 self.get_parent_indices(best_leaf, parent_indices)
-                # new_input_indices.append(
-                #     (best_leaf.lo_child.i_input, parent_indices))
-                # new_input_indices.append(
-                #     (best_leaf.hi_child.i_input, parent_indices))
                 self.n_cats += 2
                 n_inputs += 2
-                # success = True
-        # return success, new_input_indices
         return n_inputs
