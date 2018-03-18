@@ -244,7 +244,6 @@ class CatTree(object):
         cumulative_discount = 1.
         for node in lineage[::-1]:
             input_activities[node.i_input] = cumulative_discount
-            generational_discount = .5
             cumulative_discount *= generational_discount
 
     def add(self, value):

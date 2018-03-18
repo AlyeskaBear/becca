@@ -13,7 +13,9 @@ import becca.tools as tools
 def update_sequences(
     feature_activities,
     prefix_activities,
+    prefix_occurrences,
     sequence_occurrences,
+    sequence_likelihoods,
 ):
     """
     Update the number of occurrences of each sequence.
@@ -22,6 +24,20 @@ def update_sequences(
         n = p * f, where
     p is the prefix activities from the previous time step and
     f is the post-feature_activities
+
+    For any given sequence, the probability (sequence_likelihood)
+    it will occur on the next time
+    step, given the associated goal is selected, is
+
+        f * s / (p + 1)
+
+    where
+    
+        f: feature activity
+        s: number of sequence occurrences
+        p: number of prefix occurrences
+
+    Adding 1 to p prevents badly behaved fractions.
     """
     n_pre_features, n_goals, n_post_features = sequence_occurrences.shape
     # Iterate over post-features
@@ -38,6 +54,12 @@ def update_sequences(
                             i_feature, i_goal, j_feature] += (
                             prefix_activities[i_feature, i_goal] *
                             feature_activities[j_feature])
+                        sequence_likelihoods[
+                            i_feature, i_goal, j_feature] = (
+                            sequence_occurrences[
+                                i_feature, i_goal, j_feature] /
+                            prefix_occurrences[
+                                i_feature, i_goal] + 1)
     return
 
 
@@ -78,7 +100,6 @@ def update_prefixes(
             # Adjust uncertainty accordingly.
             prefix_uncertainties[i_feature, i_goal] = 1 / (
                 1 + prefix_occurrences[i_feature, i_goal])
-
     return
 
 
@@ -163,46 +184,35 @@ def update_curiosities(
 @jit(nopython=True)
 def predict_features(
     feature_activities,
-    prefix_occurrences,
-    sequence_occurrences,
+    sequence_likelihoods,
     conditional_predictions,
 ):
     """
     Make a prediction about which features are going to become active soon,
     conditional on which goals are chosen.
-    
-    For any given sequence, the probability it will occur on the next time
-    step, given the associated goal is selected, is
-
-        f * (s - 1) / (p + 1)
-
-    where
-    
-        f: feature activity
-        s: number of sequence occurrences
-        p: number of prefix occurrences
-
-    Adding 1 to p prevents badly behaved fractions.
-    Subtracting 1 from s introduces caution into the estimate.
 
     Parameters
     ----------
     feature_activities: array of floats
-    prefix_occurrences: 2D array of floats
-    sequence_occurrences: 3D array of floats
+    sequence_likelihoods: 3D array of floats
     conditional_predictions: 2D array of floats
         This is updated to represent the new predictions for this time step.
     """
-    n_features, n_goals = prefix_occurrences.shape
-    conditional_predictions = np.zeros((n_goals, n_features))
+    n_features, n_goals, m_features = sequence_likelihoods.shape
+    conditional_predictions = np.zeros((n_goals, m_features))
     for i_feature in range(n_features):
         if feature_activities[i_feature] > tools.epsilon:
-            for i_goal in range(n_goals):
-                for j_feature in range(n_features):
-                    p_sequence = feature_activities[i_feature] * (
-                        (sequence_occurrences[
-                            i_feature, i_goal, j_feature] - 1) /
-                        (prefix_occurrences[i_feature, i_goal] + 1))
+            do_nothing_prediction = sequence_likelihoods[i_feature, 1, :]
+            # for j_feature in range(2, m_features):
+            #     if (do_nothing_prediction[j_feature] >
+            #             conditional_predictions[1, j_feature]):
+            #         conditional_predictions[1, j_feature] = (
+            #             do_nothing_prediction[j_feature])
+            for i_goal in range(1, n_goals):
+                for j_feature in range(1, m_features):
+                    p_sequence = (sequence_likelihoods[
+                        i_feature, i_goal, j_feature] -
+                        do_nothing_prediction[j_feature])
                     if (p_sequence >
                             conditional_predictions[i_goal, j_feature]):
                         conditional_predictions[i_goal, j_feature] = (
@@ -239,10 +249,19 @@ def predict_rewards(
     """
     n_features, n_goals = prefix_rewards.shape
     conditional_rewards = np.zeros(n_goals)
-    for i_feature in range(n_features):
-        for i_goal in range(n_goals):
+    for i_feature in range(2, n_features):
+        # Goal[1] is the special "do nothing" goal. It helps to distinguish
+        # between reward that is due to a goal and reward that would have
+        # been received even if doing nothing.
+        do_nothing_reward = prefix_rewards[i_feature, 1] 
+        # if do_nothing_reward > conditional_rewards[1]:
+        #     conditional_rewards[1] = do_nothing_reward
+
+        # Calculate the expected change in reward for each goal,
+        # compared to doing nothing.
+        for i_goal in range(1, n_goals):
             expected_reward = (feature_activities[i_feature] *
-                prefix_rewards[i_feature, i_goal]) 
+                prefix_rewards[i_feature, i_goal] - do_nothing_reward)
             if expected_reward > conditional_rewards[i_goal]:
                 conditional_rewards[i_goal] = expected_reward
     return
@@ -278,7 +297,9 @@ def predict_curiosities(
     n_features, n_goals = prefix_curiosities.shape
     conditional_curiosities = np.zeros(n_goals)
     for i_feature in range(n_features):
-        for i_goal in range(n_goals):
+        # Ignore the first "always on" feature.
+        # It doesn't do anything as a goal.
+        for i_goal in range(1, n_goals):
             expected_curiosity = (feature_activities[i_feature] *
                 prefix_curiosities[i_feature, i_goal]) 
             if expected_curiosity > conditional_curiosities[i_goal]:
@@ -286,6 +307,7 @@ def predict_curiosities(
     return
 
 
+# This makes use of vectorized numpy calls, so numba is unneccessary here.
 # @jit(nopython=True)
 def update_fitness(
     feature_fitness,

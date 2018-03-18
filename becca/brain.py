@@ -88,6 +88,7 @@ class Brain(object):
         # previous_commands: array of floats
         #     The discretized actions executed on the previous time step.
         self.previous_commands = np.zeros(self.n_commands)
+        self.new_commands = np.zeros(self.n_commands)
         self.commands = np.zeros(self.n_commands)
 
         # The preprocessor takes raw sensors and commands and converts
@@ -165,7 +166,8 @@ class Brain(object):
             the brain doesn't interpret a contact sensor value of .5
             to mean that the contact
             sensor was only weakly contacted. It interprets it
-            to mean that the sensor was fully contacted for 50% of the sensing
+            to mean that the sensor was fully contacted for
+            50% of the sensing
             duration or that there is a 50% chance that the sensor was
             fully contacted during the entire sensing duration. For another
             example, a light sensor reading of zero won't be
@@ -192,9 +194,10 @@ class Brain(object):
         self.satisfaction = self.affect.update(reward)
 
         # Calculate new activities in a bottom-up pass.
+        self.previous_commands = self.new_commands
         input_activities = self.preprocessor.convert_to_inputs(sensors)
         feature_activities = self.featurizer.featurize(
-            np.concatenate((self.previous_commands,input_activities)))
+            np.concatenate((self.previous_commands, input_activities)))
         (conditional_predictions,
             conditional_rewards,
             conditional_curiosities
@@ -212,7 +215,7 @@ class Brain(object):
         # Isolate the actions from the rest of the goals.
         # self.previous_actions = self.actions
         # self.actions = input_goals[:self.n_actions]
-        self.previous_commands,  self.actions = (
+        self.new_commands,  self.actions = (
             self.postprocessor.convert_to_actions(
                 input_goals[:self.n_commands]))
 

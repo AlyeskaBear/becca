@@ -41,8 +41,6 @@ class Model(object):
         n_features=0,
     ):
         """
-        Get the Model set up by allocating its variables.
-
         Parameters
         ----------
         brain : Brain
@@ -105,9 +103,9 @@ class Model(object):
         #     the size of 2D arrays is N**2 and the shape of
         #     3D arrays is N**3. As a heads up, this can eat up
         #     memory as M gets large. They are indexed as follows:
-        #         index 0 : feature_1 (past)
+        #         index 0 : feature_1 (past or pre-feature)
         #         index 1 : feature_goal
-        #         index 2 : feature_2 (future)
+        #         index 2 : feature_2 (future or post-feature)
         #     The prefix arrays can be 2D because they lack
         #     information about the resulting feature.
         _2D_size = (self.n_features, self.n_features)
@@ -123,7 +121,8 @@ class Model(object):
         self.prefix_curiosities = np.zeros(_2D_size)
         self.prefix_rewards = np.zeros(_2D_size)
         self.prefix_uncertainties = np.zeros(_2D_size)
-        self.sequence_occurrences = np.ones(_3D_size)
+        self.sequence_occurrences = np.zeros(_3D_size)
+        self.sequence_likelihoods = np.zeros(_3D_size)
 
         # prefix_decay_rate : float
         #     The rate at which prefix activity decays between time steps
@@ -211,10 +210,11 @@ class Model(object):
             Indices of the features that were reset.
         """
         resets = self.filter.update_inputs(upstream_resets=upstream_resets)
-
+        # Account for the model's 2 internal features.
+        model_resets = [i_reset + 2 for i_reset in resets]
         # Reset features throughout the model.
         # It's like they never existed.
-        for i in resets:
+        for i in model_resets:
             self.previous_feature_activities[i] = 0.
             self.feature_activities[i] = 0.
             self.feature_fitness[i] = 0.
@@ -234,6 +234,9 @@ class Model(object):
             self.sequence_occurrences[i, :, :] = 0.
             self.sequence_occurrences[:, i, :] = 0.
             self.sequence_occurrences[:, :, i] = 0.
+            self.sequence_likelihoods[i, :, :] = 0.
+            self.sequence_likelihoods[:, i, :] = 0.
+            self.sequence_likelihoods[:, :, i] = 0.
 
         return resets
 
@@ -255,7 +258,9 @@ class Model(object):
         nb.update_sequences(
             self.feature_activities,
             self.prefix_activities,
+            self.prefix_occurrences,
             self.sequence_occurrences,
+            self.sequence_likelihoods,
         )
 
         nb.update_prefixes(
@@ -286,15 +291,16 @@ class Model(object):
         
         nb.predict_features(
             self.feature_activities,
-            self.prefix_occurrences,
-            self.sequence_occurrences,
+            self.sequence_likelihoods,
             self.conditional_predictions,
         )
+
         nb.predict_rewards(
             self.feature_activities,
             self.prefix_rewards,
             self.conditional_rewards,
         )
+
         nb.predict_curiosities(
             self.feature_activities,
             self.prefix_curiosities,

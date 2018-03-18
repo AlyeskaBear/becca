@@ -112,10 +112,12 @@ class Discretizer(object):
         # input_activities is modified by calls to categorize()
         if is_string:
             self.string_cats.add(val)
-            self.string_cats.categorize(val, input_activities)
+            self.string_cats.categorize(
+                val, input_activities, generational_discount=1)
         else:
             self.numeric_cats.add(val)
-            self.numeric_cats.categorize(val, input_activities)
+            self.numeric_cats.categorize(
+                val, input_activities, generational_discount=1)
 
         if self.timestep % self.split_frequency == 0:
             # Try to grow new categories.

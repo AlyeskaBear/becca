@@ -45,7 +45,8 @@ class InputFilter(object):
         #     as the number of candidates.
         #     A 1 in position i, j indicates that candidate i maps to
         #     input j.
-        self.mapping = np.zeros((self.n_inputs * 2, self.n_inputs))
+        self.mapping = np.zeros((self.n_inputs * 2, self.n_inputs),
+                                dtype=np.int)
 
         #     Position in this array shows which candidate is being assigned.
         #     The value at that position shows the input index it is
@@ -73,6 +74,14 @@ class InputFilter(object):
         #     the input pool.
         self.pressure_time = 1e5
 
+        # score_barrier: float
+        #     The additional barrier for benched candidates to become
+        #     inputs. They have to be this much better than the worst
+        #     input to be swapped in. This provides a little bit of
+        #     sticking power for inputs and gives them time to prove
+        #     themselves.
+        self.score_barrier = 10
+
     def update_activities(self, candidate_activities):
         """
         Generate a new set of input activities.
@@ -90,44 +99,36 @@ class InputFilter(object):
         self.n_candidates = self.candidate_activities.size
         capacity = self.mapping.shape[0]
         if self.n_candidates >= capacity:
-            new_mapping = np.zeros((self.n_candidates * 2, self.n_inputs))
+            new_mapping = np.zeros((self.n_candidates * 2, self.n_inputs),
+                                   dtype=np.int)
             new_mapping[:capacity, :] = self.mapping
             self.mapping = new_mapping
 
             new_candidate_fitness = np.zeros(self.n_candidates * 2)
-            new_candidate_fitness[:capacity] = self.candidate_fitness
+            new_candidate_fitness[:self.candidate_fitness.size] = (
+                self.candidate_fitness)
             self.candidate_fitness = new_candidate_fitness
 
             new_cumulative_activities = np.zeros(self.n_candidates * 2)
-            new_cumulative_activities[:capacity] = (
+            new_cumulative_activities[:self.cumulative_activities.size] = (
                 self.cumulative_activities)
             self.cumulative_activities = new_cumulative_activities
 
             new_bench_pressure = np.zeros(self.n_candidates * 2)
-            new_bench_pressure[:capacity] = self.bench_pressure
+            new_bench_pressure[:self.bench_pressure.size] = (
+                self.bench_pressure)
             self.bench_pressure = new_bench_pressure
 
-
-        # input_activities = np.zeros(self.n_inputs)
-        # mapping_to_inputs = np.where(self.mapping)[1]
-        # input_activities[:mapping_to_inputs.size] = (
-        #     self.candidate_activities[mapping_to_inputs])
         input_activities = np.matmul(
             self.candidate_activities,
             self.mapping[:self.n_candidates, :])
-        # This for loop is slow, but it's clear. It doesn't cost much.
-        # for i, loc in enumerate(self.mapping):
-        #     if loc >= 0:
-        #         input_activities[loc] = self.candidate_activities[i]        
+
         self.cumulative_activities[:self.n_candidates] += (
             self.candidate_activities)
         
         self.i_benched = np.where(np.sum(
             self.mapping[:self.n_candidates, :], axis=1) == 0)[0]
         self.i_in_use = np.where(self.mapping)[0]
-        # i_unassigned = np.where(self.mapping == -1)[0]
-        # self.i_benched = i_unassigned[np.where(
-        #     i_unassigned < self.n_candidates)]
         self.bench_pressure[self.i_benched] += (
             self.candidate_activities[self.i_benched] / (tools.epsilon + 
             self.cumulative_activities[self.i_benched] * self.pressure_time))
@@ -147,8 +148,8 @@ class InputFilter(object):
         candidate_activities: array of floats
         """
         candidate_activities = np.matmul(
-            self.mapping[:self.n_candidates, :],
-            input_activities)
+            input_activities,
+            self.mapping[:self.n_candidates, :input_activities.size].T)
         # candidate_activities = np.zeros(self.n_candidates)
         # mapping_to_inputs = np.where(self.mapping)[0]
         # candidate_activities[:self.n_candidates] = (

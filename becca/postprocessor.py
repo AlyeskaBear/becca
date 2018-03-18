@@ -37,6 +37,7 @@ class Postprocessor(object):
         self.command_activities = np.zeros(self.n_commands)
         self.commands = np.zeros(self.n_commands)
         self.consolidated_commands = np.zeros(self.n_commands)
+        self.previous_commands = np.zeros(self.n_commands)
         self.actions = np.zeros(self.n_actions)
         
         # The mapping helps to convert from discretized actions to
@@ -79,6 +80,7 @@ class Postprocessor(object):
 
         # Find the discretized representation of the actions
         # that were finally issued.
+        self.previous_commands = self.consolidated_commands
         self.consolidated_commands = np.zeros(self.n_commands)
         for i_action in range(self.n_actions):
             if self.actions[i_action] > 0:

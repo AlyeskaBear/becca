@@ -69,26 +69,14 @@ class Featurizer(object):
             threshold=threshold,
             debug=self.debug)
 
-        # mapping_to_features: list of lists
-        #     Tracks which feature candidate index corresponds to each
-        #     ziptie input. The first level list corresponds to
-        #         0: inputs to ziptie level 0
-        #         1: inputs to ziptie level 1
-        #               (also bundles from ziptie level 0)
-        #         2: inputs to ziptie level 2
-        #               (also bundles from ziptie level 1)
-        #         ...
-        #     The second level list index of the feature candidate that
-        #     each input maps to.
-        self.mapping_to_features = [[]]
-        # mapping_from_features: list of 2-tuples,
-        #     The inverse of mapping_to_features. Tracks which input
-        #    corresponds which each feature candidate.
-        #     Each item is of the format
-        #         (level, input index)
-        self.mapping_from_features = []
-        # If mapping_from_features[i] = (j, k)
-        # then mapping_to_features[j, k] = i
+        # n_features: int
+        #     The total number of features that have been colllected so far.
+        #     This includes the cable candidate pools from each ziptie.
+        self.n_features = [0, 0]
+
+        # mapping: 2D array of ints
+        #     The transformation from 
+        self.mapping = np.zeros((0, 0), dtype=np.int)
 
     def calculate_fitness(self, feature_fitness):
         """
@@ -104,8 +92,7 @@ class Featurizer(object):
 
         cable_fitness = self.ziptie.project_bundle_activities(
             all_input_fitness[1])
-        input_fitness = np.maximum(cable_fitness, all_input_fitness[0])
-        self.filter.update_fitness(input_fitness)
+        pool_fitness = self.filter.update_fitness(cable_fitness)
 
     def update_inputs(self):
         """
@@ -128,8 +115,10 @@ class Featurizer(object):
 
         resets = []
         for i_level, level_resets in enumerate(all_resets):
+            i_start = np.sum(np.array(self.n_features[:i_level]))
             for i_reset in level_resets:
-                resets.append(self.mapping_to_features[i_level][i_reset])
+                resets.append(np.where(
+                    self.mapping[i_start + i_reset, :])[0])
 
         return resets
 
@@ -146,17 +135,18 @@ class Featurizer(object):
         -------
         candidate_values: list of array of floats
         """
-        candidate_values = [np.zeros(self.n_inputs)]
-        candidate_values.append(np.zeros(self.ziptie.n_bundles))
-         
-        for i_feature, (i_level, i_candidate) in enumerate(
-                self.mapping_from_features):
-            candidate_values[i_level][i_candidate] = feature_values[i_feature]
+        feature_pool_values = np.matmul(feature_values, self.mapping.T)
+        candidate_values = []
+        i_last = 0
+        for i_level, n_feat in enumerate(self.n_features):
+            candidate_values.append(feature_values[i_last: i_last + n_feat])
+            i_last += n_feat
         return candidate_values
 
     def map_to_feature_pool(self, candidate_values):
         """
-        Map the candidates over all levels to the appropriate feature candidates.
+        Map the candidates over all levels to the appropriate
+        feature candidates.
 
         Parameters
         ----------
@@ -168,21 +158,49 @@ class Featurizer(object):
         """
         # Check whether the number of candidates has expanded at any level
         # and adapt.
-        for _ in range(len(self.mapping_to_features), len(candidate_values)):
-            self.mapping_to_features.append([])
-        for i_level, ziptie_cable_pool in enumerate(candidate_values):
-            # Map any unmapped candidates to features.
-            for i_new_candidate in range(len(self.mapping_to_features[i_level]),
-                                     ziptie_cable_pool.size):
-                self.mapping_to_features[i_level].append(
-                    len(self.mapping_from_features))
-                self.mapping_from_features.append((i_level, i_new_candidate))
+        n_candidates_by_level = [values.size for values in candidate_values]
+        total_n_candidates = np.sum(np.array(n_candidates_by_level))
+        total_n_features = np.sum(np.array(self.n_features)) 
+        if (total_n_features < total_n_candidates):
+            # Update_needed
+            delta = []
+            for i_level, candidate_pool in enumerate(candidate_values):
+                delta.append(candidate_pool.size - self.n_features[i_level])
+            # Create a larger map
+            new_mapping = np.zeros((total_n_candidates, total_n_candidates),
+                dtype=np.int)
+            new_mapping[:total_n_features, :total_n_features] = self.mapping
+            new_mapping[total_n_features:, total_n_features:] = (
+                np.eye(total_n_candidates - total_n_features))
 
-        feature_values = np.zeros(len(self.mapping_from_features))
-        for i_level, level_mapping in enumerate(self.mapping_to_features):
-            for i_candidate, i_feature in enumerate(level_mapping):
-                feature_values[i_feature] = candidate_values[i_level][i_candidate]
+            # Shift new rows upward to sit with their own levels.
+            last_row = 0
+            for i_level, candidate_pool in enumerate(candidate_values[:-1]):
+                last_row += self.n_features[i_level]
+                start = total_n_features
+                stop = start + delta[i_level]
+                if delta[i_level] > 0:
+                    move_rows = new_mapping[start:stop, :]
+                    new_mapping[
+                        last_row + delta[i_level]:
+                        last_row + delta[i_level] +
+                            self.n_features[i_level + 1] , :] = (
+                    new_mapping[
+                        last_row:
+                        last_row + self.n_features[i_level + 1], :])
+                    new_mapping[
+                        last_row: last_row + delta[i_level], :] = move_rows
+                    self.n_features[i_level] += delta[i_level]
+                    start += delta[i_level]
+                    last_row += delta[i_level]
+            self.n_features[-1] += delta[-1]
+            self.mapping = new_mapping
 
+        all_candidate_values = []
+        for level_candidate_values in candidate_values:
+            all_candidate_values += list(level_candidate_values)
+        feature_values = np.matmul(
+            np.array(all_candidate_values), self.mapping)
         return feature_values
 
     def featurize(self, new_candidates):
@@ -210,12 +228,12 @@ class Featurizer(object):
         # and to learn how to bundle them.
         ziptie_1_cable_pool = self.ziptie.update_bundles(cable_activities)
 
-        all_ziptie_cable_pool = [
+        self.activities = [
             self.ziptie_0_cable_pool,
             ziptie_1_cable_pool,
         ]
 
-        self.feature_pool = self.map_to_feature_pool(all_ziptie_cable_pool)
+        self.feature_pool = self.map_to_feature_pool(self.activities)
 
         return self.feature_pool
 

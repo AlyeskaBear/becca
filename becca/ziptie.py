@@ -1,8 +1,3 @@
-"""
-The Ziptie class.
-"""
-
-from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -90,32 +85,6 @@ class Ziptie(object):
         #     The mapping between cables and bundles.
         #     If element i,j is 1, then cable i is a member of bundle j
         self.mapping = np.zeros((self.n_cables, self.n_cables), dtype=np.int)
-
-        # bundle_to_cable_mapping: list of lists
-        #     To get the cable indices for bundle i:
-        #     [i_cables] = self.bundle_to_cable_mapping[i_bundle]
-        #     An empty list shows an unused bundle.
-        #self.bundle_to_cable_mapping = [[]]
-        # cable_to_bundle_mapping: list of lists
-        #     To get the bundles that cable i contributes to:
-        #     [i_bundles = self.cable_to_bundle_mapping[i_cable]
-        #     An empty list shows that the cable is not a part
-        #     of any bundle.
-        #self.cable_to_bundle_mapping = []
-        # for _ in range(self.n_cables):
-        #     self.cable_to_bundle_mapping.append([])
-
-        # bundle_map_cols, bundle_map_rows : array of ints
-        #     To represent the sparse 2D bundle map, a pair of row and col
-        #     arrays are used. Rows are bundle indices, and cols are
-        #     feature indices.  The bundle map shows which cables
-        #     are zipped together to form which bundles.
-        # self.bundle_map_rows = -np.ones(self.bundle_map_size).astype(int)
-        # self.bundle_map_cols = -np.ones(self.bundle_map_size).astype(int)
-        # n_map_entries: int
-        #     The total number of bundle map entries that
-        #     have been created so far.
-        # self.n_map_entries = 0
 
         # agglomeration_energy: 2D array of floats
         #     The accumulated agglomeration energy for each
@@ -402,43 +371,3 @@ class Ziptie(object):
             i_bundles = np.where(self.mapping[i_cable, :])[0]
             cable_activities[i_cable] = np.max(bundle_activities[i_bundles])
         return cable_activities
-
-    '''
-    def visualize(self):
-        """
-        Turn the state of the Ziptie into an image.
-        """
-        print(self.name)
-        # First list the bundles and the cables in each.
-        i_bundles = self.bundle_map_rows[:self.n_map_entries]
-        i_cables = self.bundle_map_cols[:self.n_map_entries]
-        i_bundles_unique = np.unique(i_bundles)
-        if i_bundles_unique is not None:
-            for i_bundle in i_bundles_unique:
-                b_cables = list(np.sort(i_cables[np.where(
-                    i_bundles == i_bundle)[0]]))
-                print(' '.join(['    bundle', str(i_bundle),
-                                'cables:', str(b_cables)]))
-
-        plot = False
-        if plot:
-            if self.n_map_entries > 0:
-                # Render the bundle map.
-                bundle_map = np.zeros((self.n_cables,
-                                       self.n_bundles))
-                nb.set_dense_val(bundle_map,
-                                 self.bundle_map_rows[:self.n_map_entries],
-                                 self.bundle_map_cols[:self.n_map_entries], 1.)
-                tools.visualize_array(bundle_map,
-                                      label=self.name + '_bundle_map')
-
-                # Render the agglomeration energy.
-                label = '_'.join([self.name, 'agg_energy'])
-                tools.visualize_array(self.agglomeration_energy, label=label)
-                plt.xlabel(str(np.max(self.agglomeration_energy)))
-
-                # Render the nucleation energy.
-                label = '_'.join([self.name, 'nuc_energy'])
-                tools.visualize_array(self.nucleation_energy, label=label)
-                plt.xlabel(str(np.max(self.nucleation_energy)))
-    '''

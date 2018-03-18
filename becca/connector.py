@@ -32,14 +32,15 @@ def run(world, restore=False):
         average reward it gathered per time step.
     """
     brain_name = '{0}_brain'.format(world.name)
-    #if 'world.log_directory' in locals() and world.log_directory is not None:
-    #if world.log_directory is not None:
+
+    visualize_interval = 1e3
     try:
         brain = Brain(
             n_sensors=world.num_sensors,
             n_actions=world.num_actions,
             brain_name=brain_name,
             log_directory=world.log_directory,
+            visualize_interval=visualize_interval,
         )
     # Catch the case where world has no log_directory.
     except AttributeError:
@@ -47,6 +48,7 @@ def run(world, restore=False):
             n_sensors=world.num_sensors,
             n_actions=world.num_actions,
             brain_name=brain_name,
+            visualize_interval=visualize_interval,
         )
 
     if restore:
@@ -58,6 +60,8 @@ def run(world, restore=False):
               world.brain_visualize_interval)
     except Exception:
         pass
+
+    viz.labels(brain)
 
     # Start at a resting state.
     actions = np.zeros(world.num_actions)
