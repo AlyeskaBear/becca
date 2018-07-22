@@ -147,6 +147,43 @@ class Ziptie(object):
         Find bundle activities by taking the minimum input value
         in the set of cables in the bundle. The bulk of the computation
         occurs in ziptie_numba.find_bundle_activities.
+        """
+        self.cable_activities = new_cable_activities.copy()
+        #self.nonbundle_activities = self.cable_activities.copy()
+        #self.bundle_activities = np.zeros(self.max_num_bundles)
+        self.bundle_activities = 1e3 * np.ones(self.max_num_bundles)
+        if bundle_weights is None:
+            bundle_weights = np.ones(self.max_num_bundles)
+        if self.n_map_entries > 0:
+            #nb.find_bundle_activities(
+            #    self.bundle_map_rows[:self.n_map_entries],
+            #    self.bundle_map_cols[:self.n_map_entries],
+            #    self.nonbundle_activities,
+            #    self.bundle_activities,
+            #    bundle_weights, self.activity_threshold)
+            for i_map_entry in range(self.n_map_entries):
+                i_bundle = self.bundle_map_rows[i_map_entry]
+                i_cable = self.bundle_map_cols[i_map_entry]
+                self.bundle_activities[i_bundle] = (
+                    np.minimum(self.bundle_activities[i_bundle],
+                               self.cable_activities[i_cable]))
+        self.bundle_activities[np.where(self.bundle_activities == 1e3)] = 0.
+        self.bundle_activities *= bundle_weights
+        # The residual cable_activities after calculating
+        # bundle_activities are the nonbundle_activities.
+        # Sparsify them by setting all the small values to zero.
+        #self.nonbundle_activities[np.where(self.nonbundle_activities <
+        #                                   self.activity_threshold)] = 0.
+        return self.nonbundle_activities, self.bundle_activities
+
+
+    def learn(self, masked_cable_activities):
+        """
+        Update co-activity estimates and calculate bundle activity
+
+        This step combines the projection of cables activities
+        to bundle activities together with using the cable activities
+        to incrementally train the Ziptie.
 
         Parameters
         ----------

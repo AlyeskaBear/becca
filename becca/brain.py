@@ -343,18 +343,12 @@ class Brain(object):
                 print('of sensors and actions as the world.')
                 print('Creating a new brain from scratch.')
         except IOError:
-            print('Couldn\'t open {0} for loading'.format(
-                self.pickle_filename))
-        except EOFError:
-            print('The pickle file is incomplete.')
-            print('It was probably interrupted during saving.')
-            print('Revert to the pickle.bak file if you have one.')
-            print('Otherwise a new world will be created from scratch.')
-        except pickle.PickleError as err:
-            print('Error unpickling world: {0}'.format(err))
+            print('Couldn\'t open {0} for loading'.format(self.pickle_filename))
+        except pickle.PickleError:
+            print('Error unpickling world')
         return restored_brain
 
-    def visualize(self, world):
+    def visualize(self):
         """
         Show the current state and some history of the brain.
 
