@@ -174,65 +174,54 @@ def find_bundle_activities(i_rows, i_cols, cables, bundles, weights, threshold):
 
 
 @jit(nopython=True)
-def nucleation_energy_gather(
-    cable_activities,
-    nucleation_energy,
-    nucleation_mask,
-):
+def nucleation_energy_gather(nonbundle_activities, nucleation_energy):
     """
     Gather nucleation energy.
 
     This formulation takes advantage of loops and the sparsity of the data.
     The original arithmetic looks like
-        nucleation_energy += (cable_activities *
-                              cable_activities.T *
+        nucleation_energy += (nonbundle_activities *
+                              nonbundle_activities.T *
                               nucleation_energy_rate)
     Parameters
     ----------
-    cable_activities : array of floats
-        The current activity of each input feature.
+    nonbundle_activities : array of floats
+        The current activity of each input feature that is not explained by
+        or captured in a bundle.
     nucleation_energy : 2D array of floats
         The amount of nucleation energy accumulated between each pair of
         input features.
-    nucleation_mask: 2D array of floats
-        A mask showing which input-input pairs are allowed
-        to accumulate energy.
 
     Results
     -------
     Returned indirectly by modifying nucleation_energy.
     """
-    for i_cable1, activity1 in enumerate(cable_activities):
+    for i_cable1, _ in enumerate(nonbundle_activities):
+        activity1 = nonbundle_activities[i_cable1]
         if activity1 > 0.:
-            for i_cable2, _ in enumerate(cable_activities):
-                activity2 = cable_activities[i_cable2]
+            for i_cable2, _ in enumerate(nonbundle_activities):
+                activity2 = nonbundle_activities[i_cable2]
                 if activity2 > 0.:
-                    if nucleation_mask[i_cable1, i_cable2]:
-                        nucleation_energy[i_cable1, i_cable2] += (
-                            activity1 * activity2)
+                    nucleation_energy[i_cable1, i_cable2] += (
+                        activity1 * activity2)
 
 
 @jit(nopython=True)
-def agglomeration_energy_gather(
-    bundle_activities,
-    cable_activities,
-    n_bundles,
-    agglomeration_energy,
-    agglomeration_mask,
-):
+def agglomeration_energy_gather(bundle_activities, nonbundle_activities,
+                                n_bundles, agglomeration_energy):
     """
     Accumulate the energy binding a new feature to an existing bundle..
 
     This formulation takes advantage of loops and the sparsity of the data.
     The original arithmetic looks like
-        coactivities = bundle_activities * cable_activities.T
+        coactivities = bundle_activities * nonbundle_activities.T
         agglomeration_energy += coactivities * agglomeration_energy_rate
 
     Parameters
     ----------
     bundle_activities : array of floats
         The activity level of each bundle.
-    cable_activities : array of floats
+    nonbundle_activities : array of floats
         The current activity of each input feature that is not explained by
         or captured in a bundle.
     n_bundles : int
@@ -240,19 +229,16 @@ def agglomeration_energy_gather(
     agglomeration_energy : 2D array of floats
         The total energy that has been accumulated between each input feature
         and each bundle.
-    agglomeration_mask: 2D array of floats
-        A mask showing which input-input pairs are allowed
-        to accumulate energy.
 
     Results
     -------
-    Returned indirectly by modifying agglomeration_energy.
+    Returned indirectly by modifying `agglomeration_energy.
     """
-    for i_cable, activity in enumerate(cable_activities):
+    for i_col, _ in enumerate(nonbundle_activities):
+        activity = nonbundle_activities[i_col]
         if activity > 0.:
             # Only decay bundles that have been created
-            for i_bundle in range(n_bundles):
-                if bundle_activities[i_bundle] > 0.:
-                    if agglomeration_mask[i_bundle, i_cable]:
-                        coactivity = activity * bundle_activities[i_bundle]
-                        agglomeration_energy[i_bundle, i_cable] += coactivity
+            for i_row in range(n_bundles):
+                if bundle_activities[i_row] > 0.:
+                    coactivity = activity * bundle_activities[i_row]
+                    agglomeration_energy[i_row, i_col] += coactivity

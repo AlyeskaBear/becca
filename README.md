@@ -3,25 +3,25 @@ Becca is a general learning program for use in any robot or embodied system. Whe
 ### How do I try Becca out?
 
 #### Make sure you have a current version of Anaconda.
-    
+
     conda update conda
     conda update anaconda
-    
+
 #### Pull down the code from Pypi.
 
     pip install becca
 
-`becca_test` installs automatically when you install `becca`. 
+`becca_test` installs automatically when you install `becca`.
 
 #### Run it on your local machine.
-    
+
     python
     >>>import becca_test.test
     >>>becca_test.test.suite()
 
 ### What can Becca do?
 
-Some [videos](http://youtu.be/4kPoU8eZvio?list=PLF861CC4C40439EEB) show Becca in action. 
+Some [videos](http://youtu.be/4kPoU8eZvio?list=PLF861CC4C40439EEB) show Becca in action.
 
 ### What can Becca do for me?
 
@@ -42,14 +42,22 @@ through from there.
 
 The good folks at [OpenAI](https://gym.openai.com/) have created a playground called Gym for Becca and agents like it.
 Learning on simulated robots of all types and complexities is a great opportunity to show what Becca can do.
-Getting Becca integrated with Gym is my next development goal. There are some intermediate steps, and 
+Getting Becca integrated with Gym is my next development goal. There are some intermediate steps, and
 I'll be working through them for the next several months.
 
 ### Join us
 
-[![Join the chat at https://gitter.im/brohrer/becca](https://badges.gitter.im/brohrer/becca.svg)](https://gitter.im/brohrer/becca?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) provides a forum for users to share questions, solutions, and experiences. 
+[![Join the chat at https://gitter.im/brohrer/becca](https://badges.gitter.im/brohrer/becca.svg)](https://gitter.im/brohrer/becca?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) provides a forum for users to share questions, solutions, and experiences.
 
-<a href="url"><img src="https://github.com/brohrer/becca-docs/raw/master/figs/logo_plate.png" 
+<a href="url"><img src="https://github.com/brohrer/becca-docs/raw/master/figs/logo_plate.png"
 align="center" height="40" width="120" ></a>
- 
 
+### Walkthrough
+
+`connector.py`
+
+Initializes Brain in `brain.py`.
+
+Brain initializes Featurizer in `featurizer.py`. Featurizer has a number of bundles and a number of features, both based on the number of inputs.
+
+`model.py` builds a model that takes in a brain and a number of features.

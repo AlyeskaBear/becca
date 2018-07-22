@@ -12,8 +12,7 @@ def update_sequences(
     live_features,
     new_FAIs,
     prefix_activities,
-    sequence_occurrences,
-):
+    sequence_occurrences):
     """
     Update the number of occurrences of each sequence.
 
@@ -21,17 +20,14 @@ def update_sequences(
         n = p * f, where
     p is the prefix activities from the previous time step and
     f is the new_FAIs
-
-    These are temporarily disabled, since they haven't proven themselves
-    absolutely necessary yet.
     """
     small = .1
     for j_feature in live_features:
-        if new_FAIs[j_feature] < small:
+        if (new_FAIs[j_feature] < small):
             continue
         for i_goal in live_features:
             for i_feature in live_features:
-                if prefix_activities[i_feature][i_goal] < small:
+                if (prefix_activities[i_feature][i_goal] < small):
                     continue
                 sequence_occurrences[i_feature][i_goal][j_feature] += (
                     prefix_activities[i_feature][i_goal] *
@@ -46,8 +42,7 @@ def update_prefixes(
     previous_feature_activities,
     feature_goal_activities,
     prefix_activities,
-    prefix_occurrences,
-):
+    prefix_occurrences):
     """
     Update the activities and occurrences of the prefixes.
 
@@ -63,9 +58,9 @@ def update_prefixes(
             prefix_activities[i_feature][i_goal] *= (
                 1. - prefix_decay_rate)
 
-            new_prefix_activity = (previous_feature_activities[i_feature] *
+            new_prefix_activity = (previous_feature_activities[i_feature] * 
                                    feature_goal_activities[i_goal])
-            prefix_activities[i_feature][i_goal] += new_prefix_activity
+            prefix_activities[i_feature][i_goal] += new_prefix_activity 
             prefix_activities[i_feature][i_goal] = min(
                 prefix_activities[i_feature][i_goal], 1.)
 
@@ -80,9 +75,9 @@ def update_rewards(
     live_features,
     reward_update_rate,
     reward,
+    prefix_occurrences,
     prefix_credit,
-    prefix_rewards,
-):
+    prefix_rewards):
     """
     Assign credit for the current reward to any recently active prefixes.
 
@@ -97,14 +92,10 @@ def update_rewards(
     """
     for i_feature in live_features:
         for i_goal in live_features:
-            if reward > prefix_rewards[i_feature][i_goal]:
-                update_scale = .5
-            else:
-                update_scale = 1.
             prefix_rewards[i_feature][i_goal] += (
                 (reward - prefix_rewards[i_feature][i_goal]) *
                 prefix_credit[i_feature][i_goal] *
-                reward_update_rate * update_scale)
+                reward_update_rate)
     return
 
 
@@ -116,8 +107,7 @@ def update_curiosities(
     prefix_curiosities,
     previous_feature_activities,
     feature_activities,
-    feature_goal_activities,
-):
+    feature_goal_activities):
     """
     Use a collection of factors to increment the curiosity for each prefix.
     """
@@ -125,7 +115,7 @@ def update_curiosities(
         for i_goal in live_features:
 
             # Fulfill curiosity on the previous time step's goals.
-            curiosity_fulfillment = (previous_feature_activities[i_feature] *
+            curiosity_fulfillment = (previous_feature_activities[i_feature] * 
                                      feature_goal_activities[i_goal])
             prefix_curiosities[i_feature][i_goal] -= curiosity_fulfillment
             prefix_curiosities[i_feature][i_goal] = max(
@@ -140,8 +130,7 @@ def update_curiosities(
             #     feature_activities : The activity of the prefix's feature.
             #         Only increase the curiosity if the feature
             #         corresponding to the prefix is active.
-            uncertainty = 1. / (
-                1. + 3. * prefix_occurrences[i_feature][i_goal])
+            uncertainty = 1. / (1. + 3. * prefix_occurrences[i_feature][i_goal])
             prefix_curiosities[i_feature][i_goal] += (
                 curiosity_update_rate *
                 uncertainty *
@@ -153,45 +142,45 @@ def update_curiosities(
 def calculate_goal_votes(
     num_features,
     live_features,
+    prefix_goal_votes,
     prefix_rewards,
     prefix_curiosities,
     prefix_occurrences,
-    sequence_occurrences,
+    #sequence_occurrences,
     feature_activities,
-    feature_goal_activities,
-):
+    feature_goal_activities):
     """
     Let each prefix cast a vote for its goal, based on its value.
-
-    For each prefix and its corresponding sequences calculate
-    the expected value, v, of the goal.
-
-            v = a * (r + c + s), where
-        a is the activity of the prefix's feature,
-        r is the prefix's reward,
-        c is the prefix's curiosity, and
-        s is the overall expected value of the prefix's sequences.
-
-            s = sum((o / p) * (g + t)) / sum(o / p), where
-        o is the number of occurrences of the sequence,
-        p is the number of occurrences of the prefix,
-        g is the goal value of the sequence's terminal feature, and
-        t is the top-down plan value of the sequence's terminal feature.
-
-    For each goal, track the largest value that is calculated and
-    treat it as a vote for that goal.
     """
+    # For each prefix and its corresponding sequences calculate
+    # the expected value, v, of the goal.
+    #
+    #     v = a * (r + c + s), where
+    # a is the activity of the prefix's feature,
+    # r is the prefix's reward,
+    # c is the prefix's curiosity, and
+    # s is the overall expected value of the prefix's sequences.
+    #
+    #     s = sum((o / p) * (g + t)) / sum(o / p), where
+    # o is the number of occurrences of the sequence,
+    # p is the number of occurrences of the prefix,
+    # g is the goal value of the sequence's terminal feature, and
+    # t is the top-down plan value of the sequence's terminal feature.
+    #
+    # For each goal, track the largest value that is calculated and
+    # treat it as a vote for that goal.
     small = .1
     feature_goal_votes = np.zeros(num_features)
     for i_feature in live_features:
         for i_goal in live_features:
-            if feature_activities[i_feature] < small:
+            if (feature_activities[i_feature] < small):
                 goal_vote = -2.
 
             else:
-                ## Hold out this code for now. As far as I know, it works.
-                ## I'll be able to tell with more certainty after additional
-                ## testing.
+                # Hold out this code for now. As far as I know, it works.
+                # I'll be able to tell with more certainty after additional
+                # testing.
+                '''
                 # Add up the value of sequences.
                 weighted_values = 1.
                 total_weights = 1.
@@ -203,6 +192,7 @@ def calculate_goal_votes(
                         weight * feature_goal_activities[j_feature])
                     total_weights += weight
                 sequence_value = weighted_values / total_weights
+                '''
                 # Add up the other value components.
                 goal_vote = feature_activities[i_feature] * (
                     prefix_rewards[i_feature][i_goal] +
@@ -223,8 +213,7 @@ def update_reward_credit(
     max_vote,
     feature_activities,
     credit_decay_rate,
-    prefix_credit,
-):
+    prefix_credit):
     """
     Update the credit due each prefix for upcoming reward.
     """
