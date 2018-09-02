@@ -91,4 +91,3 @@ class Preprocessor(object):
             self.input_energies = new_input_energies
 
         return self.input_activities[:self.n_inputs]
-

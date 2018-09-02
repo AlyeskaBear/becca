@@ -53,7 +53,7 @@ class Featurizer(object):
         #     of cables that the Ziptie can handle. Each Ziptie will
         #     have its own InputFilter.
         self.filter = InputFilter(
-            n_inputs = self.n_inputs,
+            n_inputs=self.n_inputs,
             name='ziptie_0',
             debug=self.debug,
         )
@@ -75,7 +75,7 @@ class Featurizer(object):
         self.n_features = [0, 0]
 
         # mapping: 2D array of ints
-        #     The transformation from 
+        #     The transformation from
         self.mapping = np.zeros((0, 0), dtype=np.int)
 
     def calculate_fitness(self, feature_fitness):
@@ -94,6 +94,8 @@ class Featurizer(object):
             all_input_fitness[1])
         pool_fitness = self.filter.update_fitness(cable_fitness)
 
+        return pool_fitness
+
     def update_inputs(self):
         """
         Give each input filter a chance to update their inputs and propagate
@@ -102,7 +104,7 @@ class Featurizer(object):
         Returns
         -------
         resets: array of ints
-            The feature candidate indices that are being reset. 
+            The feature candidate indices that are being reset.
         """
         filter_resets = self.filter.update_inputs()
         bundle_resets = self.ziptie.update_inputs(filter_resets)
@@ -135,11 +137,12 @@ class Featurizer(object):
         -------
         candidate_values: list of array of floats
         """
-        feature_pool_values = np.matmul(feature_values, self.mapping.T)
+        # feature_pool_values = np.matmul(feature_values, self.mapping.T)
         candidate_values = []
         i_last = 0
-        for i_level, n_feat in enumerate(self.n_features):
-            candidate_values.append(feature_values[i_last: i_last + n_feat])
+        for n_feat in self.n_features:
+            candidate_values.append(
+                feature_values[i_last: i_last + n_feat])
             i_last += n_feat
         return candidate_values
 
@@ -160,22 +163,22 @@ class Featurizer(object):
         # and adapt.
         n_candidates_by_level = [values.size for values in candidate_values]
         total_n_candidates = np.sum(np.array(n_candidates_by_level))
-        total_n_features = np.sum(np.array(self.n_features)) 
+        total_n_features = np.sum(np.array(self.n_features))
         if (total_n_features < total_n_candidates):
             # Update_needed
             delta = []
             for i_level, candidate_pool in enumerate(candidate_values):
                 delta.append(candidate_pool.size - self.n_features[i_level])
             # Create a larger map
-            new_mapping = np.zeros((total_n_candidates, total_n_candidates),
-                dtype=np.int)
+            new_mapping = np.zeros(
+                (total_n_candidates, total_n_candidates), dtype=np.int)
             new_mapping[:total_n_features, :total_n_features] = self.mapping
             new_mapping[total_n_features:, total_n_features:] = (
                 np.eye(total_n_candidates - total_n_features))
 
             # Shift new rows upward to sit with their own levels.
             last_row = 0
-            for i_level, candidate_pool in enumerate(candidate_values[:-1]):
+            for i_level in range(len(candidate_values) - 1):
                 last_row += self.n_features[i_level]
                 start = total_n_features
                 stop = start + delta[i_level]
@@ -183,11 +186,13 @@ class Featurizer(object):
                     move_rows = new_mapping[start:stop, :]
                     new_mapping[
                         last_row + delta[i_level]:
-                        last_row + delta[i_level] +
-                            self.n_features[i_level + 1] , :] = (
-                    new_mapping[
+                        last_row + delta[i_level]
+                            + self.n_features[i_level + 1], :
+                    ] = new_mapping[
                         last_row:
-                        last_row + self.n_features[i_level + 1], :])
+                        last_row
+                            + self.n_features[i_level + 1], :
+                    ]
                     new_mapping[
                         last_row: last_row + delta[i_level], :] = move_rows
                     self.n_features[i_level] += delta[i_level]

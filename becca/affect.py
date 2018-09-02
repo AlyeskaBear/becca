@@ -45,7 +45,6 @@ class Affect(object):
         #     to each of the rewards in reward_history.
         self.reward_steps = []
 
-
     def update(self, reward):
         """
         Update the current level of satisfaction and record the reward.
@@ -72,7 +71,6 @@ class Affect(object):
         self.time_since_reward_log += 1
 
         return self.satisfaction
-
 
     def visualize(self, brain):
         """

@@ -22,7 +22,7 @@ class Brain(object):
     """
     def __init__(
         self,
-        backup_interval=int(2**20),
+        backup_interval=2**20,
         brain_name='test_brain',
         debug=True,
         log_directory=None,
@@ -30,7 +30,7 @@ class Brain(object):
         n_features=64,
         n_sensors=4,
         timestep=0,
-        visualize_interval=int(2**18),
+        visualize_interval=2**18,
     ):
         """
         Configure the Brain.
@@ -122,7 +122,7 @@ class Brain(object):
             n_features=self.n_features,
         )
 
-        # The actor takes conditional predictions from the model and 
+        # The actor takes conditional predictions from the model and
         # uses them to choose new goals.
         self.actor = Actor(self.n_features, self)
 
@@ -200,8 +200,8 @@ class Brain(object):
             np.concatenate((self.previous_commands, input_activities)))
         (conditional_predictions,
             conditional_rewards,
-            conditional_curiosities
-        ) = self.model.step(feature_activities, reward)
+            conditional_curiosities) = self.model.step(
+            feature_activities, reward)
         feature_goals, i_goal = self.actor.choose(
             conditional_predictions=conditional_predictions,
             conditional_rewards=conditional_rewards,

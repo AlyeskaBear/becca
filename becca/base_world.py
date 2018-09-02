@@ -5,7 +5,6 @@ from __future__ import print_function
 import numpy as np
 
 
-# pylint: disable=too-many-instance-attributes
 class World(object):
     """
     The base class for creating a new world.
@@ -55,7 +54,6 @@ class World(object):
         #     -1 is very, very bad.
         self.reward = 0
 
-
     def step(self, actions):
         """
         Take a time step through an empty world that does nothing.
@@ -77,7 +75,6 @@ class World(object):
         self.reward = 0
         return self.sensors, self.reward
 
-
     def is_alive(self):
         """
         Check whether the world is alive.
@@ -91,11 +88,9 @@ class World(object):
         """
         return self.timestep < self.lifespan
 
-
     def visualize(self, brain):
         """
         Show the user the state of the world.
         """
         print('{0} is {1} time steps old.'.format(self.name, self.timestep))
         print('The brain is {0} time steps old.'.format(brain.timestep))
-

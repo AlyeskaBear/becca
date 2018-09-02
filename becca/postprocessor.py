@@ -30,7 +30,7 @@ class Postprocessor(object):
             return
 
         self.n_actions = n_actions
-        self.n_commands  = self.n_actions * n_comands_per_action
+        self.n_commands = self.n_actions * n_comands_per_action
 
         # Keep a running record of recent internal values
         # for visualization.
@@ -39,7 +39,7 @@ class Postprocessor(object):
         self.consolidated_commands = np.zeros(self.n_commands)
         self.previous_commands = np.zeros(self.n_commands)
         self.actions = np.zeros(self.n_actions)
-        
+
         # The mapping helps to convert from discretized actions to
         # raw actions. Each row represents a raw action.
         self.mapping = (np.cumsum(np.ones(
@@ -70,7 +70,8 @@ class Postprocessor(object):
         # represents a proabaility that the action will be taken.
         # First, roll the dice and see which actions are commanded.
         self.commands = np.zeros(self.n_commands)
-        self.commands[np.where(np.random.random_sample() < self.command_activities)] = 1
+        self.commands[np.where(np.random.random_sample()
+                      < self.command_activities)] = 1
 
         # Find the magnitudes of each of the commanded actions.
         action_commands = self.mapping * np.reshape(

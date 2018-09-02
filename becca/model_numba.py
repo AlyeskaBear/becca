@@ -32,7 +32,7 @@ def update_sequences(
         f * s / (p + 1)
 
     where
-    
+
         f: feature activity
         s: number of sequence occurrences
         p: number of prefix occurrences
@@ -228,14 +228,14 @@ def predict_rewards(
 ):
     """
     Make a prediction about how much reward will result from each goal.
-    
+
     For any given prefix, the reward expected to occur on the next time
     step, given the associated goal is selected, is
 
         f * r
 
     where
-    
+
         f: feature activity
         r: prefix rewards
 
@@ -253,15 +253,16 @@ def predict_rewards(
         # Goal[1] is the special "do nothing" goal. It helps to distinguish
         # between reward that is due to a goal and reward that would have
         # been received even if doing nothing.
-        do_nothing_reward = prefix_rewards[i_feature, 1] 
+        do_nothing_reward = prefix_rewards[i_feature, 1]
         # if do_nothing_reward > conditional_rewards[1]:
         #     conditional_rewards[1] = do_nothing_reward
 
         # Calculate the expected change in reward for each goal,
         # compared to doing nothing.
         for i_goal in range(1, n_goals):
-            expected_reward = (feature_activities[i_feature] *
-                prefix_rewards[i_feature, i_goal] - do_nothing_reward)
+            expected_reward = (
+                feature_activities[i_feature]
+                * prefix_rewards[i_feature, i_goal] - do_nothing_reward)
             if expected_reward > conditional_rewards[i_goal]:
                 conditional_rewards[i_goal] = expected_reward
     return
@@ -275,14 +276,14 @@ def predict_curiosities(
 ):
     """
     Make a prediction about how much reward will result from each goal.
-    
+
     For any given prefix, the reward expected to occur on the next time
     step, given the associated goal is selected, is
 
         f * r
 
     where
-    
+
         f: feature activity
         r: prefix curiosities
 
@@ -300,8 +301,9 @@ def predict_curiosities(
         # Ignore the first "always on" feature.
         # It doesn't do anything as a goal.
         for i_goal in range(1, n_goals):
-            expected_curiosity = (feature_activities[i_feature] *
-                prefix_curiosities[i_feature, i_goal]) 
+            expected_curiosity = (
+                feature_activities[i_feature]
+                * prefix_curiosities[i_feature, i_goal])
             if expected_curiosity > conditional_curiosities[i_goal]:
                 conditional_curiosities[i_goal] = expected_curiosity
     return
@@ -317,7 +319,7 @@ def update_fitness(
     sequence_occurrences,
 ):
     """
-    Calculate the fitness of each feature 
+    Calculate the fitness of each feature
 
     Parameters
     ----------
@@ -345,7 +347,8 @@ def update_fitness(
     # whether as a prefeature or as a goal.
     prefeature_fitness = np.max(prefix_fitness, axis=1)
     goal_fitness = np.max(prefix_fitness, axis=0)
-    feature_fitness = np.maximum(prefeature_fitness, goal_fitness)
+    feature_fitness = np.maximum(  # noqa: F841
+        prefeature_fitness, goal_fitness)
 
     return
 

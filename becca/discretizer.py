@@ -14,17 +14,15 @@ class Discretizer(object):
 
     def __init__(
         self,
-        base_position=0.,
+        base_position=0,
         n_inputs=0,
         name='discretizer',
         output_dir='output',
-        split_frequency=int(1e3),
+        split_frequency=1e3,
     ):
         """
         @param base_position : float
             A value used to sort discretized values when visualizing.
-        # @param input_pool: set of ints
-        #     The set of indices available for assigning to new categories.
         @param name: string
             A name that helps to identify this instance of Discretizer.
         @param n_inputs: int

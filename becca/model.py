@@ -77,7 +77,7 @@ class Model(object):
         #     of cables that the Ziptie can handle. Each Ziptie will
         #     have its own InputFilter.
         self.filter = InputFilter(
-            n_inputs = self.n_features - 2,
+            n_inputs=self.n_features - 2,
             name='model',
             debug=self.debug,
         )
@@ -167,7 +167,7 @@ class Model(object):
 
     def update_activities(self, candidate_activities):
         """
-        Apply new activities, 
+        Apply new activities,
 
         Parameters
         ----------
@@ -288,7 +288,7 @@ class Model(object):
             self.goal_activities,
             self.prefix_uncertainties,
         )
-        
+
         nb.predict_features(
             self.feature_activities,
             self.sequence_likelihoods,
@@ -337,5 +337,5 @@ class Model(object):
         # Trim off the first two elements.
         # The are internal to the model only.
         feature_pool_goals = self.filter.project_activities(
-            self.goal_activities[2:]) 
+            self.goal_activities[2:])
         return feature_pool_goals

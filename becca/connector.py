@@ -7,6 +7,7 @@ import numpy as np
 from becca.brain import Brain
 import becca_viz.viz as viz
 
+
 def run(world, restore=False):
     """
     Run Becca with a world.

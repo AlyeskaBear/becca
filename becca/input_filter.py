@@ -7,7 +7,7 @@ class InputFilter(object):
     """
     The InputFilter selects a few inputs from among many candidates
     in the input pool.
-    
+
     The selection process is driven by candidates' fitness and by how
     much activity they have shown.
     Each ziptie will have one, as will the model.
@@ -33,7 +33,7 @@ class InputFilter(object):
         # n_candidates: int
         #     The current number of candidates.
         self.n_candidates = 0
-            
+
         # candidate_activities: array of floats
         self.candidate_activities = np.zeros(self.n_inputs)
 
@@ -52,7 +52,7 @@ class InputFilter(object):
         #     The value at that position shows the input index it is
         #     assigned to. An index of -1 means that candidate is unassigned.
         # self.mapping = -np.ones(self.n_inputs * 2, dtype='int')
-        
+
         # candidate_fitness: array of floats
         #     The most recently observed predictive fitness
         #     of each candidate.
@@ -125,13 +125,15 @@ class InputFilter(object):
 
         self.cumulative_activities[:self.n_candidates] += (
             self.candidate_activities)
-        
+
         self.i_benched = np.where(np.sum(
             self.mapping[:self.n_candidates, :], axis=1) == 0)[0]
         self.i_in_use = np.where(self.mapping)[0]
         self.bench_pressure[self.i_benched] += (
-            self.candidate_activities[self.i_benched] / (tools.epsilon + 
-            self.cumulative_activities[self.i_benched] * self.pressure_time))
+            self.candidate_activities[self.i_benched] /
+            (tools.epsilon
+                + self.cumulative_activities[self.i_benched]
+                * self.pressure_time))
 
         return input_activities
 
@@ -179,10 +181,10 @@ class InputFilter(object):
         # This for loop is slow, but it's clear. It doesn't cost much.
         # for i, loc in enumerate(self.mapping):
         #     if i >= 0:
-        #         self.candidate_fitness[i] = feature_fitness[loc]        
+        #         self.candidate_fitness[i] = feature_fitness[loc]
         return self.candidate_fitness
 
-    def update_inputs(self, upstream_resets=[]):
+    def update_inputs(self, upstream_resets=None):
         """
         Re-evaluate which candidates should be inputs. Modify input mapping
         to add new candidates swap out underperforming ones.
@@ -200,6 +202,8 @@ class InputFilter(object):
         resets: array of ints
             The indices of the inputs which need to be reset.
         """
+        if upstream_resets is None:
+            upstream_resets = []
         # Before doing anything else, handle upstream resets.
         for i_reset in upstream_resets:
             self.candidate_fitness[i_reset] = 0.
@@ -233,7 +237,7 @@ class InputFilter(object):
 
         i_highest_scoring_benched = i_highest_scoring_benched[i_fill:]
 
-        # Then swap out inputs and append to resets as long as 
+        # Then swap out inputs and append to resets as long as
         # the difference is greater than a threshold.
         i_swap = 0
         while (i_lowest_scoring_in_use.size > i_swap and
@@ -245,7 +249,8 @@ class InputFilter(object):
                 # self.mapping[i_in] = self.mapping[i_out]
                 self.mapping[i_in, :] = self.mapping[i_out, :]
                 self.mapping[i_out, :] = 0
-                # self.inverse_mapping[self.mapping[i_in]] = self.mapping[i_out]
+                # self.inverse_mapping[self.mapping[i_in]] = (
+                #     self.mapping[i_out])
                 resets.append(self.mapping[i_in])
             else:
                 break

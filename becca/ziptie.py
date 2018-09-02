@@ -1,7 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
-import becca.tools as tools
 import becca.ziptie_numba as nb
 
 
@@ -157,7 +155,7 @@ class Ziptie(object):
             self.mapping[i_cable_b, i_bundle] = 1
 
             # if len(self.bundle_to_cable_mapping) > i_bundle:
-            #     self.bundle_to_cable_mapping[i_bundle] =[i_cable_a, i_cable_b]
+            # self.bundle_to_cable_mapping[i_bundle] =[i_cable_a, i_cable_b]
             # else:
             #     self.bundle_to_cable_mapping.append(
             #         [i_cable_a, i_cable_b])
@@ -186,7 +184,6 @@ class Ziptie(object):
             blocked_b = np.where(self.nucleation_mask[i_cable_b, :] == 0)[0]
             blocked = np.union1d(blocked_a, blocked_b)
             self.agglomeration_mask[i_bundle, blocked] = 0
-
 
             if self.debug:
                 print(' '.join([
@@ -352,7 +349,7 @@ class Ziptie(object):
             An array of cable indices, representing all the cables that
             contribute to the bundle.
         """
-        return np.where(self.mapping[:,i_bundle])[0]
+        return np.where(self.mapping[:, i_bundle])[0]
 
     def project_bundle_activities(self, bundle_activities):
         """

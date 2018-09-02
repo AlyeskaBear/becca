@@ -12,7 +12,7 @@ class CatTree(object):
         self,
         base_position=0.,
         i_input=0,
-        split_period=int(1e2),
+        split_period=1e2,
         split_size=1e-2,
         type='default',
         verbose=False,
@@ -41,12 +41,6 @@ class CatTree(object):
         verbose: boolean
             Over-communicate about cat_tree's internal state and workings.
         """
-        # root: <type>CatTreeNode
-        #     The root node of the tree. All other nodes in this tree
-        #     are descended from it.
-        # observation_set: <type>CatTreeNode
-        #     A one-node tree that keeps a record of the set of values
-        #     observed recently.
         self.verbose = verbose
         if self.verbose:
             print('\'' + type + '\'' + ' tree requested.')
