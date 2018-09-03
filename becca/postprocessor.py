@@ -11,26 +11,27 @@ class Postprocessor(object):
     """
     def __init__(
         self,
-        n_comands_per_action=2,
+        n_commands_per_action=2,
         n_actions=None,
     ):
         """
         Parameters
         ----------
-        n_comands_per_action: int
+        _commands_per_action: int
             The number of discretized actions per raw action. This determines
             the resolution of discretization
         n_actions: int
             The number of actions that the world is expecting.
         """
         # TODO: Make discretization adaptive in number and magnitude.
-        # Check for valid arguments.
+        # TODO: Check for valid arguments.
         if not n_actions:
             print('You have to give a number for n_actions.')
             return
 
         self.n_actions = n_actions
-        self.n_commands = self.n_actions * n_comands_per_action
+        self.n_commands_per_action = n_commands_per_action
+        self.n_commands = self.n_actions * self.n_commands_per_action
 
         # Keep a running record of recent internal values
         # for visualization.
@@ -43,8 +44,8 @@ class Postprocessor(object):
         # The mapping helps to convert from discretized actions to
         # raw actions. Each row represents a raw action.
         self.mapping = (np.cumsum(np.ones(
-            (self.n_actions, n_comands_per_action)), axis=1) /
-            n_comands_per_action)
+            (self.n_actions, self.n_commands_per_action)), axis=1) /
+            self.n_commands_per_action)
 
     def convert_to_actions(self, command_activities):
         """
@@ -81,13 +82,18 @@ class Postprocessor(object):
 
         # Find the discretized representation of the actions
         # that were finally issued.
+        # These are used (delayed by one time step) to let
+        # the model know what it did, so that it can learn
+        # the appropriate model.
         self.previous_commands = self.consolidated_commands
         self.consolidated_commands = np.zeros(self.n_commands)
         for i_action in range(self.n_actions):
             if self.actions[i_action] > 0:
-                self.consolidated_commands[np.where(
-                    action_commands[i_action, :] > 0)[0][-1]] = 1
+                i_consolidated = (
+                    i_action * self.n_commands_per_action
+                    + np.where(action_commands[i_action, :] > 0)[0][-1])
+                self.consolidated_commands[i_consolidated] = 1
 
         # TODO: Consider adding fatigue.
         # It's not clear whether it will be helpful or not.
-        return self.consolidated_commands, self.actions
+        return self.actions

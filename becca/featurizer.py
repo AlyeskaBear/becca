@@ -78,6 +78,57 @@ class Featurizer(object):
         #     The transformation from
         self.mapping = np.zeros((0, 0), dtype=np.int)
 
+    def featurize(self, new_candidates):
+        """
+        Learn bundles and calculate bundle activities.
+
+        Parameters
+        ----------
+        new_candidates : array of floats
+            The candidates collected by the brain for the current time step.
+
+        Returns
+        -------
+        feature_pool: array of floats
+        """
+        self.ziptie_0_cable_pool = new_candidates
+        cable_activities = self.filter.update_activities(
+            candidate_activities=self.ziptie_0_cable_pool)
+
+        # Incrementally update the bundles in the ziptie.
+        self.ziptie.create_new_bundles()
+        self.ziptie.grow_bundles()
+
+        # Run the inputs through the ziptie to find bundle activities
+        # and to learn how to bundle them.
+        ziptie_1_cable_pool = self.ziptie.update_bundles(cable_activities)
+
+        self.activities = [
+            self.ziptie_0_cable_pool,
+            ziptie_1_cable_pool,
+        ]
+
+        self.feature_pool = self.map_to_feature_pool(self.activities)
+
+        return self.feature_pool
+
+    def defeaturize(self, feature_pool):
+        """
+        Take a set of feature activities and represent them in candidates.
+        """
+        ziptie_0_cable_pool, ziptie_1_cable_pool = (
+            self.map_from_feature_pool(feature_pool))
+        # TODO: iterate over multiple zipties
+        ziptie_0_cables = self.ziptie.project_bundle_activities(
+            ziptie_1_cable_pool)
+        ziptie_0_cable_pool_upstream = self.filter.project_activities(
+            ziptie_0_cables)
+        n_candidates_0 = ziptie_0_cable_pool_upstream.size
+        ziptie_0_cable_pool = np.maximum(
+            ziptie_0_cable_pool[:n_candidates_0],
+            ziptie_0_cable_pool_upstream)
+        return ziptie_0_cable_pool
+
     def calculate_fitness(self, feature_fitness):
         """
         Find the predictive fitness of each of cables in each ziptie.
@@ -207,54 +258,3 @@ class Featurizer(object):
         feature_values = np.matmul(
             np.array(all_candidate_values), self.mapping)
         return feature_values
-
-    def featurize(self, new_candidates):
-        """
-        Learn bundles and calculate bundle activities.
-
-        Parameters
-        ----------
-        new_candidates : array of floats
-            The candidates collected by the brain for the current time step.
-
-        Returns
-        -------
-        feature_pool: array of floats
-        """
-        self.ziptie_0_cable_pool = new_candidates
-        cable_activities = self.filter.update_activities(
-            candidate_activities=self.ziptie_0_cable_pool)
-
-        # Incrementally update the bundles in the ziptie.
-        self.ziptie.create_new_bundles()
-        self.ziptie.grow_bundles()
-
-        # Run the inputs through the ziptie to find bundle activities
-        # and to learn how to bundle them.
-        ziptie_1_cable_pool = self.ziptie.update_bundles(cable_activities)
-
-        self.activities = [
-            self.ziptie_0_cable_pool,
-            ziptie_1_cable_pool,
-        ]
-
-        self.feature_pool = self.map_to_feature_pool(self.activities)
-
-        return self.feature_pool
-
-    def defeaturize(self, feature_pool):
-        """
-        Take a set of feature activities and represent them in candidates.
-        """
-        ziptie_0_cable_pool, ziptie_1_cable_pool = (
-            self.map_from_feature_pool(feature_pool))
-        # TODO: iterate over multiple zipties
-        ziptie_0_cables = self.ziptie.project_bundle_activities(
-            ziptie_1_cable_pool)
-        ziptie_0_cable_pool_upstream = self.filter.project_activities(
-            ziptie_0_cables)
-        n_candidates_0 = ziptie_0_cable_pool_upstream.size
-        ziptie_0_cable_pool = np.maximum(
-            ziptie_0_cable_pool[:n_candidates_0],
-            ziptie_0_cable_pool_upstream)
-        return ziptie_0_cable_pool

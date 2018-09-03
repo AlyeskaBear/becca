@@ -85,10 +85,6 @@ class Brain(object):
         #     commands are discretized actions, suitable for use within
         #     becca. The postprocessor translates commands into actions.
         self.n_commands = self.postprocessor.n_commands
-        # previous_commands: array of floats
-        #     The discretized actions executed on the previous time step.
-        self.previous_commands = np.zeros(self.n_commands)
-        self.new_commands = np.zeros(self.n_commands)
         self.commands = np.zeros(self.n_commands)
 
         # The preprocessor takes raw sensors and commands and converts
@@ -194,10 +190,10 @@ class Brain(object):
         self.satisfaction = self.affect.update(reward)
 
         # Calculate new activities in a bottom-up pass.
-        self.previous_commands = self.new_commands
         input_activities = self.preprocessor.convert_to_inputs(sensors)
         feature_activities = self.featurizer.featurize(
-            np.concatenate((self.previous_commands, input_activities)))
+            np.concatenate((self.postprocessor.consolidated_commands,
+                            input_activities)))
         (conditional_predictions,
             conditional_rewards,
             conditional_curiosities) = self.model.step(
@@ -213,11 +209,8 @@ class Brain(object):
         input_goals = self.featurizer.defeaturize(feature_pool_goals)
 
         # Isolate the actions from the rest of the goals.
-        # self.previous_actions = self.actions
-        # self.actions = input_goals[:self.n_actions]
-        self.new_commands,  self.actions = (
-            self.postprocessor.convert_to_actions(
-                input_goals[:self.n_commands]))
+        self.actions = (self.postprocessor.convert_to_actions(
+                        input_goals[:self.n_commands]))
 
         # Update the inputs in a pair of top-down/bottom-up passes.
         # Top-down

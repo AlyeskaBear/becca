@@ -185,7 +185,6 @@ def update_curiosities(
 def predict_features(
     feature_activities,
     sequence_likelihoods,
-    conditional_predictions,
 ):
     """
     Make a prediction about which features are going to become active soon,
@@ -217,14 +216,13 @@ def predict_features(
                             conditional_predictions[i_goal, j_feature]):
                         conditional_predictions[i_goal, j_feature] = (
                             p_sequence)
-    return
+    return conditional_predictions
 
 
 @jit(nopython=True)
 def predict_rewards(
     feature_activities,
     prefix_rewards,
-    conditional_rewards,
 ):
     """
     Make a prediction about how much reward will result from each goal.
@@ -254,8 +252,6 @@ def predict_rewards(
         # between reward that is due to a goal and reward that would have
         # been received even if doing nothing.
         do_nothing_reward = prefix_rewards[i_feature, 1]
-        # if do_nothing_reward > conditional_rewards[1]:
-        #     conditional_rewards[1] = do_nothing_reward
 
         # Calculate the expected change in reward for each goal,
         # compared to doing nothing.
@@ -265,14 +261,13 @@ def predict_rewards(
                 * prefix_rewards[i_feature, i_goal] - do_nothing_reward)
             if expected_reward > conditional_rewards[i_goal]:
                 conditional_rewards[i_goal] = expected_reward
-    return
+    return conditional_rewards
 
 
 @jit(nopython=True)
 def predict_curiosities(
     feature_activities,
     prefix_curiosities,
-    conditional_curiosities,
 ):
     """
     Make a prediction about how much reward will result from each goal.
@@ -306,7 +301,7 @@ def predict_curiosities(
                 * prefix_curiosities[i_feature, i_goal])
             if expected_curiosity > conditional_curiosities[i_goal]:
                 conditional_curiosities[i_goal] = expected_curiosity
-    return
+    return conditional_curiosities
 
 
 # This makes use of vectorized numpy calls, so numba is unneccessary here.

@@ -142,104 +142,6 @@ class Model(object):
         #     a prefix increases its curiosity.
         self.curiosity_update_rate = 3e-3
 
-    def calculate_fitness(self):
-        """
-        Calculate the predictive fitness of all the feature candidates.
-
-        Returns
-        -------
-        feature_fitness: array of floats
-            The fitness of each of the feature candidate inputs to
-            the model.
-        """
-
-        nb.update_fitness(
-            self.feature_fitness,
-            self.prefix_occurrences,
-            self.prefix_rewards,
-            self.prefix_uncertainties,
-            self.sequence_occurrences)
-
-        candidate_fitness = self.filter.update_fitness(
-            self.feature_fitness[2:])
-
-        return candidate_fitness
-
-    def update_activities(self, candidate_activities):
-        """
-        Apply new activities,
-
-        Parameters
-        ----------
-        candidate_activities: array of floats
-
-        Returns
-        -------
-        None, but updates class members
-        feature_activities: array of floats
-        previous_feature_activities: array of floats
-        """
-        # TODO: incorporate _update_activities() into this
-        feature_activities = self.filter.update_activities(
-            candidate_activities)
-
-        # Augment the feature_activities with the two internal features,
-        # the "always on" (index of 0) and
-        # the "null" or "nothing else is on" (index of 1).
-        self.previous_feature_activities = self.feature_activities
-        self.feature_activities = np.concatenate((
-            np.zeros(2), feature_activities))
-        self.feature_activities[0] = 1.
-        total_activity = np.sum(self.feature_activities[2:])
-        inactivity = max(1. - total_activity, 0.)
-        self.feature_activities[1] = inactivity
-        return
-
-    def update_inputs(self, upstream_resets):
-        """
-        Add and reset feature inputs as appropriate.
-
-        Parameters
-        ----------
-        upstream_resets: array of ints
-            Indices of the feature candidates to reset.
-
-        Returns
-        -------
-        resets: array of ints
-            Indices of the features that were reset.
-        """
-        resets = self.filter.update_inputs(upstream_resets=upstream_resets)
-        # Account for the model's 2 internal features.
-        model_resets = [i_reset + 2 for i_reset in resets]
-        # Reset features throughout the model.
-        # It's like they never existed.
-        for i in model_resets:
-            self.previous_feature_activities[i] = 0.
-            self.feature_activities[i] = 0.
-            self.feature_fitness[i] = 0.
-            self.goal_activities[i] = 0.
-            self.prefix_activities[i, :] = 0.
-            self.prefix_activities[:, i] = 0.
-            self.prefix_credit[i, :] = 0.
-            self.prefix_credit[:, i] = 0.
-            self.prefix_occurrences[i, :] = 0.
-            self.prefix_occurrences[:, i] = 0.
-            self.prefix_curiosities[i, :] = 0.
-            self.prefix_curiosities[:, i] = 0.
-            self.prefix_rewards[i, :] = 0.
-            self.prefix_rewards[:, i] = 0.
-            self.prefix_uncertainties[i, :] = 0.
-            self.prefix_uncertainties[:, i] = 0.
-            self.sequence_occurrences[i, :, :] = 0.
-            self.sequence_occurrences[:, i, :] = 0.
-            self.sequence_occurrences[:, :, i] = 0.
-            self.sequence_likelihoods[i, :, :] = 0.
-            self.sequence_likelihoods[:, i, :] = 0.
-            self.sequence_likelihoods[:, :, i] = 0.
-
-        return resets
-
     def step(self, candidate_activities, reward):
         """
         Update the model and choose a new goal.
@@ -289,28 +191,123 @@ class Model(object):
             self.prefix_uncertainties,
         )
 
-        nb.predict_features(
+        self.conditional_predictions = nb.predict_features(
             self.feature_activities,
             self.sequence_likelihoods,
-            self.conditional_predictions,
         )
 
-        nb.predict_rewards(
+        self.conditional_rewards = nb.predict_rewards(
             self.feature_activities,
             self.prefix_rewards,
-            self.conditional_rewards,
         )
 
-        nb.predict_curiosities(
+        self.conditional_curiosities = nb.predict_curiosities(
             self.feature_activities,
             self.prefix_curiosities,
-            self.conditional_curiosities,
         )
 
         return (
             self.conditional_predictions,
             self.conditional_rewards,
             self.conditional_curiosities)
+
+    def update_activities(self, candidate_activities):
+        """
+        Apply new activities,
+
+        Parameters
+        ----------
+        candidate_activities: array of floats
+
+        Returns
+        -------
+        None, but updates class members
+        feature_activities: array of floats
+        previous_feature_activities: array of floats
+        """
+        # TODO: incorporate _update_activities() into this
+        feature_activities = self.filter.update_activities(
+            candidate_activities)
+
+        # Augment the feature_activities with the two internal features,
+        # the "always on" (index of 0) and
+        # the "null" or "nothing else is on" (index of 1).
+        self.previous_feature_activities = self.feature_activities
+        self.feature_activities = np.concatenate((
+            np.zeros(2), feature_activities))
+        self.feature_activities[0] = 1.
+        total_activity = np.sum(self.feature_activities[2:])
+        inactivity = max(1. - total_activity, 0.)
+        self.feature_activities[1] = inactivity
+        return
+
+    def calculate_fitness(self):
+        """
+        Calculate the predictive fitness of all the feature candidates.
+
+        Returns
+        -------
+        feature_fitness: array of floats
+            The fitness of each of the feature candidate inputs to
+            the model.
+        """
+
+        nb.update_fitness(
+            self.feature_fitness,
+            self.prefix_occurrences,
+            self.prefix_rewards,
+            self.prefix_uncertainties,
+            self.sequence_occurrences)
+
+        candidate_fitness = self.filter.update_fitness(
+            self.feature_fitness[2:])
+
+        return candidate_fitness
+
+    def update_inputs(self, upstream_resets):
+        """
+        Add and reset feature inputs as appropriate.
+
+        Parameters
+        ----------
+        upstream_resets: array of ints
+            Indices of the feature candidates to reset.
+
+        Returns
+        -------
+        resets: array of ints
+            Indices of the features that were reset.
+        """
+        resets = self.filter.update_inputs(upstream_resets=upstream_resets)
+        # Account for the model's 2 internal features.
+        model_resets = [i_reset + 2 for i_reset in resets]
+        # Reset features throughout the model.
+        # It's like they never existed.
+        for i in model_resets:
+            self.previous_feature_activities[i] = 0.
+            self.feature_activities[i] = 0.
+            self.feature_fitness[i] = 0.
+            self.goal_activities[i] = 0.
+            self.prefix_activities[i, :] = 0.
+            self.prefix_activities[:, i] = 0.
+            self.prefix_credit[i, :] = 0.
+            self.prefix_credit[:, i] = 0.
+            self.prefix_occurrences[i, :] = 0.
+            self.prefix_occurrences[:, i] = 0.
+            self.prefix_curiosities[i, :] = 0.
+            self.prefix_curiosities[:, i] = 0.
+            self.prefix_rewards[i, :] = 0.
+            self.prefix_rewards[:, i] = 0.
+            self.prefix_uncertainties[i, :] = 0.
+            self.prefix_uncertainties[:, i] = 0.
+            self.sequence_occurrences[i, :, :] = 0.
+            self.sequence_occurrences[:, i, :] = 0.
+            self.sequence_occurrences[:, :, i] = 0.
+            self.sequence_likelihoods[i, :, :] = 0.
+            self.sequence_likelihoods[:, i, :] = 0.
+            self.sequence_likelihoods[:, :, i] = 0.
+
+        return resets
 
     def update_goals(self, goals, i_new_goal):
         """

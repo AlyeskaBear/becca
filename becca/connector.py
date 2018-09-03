@@ -59,7 +59,9 @@ def run(world, restore=False):
         brain.visualize_interval = world.brain_visualize_interval
         print('Brain visualize interval set to',
               world.brain_visualize_interval)
-    except Exception:
+    # If there was no brain_visualize_interval in the world,
+    # keep the default.
+    except AttributeError:
         pass
 
     viz.labels(brain)
