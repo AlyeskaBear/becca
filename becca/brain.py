@@ -1,7 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 import pickle
 import os
 import numpy as np
@@ -12,7 +8,6 @@ from becca.postprocessor import Postprocessor
 from becca.featurizer import Featurizer
 from becca.model import Model
 from becca.actor import Actor
-import becca.viz as viz
 
 
 class Brain(object):
@@ -27,7 +22,7 @@ class Brain(object):
     """
     def __init__(
         self,
-        backup_interval=int(2**20),
+        backup_interval=2**20,
         brain_name='test_brain',
         debug=True,
         log_directory=None,
@@ -35,7 +30,7 @@ class Brain(object):
         n_features=64,
         n_sensors=4,
         timestep=0,
-        visualize_interval=int(2**18),
+        visualize_interval=2**18,
     ):
         """
         Configure the Brain.
@@ -90,9 +85,6 @@ class Brain(object):
         #     commands are discretized actions, suitable for use within
         #     becca. The postprocessor translates commands into actions.
         self.n_commands = self.postprocessor.n_commands
-        # previous_commands: array of floats
-        #     The discretized actions executed on the previous time step.
-        self.previous_commands = np.zeros(self.n_commands)
         self.commands = np.zeros(self.n_commands)
 
         # The preprocessor takes raw sensors and commands and converts
@@ -101,7 +93,7 @@ class Brain(object):
         # This means that it can be repeatedly subdivided to
         # generate actions of various magnitudes and increase control.
         self.preprocessor = Preprocessor(
-            n_commands=self.n_commands,
+            # n_commands=self.n_commands,
             n_sensors=self.n_sensors,
         )
 
@@ -126,7 +118,7 @@ class Brain(object):
             n_features=self.n_features,
         )
 
-        # The actor takes conditional predictions from the model and 
+        # The actor takes conditional predictions from the model and
         # uses them to choose new goals.
         self.actor = Actor(self.n_features, self)
 
@@ -170,7 +162,8 @@ class Brain(object):
             the brain doesn't interpret a contact sensor value of .5
             to mean that the contact
             sensor was only weakly contacted. It interprets it
-            to mean that the sensor was fully contacted for 50% of the sensing
+            to mean that the sensor was fully contacted for
+            50% of the sensing
             duration or that there is a 50% chance that the sensor was
             fully contacted during the entire sensing duration. For another
             example, a light sensor reading of zero won't be
@@ -197,14 +190,14 @@ class Brain(object):
         self.satisfaction = self.affect.update(reward)
 
         # Calculate new activities in a bottom-up pass.
-        input_activities = self.preprocessor.convert_to_inputs(
-            self.previous_commands, sensors)
-
-        feature_activities = self.featurizer.featurize(input_activities)
+        input_activities = self.preprocessor.convert_to_inputs(sensors)
+        feature_activities = self.featurizer.featurize(
+            np.concatenate((self.postprocessor.consolidated_commands,
+                            input_activities)))
         (conditional_predictions,
             conditional_rewards,
-            conditional_curiosities
-        ) = self.model.step(feature_activities, reward)
+            conditional_curiosities) = self.model.step(
+            feature_activities, reward)
         feature_goals, i_goal = self.actor.choose(
             conditional_predictions=conditional_predictions,
             conditional_rewards=conditional_rewards,
@@ -216,11 +209,8 @@ class Brain(object):
         input_goals = self.featurizer.defeaturize(feature_pool_goals)
 
         # Isolate the actions from the rest of the goals.
-        # self.previous_actions = self.actions
-        # self.actions = input_goals[:self.n_actions]
-        self.previous_commands,  self.actions = (
-            self.postprocessor.convert_to_actions(
-                input_goals[:self.n_commands]))
+        self.actions = (self.postprocessor.convert_to_actions(
+                        input_goals[:self.n_commands]))
 
         # Update the inputs in a pair of top-down/bottom-up passes.
         # Top-down
@@ -347,18 +337,3 @@ class Brain(object):
         except pickle.PickleError:
             print('Error unpickling world')
         return restored_brain
-
-    def visualize(self):
-        """
-        Show the current state and some history of the brain.
-
-        This is typically called from a world's visualize method.
-        """
-        print(' ')
-        print('{0} is {1} time steps old'.format(self.name, self.timestep))
-
-        viz.brain_activity(self)
-        self.affect.visualize(self)
-        # print('Running', world.name)
-        # self.featurizer.visualize(self, world)
-        # self.model.visualize(self)

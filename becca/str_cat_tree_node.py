@@ -154,7 +154,6 @@ class StrCatTreeNode(object):
             self.observations[new_name] = count
         self.n_observations += count
 
-    # def split(self, split_names, input_pool):
     def split(self, split_names, i_input):
         """
         Create two new child nodes.
@@ -172,16 +171,14 @@ class StrCatTreeNode(object):
         self.hi_child = StrCatTreeNode(
             catch_all=False,
             depth=self.depth + 1,
-            # i_input=input_pool.pop(),
             i_input=i_input,
             in_crowd=split_names,
-            position=self.position + delta,
+            position=self.position - delta,
         )
         self.lo_child = StrCatTreeNode(
             depth=self.depth + 1,
-            # i_input=input_pool.pop(),
             i_input=i_input + 1,
-            position=self.position - delta,
+            position=self.position + delta,
         )
 
         for name, count in self.observations.items():

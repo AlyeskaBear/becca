@@ -73,7 +73,14 @@ def max_2d(array2d):
 
 '''
 @jit(nopython=True)
-def find_bundle_activities(i_rows, i_cols, cables, bundles, weights, threshold):
+def find_bundle_activities(
+    i_rows,
+    i_cols,
+    cables,
+    bundles,
+    weights,
+    threshold,
+):
     """
     Use a greedy method to sparsely translate cables to bundles.
 

@@ -1,7 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 import os
 import sys
 
@@ -18,18 +14,15 @@ class Discretizer(object):
 
     def __init__(
         self,
-        base_position=0.,
-        # input_pool=None,
+        base_position=0,
         n_inputs=0,
         name='discretizer',
         output_dir='output',
-        split_frequency=int(1e3),
+        split_frequency=1e3,
     ):
         """
         @param base_position : float
             A value used to sort discretized values when visualizing.
-        # @param input_pool: set of ints
-        #     The set of indices available for assigning to new categories.
         @param name: string
             A name that helps to identify this instance of Discretizer.
         @param n_inputs: int
@@ -72,10 +65,7 @@ class Discretizer(object):
     def step(
         self,
         input_activities=None,
-        # input_pool,
         n_inputs=0,
-        # n_max_inputs,
-        # new_input_indices,
         raw_val=0.,
     ):
         """
@@ -88,11 +78,6 @@ class Discretizer(object):
             for this time step.
         n_inputs : int
             The number of inputs currently assigned.
-        #n_max_inputs : int
-        #     The maximum number of inputs possible.
-        #new_input_indices: list of tuples of (int, int)
-        #    Tuples of (child_index, parent_index). Each time a new child
-        #    node is added, it is recorded on this list.
         raw_val: float or string or convertable to string
             The new piece of data to add to the history of observations.
 
@@ -125,17 +110,15 @@ class Discretizer(object):
         # input_activities is modified by calls to categorize()
         if is_string:
             self.string_cats.add(val)
-            self.string_cats.categorize(val, input_activities)
+            self.string_cats.categorize(
+                val, input_activities, generational_discount=1)
         else:
             self.numeric_cats.add(val)
-            self.numeric_cats.categorize(val, input_activities)
+            self.numeric_cats.categorize(
+                val, input_activities, generational_discount=1)
 
         if self.timestep % self.split_frequency == 0:
             # Try to grow new categories.
-            # success, n_inputs, new_input_indices = self.numeric_cats.grow(
-            #     input_pool, new_input_indices)
-            # success, n_inputs, new_input_indices = self.string_cats.grow(
-            #     input_pool, new_input_indices)
             n_inputs = self.numeric_cats.grow(n_inputs)
             n_inputs = self.string_cats.grow(n_inputs)
 

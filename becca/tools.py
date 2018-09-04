@@ -13,18 +13,6 @@ epsilon = sys.float_info.epsilon
 big = 10 ** 20
 max_int16 = np.iinfo(np.int16).max
 
-# Colors for plotting
-dark_grey = (0.2, 0.2, 0.2)
-light_grey = (0.9, 0.9, 0.9)
-red = (0.9, 0.3, 0.3)
-# Becca pallette
-copper_highlight = (253./255., 249./255., 240./255.)
-light_copper = (242./255., 166./255., 108./255.)
-copper = (175./255., 102./255, 53./255.)
-dark_copper = (132./255., 73./255., 36./255.)
-copper_shadow = (25./255., 22./255, 20./255.)
-oxide = (20./255., 120./255., 150./255.)
-
 
 def pad(arr, shape, val=0., dtype=float):
     """
@@ -203,24 +191,25 @@ def timestr(timestep, s_per_step=.25, precise=True):
 def fatigue(raw_activities, energies, fatigue_rate=3e-4, recharge_rate=1e-4):
     """
     Limit the frequency and intensity of activities with a model of fatigue.
-    
+
     @param raw_activities: array of floats
         The activities before fatigue has been applied.
     @param energies: array of floats
-        The accumulated energy a channel has at its disposal. 
+        The accumulated energy a channel has at its disposal.
     @param fatigue_rate
         The rate at which energy is depleted when a channel is active.
-    @param recharge_rate: 
+    @param recharge_rate:
         The rate at which energy is re-accumulated.
 
     @return activities: array of floats
         The activities after fatigue has been applied.
     """
-    # 
+
     energies -= fatigue_rate * raw_activities * energies
     energies += recharge_rate * (1. - raw_activities) * (1. - energies)
     activities = raw_activities * energies
     return activities
+
 
 def format_decimals(array):
     """
@@ -295,4 +284,3 @@ def visualize_array(image_data, label='data_figure'):
                                                    np.min(image_data)))
     fig.show()
     fig.canvas.draw()
-

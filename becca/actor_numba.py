@@ -1,8 +1,6 @@
 """
 Numba functions that support actor.py
 """
-
-from __future__ import print_function
 from numba import jit
 import numpy as np
 

@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import numpy as np
 
 import becca.actor_numba as nb
@@ -90,22 +88,9 @@ class Actor(object):
         # self.previous_feature_goals = self.feature_goal_activities
         goals = np.zeros(self.n_features)
         max_vote = np.max(goal_votes)
-        matches = np.where(goals == max_vote)[0]
         # If there is a tie, randomly select between them.
-        i_goal = matches[np.argmax(
-            np.random.random_sample(matches.size))]
+        i_goal = np.random.choice(np.where(goal_votes == max_vote)[0])
         goals[i_goal] = 1
         self.goal_collection[i_goal] = 1
 
         return goals, i_goal
-
-    def visualize(self, brain):
-        """
-        Make a picture of the model.
-
-        Parameters
-        ----------
-        brain : Brain
-            The brain that this model belongs to.
-        """
-        viz.visualize(self, brain)

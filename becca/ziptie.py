@@ -1,12 +1,5 @@
-"""
-The Ziptie class.
-"""
-
-from __future__ import print_function
 import numpy as np
-import matplotlib.pyplot as plt
 
-import becca.tools as tools
 import becca.ziptie_numba as nb
 
 
@@ -33,7 +26,6 @@ class Ziptie(object):
     straightforward interpretation and visualization of the
     features.
     """
-
     def __init__(
             self,
             debug=False,
@@ -87,29 +79,10 @@ class Ziptie(object):
         #     The current set of bundle activities.
         self.bundle_activities = np.zeros(self.n_bundles)
 
-        # bundle_to_cable_mapping: list of lists
-        #     To get the cable indices for bundle i:
-        #     [i_cables] = self.bundle_to_cable_mapping[i_bundle]
-        #     An empty list shows an unused bundle.
-        self.bundle_to_cable_mapping = [[]]
-        # cable_to_bundle_mapping: list of lists
-        #     To get the bundles that cable i contributes to:
-        #     [i_bundles = self.cable_to_bundle_mapping[i_cable]
-        #     An empty list shows that the cable is not a part
-        #     of any bundle.
-        self.cable_to_bundle_mapping = [[]] * self.n_cables
-
-        # bundle_map_cols, bundle_map_rows : array of ints
-        #     To represent the sparse 2D bundle map, a pair of row and col
-        #     arrays are used. Rows are bundle indices, and cols are
-        #     feature indices.  The bundle map shows which cables
-        #     are zipped together to form which bundles.
-        # self.bundle_map_rows = -np.ones(self.bundle_map_size).astype(int)
-        # self.bundle_map_cols = -np.ones(self.bundle_map_size).astype(int)
-        # n_map_entries: int
-        #     The total number of bundle map entries that
-        #     have been created so far.
-        # self.n_map_entries = 0
+        # mapping: 2D array of ints
+        #     The mapping between cables and bundles.
+        #     If element i,j is 1, then cable i is a member of bundle j
+        self.mapping = np.zeros((self.n_cables, self.n_cables), dtype=np.int)
 
         # agglomeration_energy: 2D array of floats
         #     The accumulated agglomeration energy for each
@@ -195,10 +168,10 @@ class Ziptie(object):
         """
         self.cable_activities = new_cable_activities
         self.bundle_activities = np.zeros(self.n_bundles)
-        for i_bundle, i_cables in enumerate(self.bundle_to_cable_mapping):
-            if len(i_cables) > 0:
-                self.bundle_activities[i_bundle] = np.min(
-                    self.cable_activities[i_cables])
+        for i_bundle in np.unique(np.where(self.mapping)[1]):
+            i_cables = np.where(self.mapping[:, i_bundle])[0]
+            self.bundle_activities[i_bundle] = np.min(
+                self.cable_activities[i_cables])
         return self.bundle_activities
 
     def create_new_bundles(self):
@@ -215,14 +188,16 @@ class Ziptie(object):
         if max_energy > self.nucleation_threshold:
             i_bundle = self.n_bundles
             self.increment_n_bundles()
+            self.mapping[i_cable_a, i_bundle] = 1
+            self.mapping[i_cable_b, i_bundle] = 1
 
-            if len(self.bundle_to_cable_mapping) > i_bundle:
-                self.bundle_to_cable_mapping[i_bundle] =[i_cable_a, i_cable_b]
-            else:
-                self.bundle_to_cable_mapping.append(
-                    [i_cable_a, i_cable_b])
-            self.cable_to_bundle_mapping[i_cable_a].append(i_bundle)
-            self.cable_to_bundle_mapping[i_cable_b].append(i_bundle)
+            # if len(self.bundle_to_cable_mapping) > i_bundle:
+            # self.bundle_to_cable_mapping[i_bundle] =[i_cable_a, i_cable_b]
+            # else:
+            #     self.bundle_to_cable_mapping.append(
+            #         [i_cable_a, i_cable_b])
+            # self.cable_to_bundle_mapping[i_cable_a].append(i_bundle)
+            # self.cable_to_bundle_mapping[i_cable_b].append(i_bundle)
 
             # Reset the accumulated nucleation and agglomeration energy
             # for the two cables involved.
@@ -246,7 +221,6 @@ class Ziptie(object):
             blocked_b = np.where(self.nucleation_mask[i_cable_b, :] == 0)[0]
             blocked = np.union1d(blocked_a, blocked_b)
             self.agglomeration_mask[i_bundle, blocked] = 0
-
 
             if self.debug:
                 print(' '.join([
@@ -275,13 +249,15 @@ class Ziptie(object):
             self.increment_n_bundles()
 
             # Make a copy of the growing bundle.
-            self.bundle_to_cable_mapping.append(
-                self.bundle_to_cable_mapping[i_bundle])
+            self.mapping[:, i_new_bundle] = self.mapping[:, i_bundle]
+            # self.bundle_to_cable_mapping.append(
+            #     self.bundle_to_cable_mapping[i_bundle])
             # Add in the new cable.
-            self.bundle_to_cable_mapping[i_new_bundle].append(i_cable)
+            # self.bundle_to_cable_mapping[i_new_bundle].append(i_cable)
+            self.mapping[i_cable, i_bundle] = 1
             # Update the contributing cables.
-            for i_cable in self.bundle_to_cable_mapping[i_new_bundle]:
-                self.cable_to_bundle_mapping[i_cable].append(i_new_bundle)
+            # for i_cable in self.bundle_to_cable_mapping[i_new_bundle]:
+            #      self.cable_to_bundle_mapping[i_cable].append(i_new_bundle)
 
             # Reset the accumulated nucleation and agglomeration energy
             # for the two cables involved.
@@ -328,15 +304,17 @@ class Ziptie(object):
 
         upstream_resets = []
         for i_cable in resets:
-            for i_bundle in self.cable_to_bundle_mapping[i_cable]:
+            for i_bundle in np.where(self.mapping[i_cable, :])[0]:
                 upstream_resets.append(i_bundle)
                 # Remove the bundle from the mappings in both directions.
-                for j_cable in self.bundle_to_cable_mapping[i_bundle]:
-                    self.cable_to_bundle_mapping[j_cable].remove(i_bundle)
-                self.bundle_to_cable_mapping[i_bundle] = []
+                self.mapping[:, i_bundle] = 0
+                #    self.cable_to_bundle_mapping[j_cable].remove(i_bundle)
+                # self.bundle_to_cable_mapping[i_bundle] = []
 
                 self.agglomeration_mask[i_bundle, :] = 1
                 self.agglomeration_energy[i_bundle, :] = 0
+
+            self.mapping[i_cable, :] = 0
 
             self.agglomeration_mask[:, i_cable] = 1
             self.agglomeration_energy[:, i_cable] = 0
@@ -359,15 +337,19 @@ class Ziptie(object):
             new_max_bundles = n_max_bundles * 2
             new_agglomeration_energy = np.zeros(
                 (new_max_bundles, self.n_cables))
-            new_agglomeration_energy[:new_max_bundles, :] = (
+            new_agglomeration_energy[:n_max_bundles, :] = (
                     self.agglomeration_energy)
             self.agglomeration_energy = new_agglomeration_energy
 
             new_agglomeration_mask = np.zeros(
                 (new_max_bundles, self.n_cables))
-            new_agglomeration_mask[:new_max_bundles, :] = (
+            new_agglomeration_mask[:n_max_bundles, :] = (
                     self.agglomeration_mask)
             self.agglomeration_mask = new_agglomeration_mask
+
+            new_mapping = np.zeros((self.n_cables, new_max_bundles))
+            new_mapping[:, :n_max_bundles] = self.mapping
+            self.mapping = new_mapping
 
     def get_index_projection(self, i_bundle):
         """
@@ -404,9 +386,7 @@ class Ziptie(object):
             An array of cable indices, representing all the cables that
             contribute to the bundle.
         """
-        projection_indices = self.bundle_to_cable_mapping[i_bundle]
-        return projection_indices
-
+        return np.where(self.mapping[:, i_bundle])[0]
 
     def project_bundle_activities(self, bundle_activities):
         """
@@ -421,46 +401,7 @@ class Ziptie(object):
         cable_activities: array of floats
         """
         cable_activities = np.zeros(self.n_cables)
-        for i_cable, i_bundles in enumerate(self.cable_to_bundle_mapping):
-            if len(i_bundles) > 0:
-                cable_activities[i_cable] = np.min(
-                    self.bundle_activities[i_bundles])
+        for i_cable in np.unique(np.where(self.mapping)[0]):
+            i_bundles = np.where(self.mapping[i_cable, :])[0]
+            cable_activities[i_cable] = np.max(bundle_activities[i_bundles])
         return cable_activities
-
-    def visualize(self):
-        """
-        Turn the state of the Ziptie into an image.
-        """
-        print(self.name)
-        # First list the bundles and the cables in each.
-        i_bundles = self.bundle_map_rows[:self.n_map_entries]
-        i_cables = self.bundle_map_cols[:self.n_map_entries]
-        i_bundles_unique = np.unique(i_bundles)
-        if i_bundles_unique is not None:
-            for i_bundle in i_bundles_unique:
-                b_cables = list(np.sort(i_cables[np.where(
-                    i_bundles == i_bundle)[0]]))
-                print(' '.join(['    bundle', str(i_bundle),
-                                'cables:', str(b_cables)]))
-
-        plot = False
-        if plot:
-            if self.n_map_entries > 0:
-                # Render the bundle map.
-                bundle_map = np.zeros((self.n_cables,
-                                       self.n_bundles))
-                nb.set_dense_val(bundle_map,
-                                 self.bundle_map_rows[:self.n_map_entries],
-                                 self.bundle_map_cols[:self.n_map_entries], 1.)
-                tools.visualize_array(bundle_map,
-                                      label=self.name + '_bundle_map')
-
-                # Render the agglomeration energy.
-                label = '_'.join([self.name, 'agg_energy'])
-                tools.visualize_array(self.agglomeration_energy, label=label)
-                plt.xlabel(str(np.max(self.agglomeration_energy)))
-
-                # Render the nucleation energy.
-                label = '_'.join([self.name, 'nuc_energy'])
-                tools.visualize_array(self.nucleation_energy, label=label)
-                plt.xlabel(str(np.max(self.nucleation_energy)))

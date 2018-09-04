@@ -5,6 +5,8 @@ from __future__ import print_function
 import numpy as np
 
 from becca.brain import Brain
+import becca_viz.viz as viz
+
 
 def run(world, restore=False):
     """
@@ -31,14 +33,15 @@ def run(world, restore=False):
         average reward it gathered per time step.
     """
     brain_name = '{0}_brain'.format(world.name)
-    #if 'world.log_directory' in locals() and world.log_directory is not None:
-    #if world.log_directory is not None:
+
+    visualize_interval = 1e3
     try:
         brain = Brain(
             n_sensors=world.num_sensors,
             n_actions=world.num_actions,
             brain_name=brain_name,
             log_directory=world.log_directory,
+            visualize_interval=visualize_interval,
         )
     # Catch the case where world has no log_directory.
     except AttributeError:
@@ -46,6 +49,7 @@ def run(world, restore=False):
             n_sensors=world.num_sensors,
             n_actions=world.num_actions,
             brain_name=brain_name,
+            visualize_interval=visualize_interval,
         )
 
     if restore:
@@ -55,8 +59,12 @@ def run(world, restore=False):
         brain.visualize_interval = world.brain_visualize_interval
         print('Brain visualize interval set to',
               world.brain_visualize_interval)
-    except Exception:
+    # If there was no brain_visualize_interval in the world,
+    # keep the default.
+    except AttributeError:
         pass
+
+    viz.labels(brain)
 
     # Start at a resting state.
     actions = np.zeros(world.num_actions)
@@ -70,7 +78,7 @@ def run(world, restore=False):
 
         # Create visualizations.
         if brain.timestep % brain.visualize_interval == 0:
-            brain.visualize(world)
+            viz.visualize(brain)
         if world.timestep % world.visualize_interval == 0:
             world.visualize()
 
