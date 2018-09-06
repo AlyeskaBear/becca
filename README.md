@@ -17,7 +17,7 @@ Becca is a general learning program for use in any robot or embodied system. Whe
 
 ### How do I install becca for development?
 
-If you want to integrate becca with your robot, simulation, or reinforcement learning benchmark, or you'd like to contribute to the code, you'll need to clone the GitHub repositories and install them locally. Here is [the walkthrough](Installation-walkthrough).
+If you want to integrate becca with your robot, simulation, or reinforcement learning benchmark, or you'd like to contribute to the code, you'll need to clone the GitHub repositories and install them locally. Here is [the walkthrough](https://github.com/brohrer/becca/wiki/Installation-walkthrough).
 
 ### What can becca do?
 
