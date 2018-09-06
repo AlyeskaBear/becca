@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='becca',
-    version='0.9.0',
+    version='0.10.0.1',
     description='A general learning algorithm',
     url='http://github.com/brohrer/becca',
     download_url='https://github.com/brohrer/becca/archive/master.zip',
@@ -11,5 +11,12 @@ setup(
     license='MIT',
     packages=['becca'],
     include_package_data=True,
-    install_requires=['becca_test'],
+    install_requires=[
+        'becca_test',
+        'becca_toolbox',
+        'becca_viz',
+        'numpy',
+        'numba',
+        'matplotlib',
+    ],
     zip_safe=False)

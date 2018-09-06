@@ -4,9 +4,8 @@ The Affect class.
 
 import os
 import numpy as np
-import matplotlib.pyplot as plt
 
-import becca_viz.viz_tools as tools
+import becca_viz.affect_viz as av
 
 
 class Affect(object):
@@ -96,32 +95,7 @@ class Affect(object):
             self.reward_steps.append(brain.timestep)
             performance = np.mean(self.reward_history)
 
-        # Plot the lifetime record of the reward.
-        fig = plt.figure(11111)
-        color = (np.array(tools.copper) +
-                 np.random.normal(size=3, scale=.1))
-        color = np.maximum(np.minimum(color, 1.), 0.)
-        color = tuple(color)
-        linewidth = np.random.normal(loc=2.5)
-        linewidth = 2
-        linewidth = np.maximum(1., linewidth)
-        plt.plot(
-            np.array(self.reward_steps) / 1000.,
-            self.reward_history,
-            color=color,
-            linewidth=linewidth)
-        plt.gca().set_axis_bgcolor(tools.copper_highlight)
-        plt.xlabel('Thousands of time steps')
-        plt.ylabel('Average reward')
-        plt.title('Reward history for {0}'.format(brain.name))
-        fig.show()
-        fig.canvas.draw()
-
-        # Save a copy of the plot.
-        filename = 'reward_history_{0}.png'.format(brain.name)
-        pathname = os.path.join(brain.log_dir, filename)
-        plt.savefig(pathname, format='png')
-
+        av.visualize(self, brain)
         performance = np.mean(self.reward_history)
 
         return performance
