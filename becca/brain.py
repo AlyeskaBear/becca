@@ -30,7 +30,6 @@ class Brain(object):
         n_features=64,
         n_sensors=4,
         timestep=0,
-        visualize_interval=2**18,
     ):
         """
         Configure the Brain.
@@ -60,8 +59,6 @@ class Brain(object):
             input for determining performance.
         timestep: int
             The age of the brain in discrete time steps.
-        visualize_interval: int
-            How often to visualize the world, in time steps.
         """
         self.debug = debug
         self.n_sensors = n_sensors
@@ -123,7 +120,6 @@ class Brain(object):
         self.actor = Actor(self.n_features, self)
 
         self.timestep = timestep
-        self.visualize_interval = visualize_interval
         self.backup_interval = backup_interval
         self.name = brain_name
 
@@ -333,7 +329,8 @@ class Brain(object):
                 print('of sensors and actions as the world.')
                 print('Creating a new brain from scratch.')
         except IOError:
-            print('Couldn\'t open {0} for loading'.format(self.pickle_filename))
+            print('Couldn\'t open {0} for loading'
+                  .format(self.pickle_filename))
         except pickle.PickleError:
             print('Error unpickling world')
         return restored_brain

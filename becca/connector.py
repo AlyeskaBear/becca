@@ -8,7 +8,7 @@ from becca.brain import Brain
 import becca_viz.viz as viz
 
 
-def run(world, restore=False):
+def run(world, restore=False, visualize_interval=1e3):
     """
     Run Becca with a world.
 
@@ -25,6 +25,9 @@ def run(world, restore=False):
         from a previously saved
         version, picking up where it left off.
         Otherwise it create a new one. The default is False.
+    visualize_interval: int
+        The number of time steps between creating a new performance
+        calculation and visualization of the brain.
 
     Returns
     -------
@@ -34,14 +37,12 @@ def run(world, restore=False):
     """
     brain_name = '{0}_brain'.format(world.name)
 
-    visualize_interval = 1e3
     try:
         brain = Brain(
             n_sensors=world.num_sensors,
             n_actions=world.num_actions,
             brain_name=brain_name,
             log_directory=world.log_directory,
-            visualize_interval=visualize_interval,
         )
     # Catch the case where world has no log_directory.
     except AttributeError:
@@ -49,22 +50,10 @@ def run(world, restore=False):
             n_sensors=world.num_sensors,
             n_actions=world.num_actions,
             brain_name=brain_name,
-            visualize_interval=visualize_interval,
         )
 
     if restore:
         brain = brain.restore()
-
-    try:
-        brain.visualize_interval = world.brain_visualize_interval
-        print('Brain visualize interval set to',
-              world.brain_visualize_interval)
-    # If there was no brain_visualize_interval in the world,
-    # keep the default.
-    except AttributeError:
-        pass
-
-    viz.labels(brain)
 
     # Start at a resting state.
     actions = np.zeros(world.num_actions)
@@ -77,7 +66,7 @@ def run(world, restore=False):
         sensors, reward = world.step(actions)
 
         # Create visualizations.
-        if brain.timestep % brain.visualize_interval == 0:
+        if brain.timestep % visualize_interval == 0:
             viz.visualize(brain)
         if world.timestep % world.visualize_interval == 0:
             world.visualize()

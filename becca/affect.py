@@ -1,8 +1,3 @@
-"""
-The Affect class.
-"""
-
-import os
 import numpy as np
 
 import becca_viz.affect_viz as av
