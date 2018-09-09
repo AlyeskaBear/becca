@@ -66,6 +66,7 @@ class World(object):
         Returns
         -------
         sensors : array of floats
+            This can be an iterable of any type.
             The current values of each of those sensors in the world.
         reward : float
             The current reward provided by the world.

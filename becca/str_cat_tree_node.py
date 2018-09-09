@@ -1,12 +1,6 @@
 """
 The StrCatTreeNode class
 """
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import operator
 import numpy as np
 
@@ -19,7 +13,7 @@ class StrCatTreeNode(object):
     """
     def __init__(
         self,
-        catch_all=True,
+        # catch_all=True,
         depth=0.,
         i_input=0,
         in_crowd=None,
@@ -30,9 +24,16 @@ class StrCatTreeNode(object):
         """
         Create a new node.
 
-        @param catch_all: boolean
-            The root and every lower node is a catch-all. It considers
-            every node a match. Only upper nodes are selective.
+        When a node branches, it splits into two children,
+        a high node and a low node.
+        The root and every high node are catch-all nodes.
+        They consider every node a match.
+        Only low nodes are selective. Observations that match
+        their in_crowd list belong to them.
+
+        # @param catch_all: boolean
+        #     The root and every lower node is a catch-all. It considers
+        #     every node a match. Only upper nodes are selective.
         @param depth: int
             The depth of this node in the tree (although height would be
             a more apt metaphor). The root is always at depth 0.
@@ -40,7 +41,7 @@ class StrCatTreeNode(object):
             The index of this feature in the input vector.
         @param in_crowd: list of strings
             These are the names that belong to this node.
-            If it is a catch_all, then the in_crowd will be empty.
+            If it is a hi_child, then the in_crowd will be empty.
         @param n_candidates: int
             The number of candidates to evaluate for each split.
         @param parent: StrCatTreeNode
@@ -67,7 +68,7 @@ class StrCatTreeNode(object):
         #     the matching leaf.
         self.n_observations = 0
 
-        self.catch_all = catch_all
+        # self.catch_all = catch_all
         self.depth = depth
         self.in_crowd = in_crowd
         self.i_input = i_input
@@ -85,21 +86,31 @@ class StrCatTreeNode(object):
         """
         n_names = 3
         top_names, _ = self.top_n_names(n_names)
-        node_str = (str(len(list(self.observations.keys()))) +
-                    ' member categories, including  ')
-        for name in top_names:
-            node_str += ''.join(['\'', name, '\', '])
+        node_str = ""
+        if self.leaf:
+            node_str += "Leaf, "
+        else:
+            node_str += "branching (on "
+            node_str += str(self.lo_child.in_crowd) + "), "
+        if len(list(self.observations.keys())) > 0:
+            node_str += "containing "
+            node_str += str(len(list(self.observations.keys())))
+            node_str += ' member categories, including  '
+            for name in top_names:
+                node_str += ''.join(['\'', name, '\', '])
         node_str += '\n'
         return node_str
 
-    def variance(self):
+    def variance(self, observations=None):
         """
         Calculate a variance-like measure for the set of strings observed.
 
         @return float
             The variance of observations so far.
         """
-        return scu.variance(self.observations)
+        if observations is None:
+            observations = self.observations
+        return scu.variance(observations)
 
     def top_n_names(self, n_names):
         """
@@ -129,13 +140,19 @@ class StrCatTreeNode(object):
         """
         Determine whether a name belongs to this node.
 
+        When checking which branch an observation belongs to,
+        the lo_child always has to be checked first.
+        The hi_child thinks everything belongs to it.
+
         @param name: string
             The string to test.
 
         @return: boolean
             Is name in this node?
         """
-        if self.catch_all:
+        # if this is a hi_child, a catch-all node,
+        # then everything matches
+        if self.in_crowd is None:
             return True
         elif name in self.in_crowd:
             return True
@@ -168,26 +185,26 @@ class StrCatTreeNode(object):
         """
         delta = 2. ** (-1. * float(self.depth + 3))
 
-        self.hi_child = StrCatTreeNode(
-            catch_all=False,
+        self.lo_child = StrCatTreeNode(
             depth=self.depth + 1,
             i_input=i_input,
             in_crowd=split_names,
             position=self.position - delta,
         )
-        self.lo_child = StrCatTreeNode(
+        self.hi_child = StrCatTreeNode(
             depth=self.depth + 1,
             i_input=i_input + 1,
             position=self.position + delta,
         )
 
         for name, count in self.observations.items():
-            if name in self.hi_child.in_crowd:
-                self.hi_child.add(name, count)
-            else:
+            if name in self.lo_child.in_crowd:
                 self.lo_child.add(name, count)
-        self.observations = []
+            else:
+                self.hi_child.add(name, count)
+        self.observations = {}
         self.leaf = False
+        return
 
     def evaluate(self, split_candidate):
         """
@@ -204,7 +221,7 @@ class StrCatTreeNode(object):
                 in_names[name] = count
             else:
                 out_names[name] = count
-        return in_names.variance() + out_names.variance()
+        return self.variance(in_names) + self.variance(out_names)
 
     def find_best_split(self):
         """
@@ -235,6 +252,6 @@ class StrCatTreeNode(object):
                 new_change = original_variance - new_variance
                 if new_change > biggest_change:
                     biggest_change = new_change
-                    best_candidate = candidate
+                    best_candidate = [candidate]
 
         return (best_candidate, biggest_change)

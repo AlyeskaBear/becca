@@ -263,7 +263,10 @@ class CatTree(object):
             When a split is made, this is modified.
 
         """
-        if self.observation_set.n_observations % self.split_period == 0:
+        if (
+            self.observation_set.n_observations > 0 and
+            self.observation_set.n_observations % self.split_period == 0
+        ):
             leaves = self.get_list(leaves_only=True)
             # Test splits on each leaf. Find the best.
             best_candidate = 0.
@@ -283,7 +286,8 @@ class CatTree(object):
                 best_leaf.split(best_candidate, n_inputs)
                 best_leaf.lo_child.parent = best_leaf
                 best_leaf.hi_child.parent = best_leaf
-                self.depth = np.maximum(self.depth, best_leaf.hi_child.depth)
+                self.depth = np.maximum(
+                    self.depth, best_leaf.hi_child.depth)
 
                 parent_indices = []
                 self.get_parent_indices(best_leaf, parent_indices)

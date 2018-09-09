@@ -1,14 +1,20 @@
 """
 Connect a world with a brain and set it to running.
 """
-from __future__ import print_function
+import copy
+
 import numpy as np
 
 from becca.brain import Brain
 import becca_viz.viz as viz
 
 
-def run(world, restore=False, visualize_interval=1e3):
+def run(
+    world,
+    full_visualization=False,
+    restore=False,
+    visualize_interval=1e3,
+):
     """
     Run Becca with a world.
 
@@ -20,6 +26,9 @@ def run(world, restore=False, visualize_interval=1e3):
     world : World
         The world that Becca will learn.
         See the world.py documentation for a full description.
+    full_visualize: bool
+        Flag indicating whether to do a full visualization
+        of the becca brain.
     restore : bool, optional
         If restore is True, try to restore the brain
         from a previously saved
@@ -62,14 +71,14 @@ def run(world, restore=False, visualize_interval=1e3):
     # Repeat the loop through the duration of the existence of the world:
     # sense, act, repeat.
     while world.is_alive():
-        actions = brain.sense_act_learn(sensors, reward)
-        sensors, reward = world.step(actions)
+        actions = brain.sense_act_learn(copy.deepcopy(sensors), reward)
+        sensors, reward = world.step(copy.copy(actions))
 
         # Create visualizations.
         if brain.timestep % visualize_interval == 0:
-            viz.visualize(brain)
-        if world.timestep % world.visualize_interval == 0:
-            world.visualize()
+            viz.visualize(brain, full_visualization=full_visualization)
+        # if world.timestep % world.visualize_interval == 0:
+        #     world.visualize()
 
     # Wrap up the run.
     try:
