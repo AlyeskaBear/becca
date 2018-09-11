@@ -45,9 +45,6 @@ class Brain(object):
             in timesteps.
         debug: boolean
             Print informative error messages?
-        full_visualization: bool
-            Flag indicating whether to do a full visualization
-            of the becca brain.
         log_directory : str
             The full path name to a directory where information and
             backups for the world can be stored and retrieved.
@@ -58,13 +55,13 @@ class Brain(object):
             input for determining performance.
         name: str
             A descriptive string identifying the brain.
+        reporting_interval: int
+            How often the brain will report on performance.
         restore : bool, optional
             If restore is True, try to restore the brain
             from a previously saved
             version, picking up where it left off.
             Otherwise it create a new one.
-        timestep: int
-            The age of the brain in discrete time steps.
         visualize_interval: int
             The number of time steps between creating a new performance
             calculation and visualization of the brain.
@@ -72,13 +69,12 @@ class Brain(object):
         defaults = {
             "backup_interval": 1e5,
             "debug": True,
-            "full_visualization": False,
             "log_directory": None,
             "n_features": None,
             "name": None,
+            "reporting_interval": 1e3,
             "restore": True,
-            "timestep": 0,
-            "visualize_interval": 1e3,
+            "visualize_interval": 1e4,
         }
         if config is None:
             config = {}
@@ -87,6 +83,11 @@ class Brain(object):
             self.name = config.get("name")
         else:
             self.name = '{0}_brain'.format(world.name)
+
+        if config.get("debug") is not None:
+            self.debug = config.get("debug")
+        else:
+            self.debug = defaults.get("debug")
 
         if config.get("log_directory") is not None:
             self.log_dir = config.get("log_directory")
@@ -121,92 +122,107 @@ class Brain(object):
         self.n_actions = world.n_actions
         self.n_sensors = world.n_sensors
 
-        if config.get("n_features") is not None:
-            self.n_features = config.get("n_features")
-        else:
-            self.n_features = self.n_actions + 4 * self.n_sensors
-
-        if config.get("timestep") is not None:
-            self.timestep = config.get("timestep")
-        else:
-            self.timestep = defaults.get("timestep")
+        self.timestep = 0
 
         if config.get("restore") is not None:
-            restore = config.get("restore")
+            restore_flag = config.get("restore")
         else:
-            restore = defaults.get("restore")
-        if restore:
-            restored_brain = self.restore()
+            restore_flag = defaults.get("restore")
+        if restore_flag:
+            restored_brain = restore(self)
 
-        if config.get("debug") is not None:
-            self.debug = config.get("debug")
+        if restore_flag and restored_brain is not None:
+            self.timestep = restored_brain.timestep
+            self.input_activities = restored_brain.input_activities
+            self.actions = restored_brain.actions
+            self.n_features = restored_brain.n_features
+            self.postprocessor = restored_brain.postprocessor
+            self.n_commands = restored_brain.n_commands
+            self.commands = restored_brain.commands
+            self.preprocessor = restored_brain.preprocessor
+            self.affect = restored_brain.affect
+            self.satisfaction = restored_brain.satisfaction
+            self.featurizer = restored_brain.featurizer
+            self.model = restored_brain.model
+            self.actor = restored_brain.actor
+
         else:
-            self.debug = defaults.get("debug")
+            # Initialize everything.
 
+            # The preprocessor takes raw sensors and commands and converts
+            # them into discrete inputs.
+            # Assume all actions are in a continuous space.
+            # This means that it can be repeatedly subdivided to
+            # generate actions of various magnitudes and increase control.
+            self.preprocessor = Preprocessor(n_sensors=self.n_sensors)
+
+            # The postprocessor converts actions to discretized actions
+            # and back.
+            self.postprocessor = Postprocessor(n_actions=self.n_actions)
+
+            # actions: array of floats
+            #     The set of actions to execute this time step.
+            #     Initializing them to non-zero helps to kick start the
+            #     act-sense-decide loop.
+            self.actions = np.ones(self.n_actions) * .1
+
+            self.affect = Affect()
+            # satisfaction: float
+            #     The level of contentment experienced by the brain.
+            #     Higher contentment dampens curiosity and
+            #     the drive to explore.
+            self.satisfaction = 0.
+
+            # n_commands: array of floats
+            #     commands are discretized actions, suitable
+            #     for use within becca. The postprocessor
+            #     translates commands into actions.
+            self.n_commands = self.postprocessor.n_commands
+            self.commands = np.zeros(self.n_commands)
+
+            if config.get("n_features") is not None:
+                self.n_features = config.get("n_features")
+            else:
+                self.n_features = (2 * self.n_commands
+                                   + 8 * self.n_sensors)
+
+            self.input_activities = np.zeros(self.n_features)
+            # The featurizer is an unsupervised learner that learns
+            # features from the inputs.
+            self.featurizer = Featurizer(
+                debug=self.debug,
+                n_inputs=self.n_features,
+                threshold=1e3,
+            )
+            # The model builds sequences of features and goals and reward
+            # for making predictions about its world.
+            self.model = Model(
+                brain=self,
+                debug=self.debug,
+                n_features=self.n_features,
+            )
+
+            # The actor takes conditional predictions from the model and
+            # uses them to choose new goals.
+            self.actor = Actor(self.n_features, self)
+
+        # Finish with the superficial configuration.
+        # This might change from session to session.
         if config.get("backup_interval") is not None:
             self.backup_interval = config.get("backup_interval")
         else:
             self.backup_interval = defaults.get("backup_interval")
+
+        if config.get("reporting_interval") is not None:
+            self.reporting_interval = config.get("reporting_interval")
+        else:
+            self.reporting_interval = defaults.get("reporting_interval")
 
         if config.get("visualize_interval") is not None:
             self.visualize_interval = config.get("visualize_interval")
         else:
             self.visualize_interval = defaults.get("visualize_interval")
 
-        if config.get("full_visualization") is not None:
-            self.full_visualization = config.get("full_visualization")
-        else:
-            self.full_visualization = defaults.get("full_visualization")
-
-        self.input_activities = np.zeros(self.n_features)
-
-        # actions: array of floats
-        #     The set of actions to execute this time step.
-        #     Initializing them to non-zero helps to kick start the
-        #     act-sense-decide loop.
-        self.actions = np.ones(self.n_actions) * .1
-
-        # The postprocessor converts actions to discretized actions
-        # and back.
-        self.postprocessor = Postprocessor(n_actions=self.n_actions)
-
-        # n_commands: array of floats
-        #     commands are discretized actions, suitable for use within
-        #     becca. The postprocessor translates commands into actions.
-        self.n_commands = self.postprocessor.n_commands
-        self.commands = np.zeros(self.n_commands)
-
-        # The preprocessor takes raw sensors and commands and converts
-        # them into discrete inputs.
-        # Assume all actions are in a continuous space.
-        # This means that it can be repeatedly subdivided to
-        # generate actions of various magnitudes and increase control.
-        self.preprocessor = Preprocessor(n_sensors=self.n_sensors)
-
-        self.affect = Affect()
-        # satisfaction: float
-        #     The level of contentment experienced by the brain.
-        #     Higher contentment dampens curiosity and the drive to explore.
-        self.satisfaction = 0.
-
-        # The featurizer is an unsupervised learner that learns
-        # features from the inputs.
-        self.featurizer = Featurizer(
-            debug=self.debug,
-            n_inputs=self.n_features,
-            threshold=1e3,
-        )
-        # The model builds sequences of features and goals and reward
-        # for making predictions about its world.
-        self.model = Model(
-            brain=self,
-            debug=self.debug,
-            n_features=self.n_features,
-        )
-
-        # The actor takes conditional predictions from the model and
-        # uses them to choose new goals.
-        self.actor = Actor(self.n_features, self)
         return
 
     def sense_act_learn(self, sensors, reward):
@@ -302,10 +318,13 @@ class Brain(object):
         if (self.timestep % self.backup_interval) == 0:
             self.backup()
 
+        # Report on performance.
+        if self.timestep % self.reporting_interval == 0:
+            self.affect.visualize(self)
+
         # Create visualization.
         if self.timestep % self.visualize_interval == 0:
-            viz.visualize(
-                self, full_visualization=self.full_visualization)
+            viz.visualize(self)
 
         return self.actions
 
@@ -376,43 +395,53 @@ class Brain(object):
             success = True
         return success
 
-    def restore(self):
-        """
-        Reconstitute the brain from a previously saved brain.
 
-        Returns
-        -------
-        restored_brain : Brain
-            If restoration was successful, the saved brain is returned.
-            Otherwise a notification prints and returns None.
-        """
-        try:
-            with open(self.pickle_filename, 'rb') as brain_data:
-                loaded_brain = pickle.load(brain_data)
+def restore(brain):
+    """
+    Reconstitute the brain from a previously saved brain.
 
-            # Compare the number of channels in the restored brain with
-            # those in the already initialized brain. If it matches,
-            # accept the brain. If it doesn't,
-            # print a message, and keep the just-initialized brain.
-            # Sometimes the pickle file is corrputed. When this is the case
-            # you can manually overwrite it by removing the .bak from the
-            # .pickle.bak file. Then you can restore from the backup pickle.
-            if ((loaded_brain.n_sensors == self.n_sensors) and
-                    (loaded_brain.n_actions == self.n_actions)):
-                print('Brain restored at timestep {0} from {1}'.format(
-                    str(loaded_brain.timestep), self.pickle_filename))
-                self = loaded_brain
-            else:
-                print('The brain {0} does not have the same number'.format(
-                    self.pickle_filename))
-                print('of sensors and actions as the world.')
-                print('Creating a new brain from scratch.')
-        except IOError:
-            print('Couldn\'t open {0} for loading'
-                  .format(self.pickle_filename))
-        except pickle.PickleError:
-            print('Error unpickling world')
-        return
+    Parameters
+    ----------
+    brain: Brain
+        The beginning ot a brain. It needs to at least have a name,
+        for locating the filename, and number of sensors
+        and actuators defined.
+
+    Returns
+    -------
+    restored_brain: Brain
+        If successful, the brain that was restored.
+        If unsuccessful, None.
+    """
+    restored_brain = None
+    try:
+        with open(brain.pickle_filename, 'rb') as brain_data:
+            loaded_brain = pickle.load(brain_data)
+
+        # Compare the number of channels in the restored brain with
+        # those in the already initialized brain. If it matches,
+        # accept the brain. If it doesn't,
+        # print a message, and keep the just-initialized brain.
+        # Sometimes the pickle file is corrputed. When this is the case
+        # you can manually overwrite it by removing the .bak from the
+        # .pickle.bak file. Then you can restore from the backup pickle.
+        if ((loaded_brain.n_sensors == brain.n_sensors) and
+                (loaded_brain.n_actions == brain.n_actions)):
+            print('Brain restored at timestep {0} from {1}'.format(
+                str(loaded_brain.timestep), brain.pickle_filename))
+            restored_brain = loaded_brain
+
+        else:
+            print('The brain {0} does not have the same number'.format(
+                brain.pickle_filename))
+            print('of sensors and actions as the world.')
+            print('Creating a new brain from scratch.')
+    except IOError:
+        print('Couldn\'t open {0} for loading'
+              .format(brain.pickle_filename))
+    except pickle.PickleError:
+        print('Error unpickling world')
+    return restored_brain
 
 
 def run(world, config):
