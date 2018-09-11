@@ -126,6 +126,11 @@ class Brain(object):
         else:
             self.n_features = self.n_actions + 4 * self.n_sensors
 
+        if config.get("timestep") is not None:
+            self.timestep = config.get("timestep")
+        else:
+            self.timestep = defaults.get("timestep")
+
         if config.get("restore") is not None:
             restore = config.get("restore")
         else:
@@ -133,18 +138,10 @@ class Brain(object):
         if restore:
             restored_brain = self.restore()
 
-        if restored_brain is not None:
-            self = restored_brain
-
         if config.get("debug") is not None:
             self.debug = config.get("debug")
         else:
             self.debug = defaults.get("debug")
-
-        if config.get("timestep") is not None:
-            self.timestep = config.get("timestep")
-        else:
-            self.timestep = defaults.get("timestep")
 
         if config.get("backup_interval") is not None:
             self.backup_interval = config.get("backup_interval")
@@ -389,7 +386,6 @@ class Brain(object):
             If restoration was successful, the saved brain is returned.
             Otherwise a notification prints and returns None.
         """
-        restored_brain = self
         try:
             with open(self.pickle_filename, 'rb') as brain_data:
                 loaded_brain = pickle.load(brain_data)
@@ -405,21 +401,18 @@ class Brain(object):
                     (loaded_brain.n_actions == self.n_actions)):
                 print('Brain restored at timestep {0} from {1}'.format(
                     str(loaded_brain.timestep), self.pickle_filename))
-                restored_brain = loaded_brain
+                self = loaded_brain
             else:
                 print('The brain {0} does not have the same number'.format(
                     self.pickle_filename))
                 print('of sensors and actions as the world.')
                 print('Creating a new brain from scratch.')
-                return None
         except IOError:
             print('Couldn\'t open {0} for loading'
                   .format(self.pickle_filename))
-            return None
         except pickle.PickleError:
             print('Error unpickling world')
-            return None
-        return restored_brain
+        return
 
 
 def run(world, config):
