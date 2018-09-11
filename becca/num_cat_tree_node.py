@@ -1,12 +1,3 @@
-"""
-The NumCatTreeNode class
-"""
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import numpy as np
 
 
@@ -26,21 +17,23 @@ class NumCatTreeNode(object):
         """
         Create a new node.
 
-        @param bounds: tuple(float, float)
+        Parameters
+        ----------
+        bounds: tuple(float, float)
             The upper and lower bounds for this node in the format
             (lower_bound, upper_bound). This node covers all values
             that are less than the upper bound and greater than or
             equal to the lower bound.
-        @param depth: int
+        depth: int
             The depth of this node in the tree (although height would be
             a more apt metaphor). The root is always at depth 0.
-        @param i_input: int
+        i_input: int
             The index of this feature in the input vector.
-        @param n_candidates: int
+        n_candidates: int
             The number of candidates to evaluate for each split.
-        @param parent: NumCatTreeNode
+        parent: NumCatTreeNode
             This is the node just higher in the tree.
-        @param position: float
+        position: float
             The position of this node on the number line used for
             sorting them in visualization.
         """
@@ -80,6 +73,10 @@ class NumCatTreeNode(object):
 
         This method is called when
         print(NumCatTreeNode) is run.
+
+        Returns
+        -------
+        str
         """
         node_str = ('lower bound: ' +
                     str(self.lo_bound) +
@@ -92,7 +89,9 @@ class NumCatTreeNode(object):
         """
         Calculate variance for the set of values observed.
 
-        @return float
+        Returns
+        -------
+        float
             The variance of observations so far.
         """
         return np.var(np.array(self.observations))
@@ -101,10 +100,14 @@ class NumCatTreeNode(object):
         """
         Determine whether a name belongs to this node.
 
-        @param value: float
+        Parameters
+        ----------
+        value: float
             The number to test.
 
-        @return: boolean
+        Returns
+        -------
+        bool
             Is name in this node?
         """
         if value >= self.lo_bound and value < self.hi_bound:
@@ -116,7 +119,9 @@ class NumCatTreeNode(object):
         """
         Grow a leaf's collection of observed values.
 
-        @param new_value: float
+        Parameters
+        ----------
+        new_value: float
         """
         self.observations.append(new_value)
         self.n_observations += 1
@@ -161,8 +166,13 @@ class NumCatTreeNode(object):
         """
         For the proposed split, determine how good it will be.
 
-        @param float: split_candidate
-        @return float
+        Parameters
+        ----------
+        float: split_candidate
+
+        Parameters
+        ----------
+        float
             The quality of the proposed split.
         """
         vals = np.array(self.observations)
@@ -182,7 +192,9 @@ class NumCatTreeNode(object):
         """
         Try several options and find the best split candidate.
 
-        @returns (float, float)
+        Returns
+        -------
+        (float, float)
             The value to split on and the split quality.
         """
 

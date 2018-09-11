@@ -1,3 +1,4 @@
+import copy
 import pickle
 import os
 import numpy as np
@@ -8,6 +9,7 @@ from becca.postprocessor import Postprocessor
 from becca.featurizer import Featurizer
 from becca.model import Model
 from becca.actor import Actor
+import becca_viz.viz as viz
 
 
 class Brain(object):
@@ -20,51 +22,144 @@ class Brain(object):
     Check out connector.py for an example for how to attach a world
     to a brain.
     """
-    def __init__(
-        self,
-        backup_interval=2**20,
-        brain_name='test_brain',
-        debug=True,
-        log_directory=None,
-        n_actions=4,
-        n_features=64,
-        n_sensors=4,
-        timestep=0,
-    ):
+    def __init__(self, world, config=None):
         """
         Configure the Brain.
 
+        There are some superficial parameters that individual worlds
+        might like to choose, like how often to visualize and
+        how often to back things up. These can be changed by passing
+        the appropriate key-value pairs in a dictionary.
+
         Parameters
         ----------
+        world: World
+            An environment with an appropriate step() function.
+        config: dict
+            Keys are brain parameters, values are desired values.
+
+        Configuration parameters
+        ------------------------
         backup_interval: int
             How often the brain will save a pickle backup of itself,
             in timesteps.
-        brain_name: str
-            A descriptive string identifying the brain.
         debug: boolean
             Print informative error messages?
+        full_visualization: bool
+            Flag indicating whether to do a full visualization
+            of the becca brain.
         log_directory : str
             The full path name to a directory where information and
             backups for the world can be stored and retrieved.
-        n_actions: int
-            This is the total number of action outputs that
-            the world is expecting.
-        n_sensors: int
-            The number of distinct sensors that the world will be passing in
-            to the brain.
         n_features: int
             The limit on the number of features passed to the model.
             If this is smaller, Becca will run faster. If it is larger
             Becca will have more capacity to learn. It's an important
             input for determining performance.
+        name: str
+            A descriptive string identifying the brain.
+        restore : bool, optional
+            If restore is True, try to restore the brain
+            from a previously saved
+            version, picking up where it left off.
+            Otherwise it create a new one.
         timestep: int
             The age of the brain in discrete time steps.
+        visualize_interval: int
+            The number of time steps between creating a new performance
+            calculation and visualization of the brain.
         """
-        self.debug = debug
-        self.n_sensors = n_sensors
-        self.n_actions = n_actions
-        self.n_features = np.maximum(
-            n_features, self.n_actions + 4 * self.n_sensors)
+        defaults = {
+            "backup_interval": 1e5,
+            "debug": True,
+            "full_visualization": False,
+            "log_directory": None,
+            "n_features": None,
+            "name": None,
+            "restore": True,
+            "timestep": 0,
+            "visualize_interval": 1e3,
+        }
+        if config is None:
+            config = {}
+
+        if config.get("name") is not None:
+            self.name = config.get("name")
+        else:
+            self.name = '{0}_brain'.format(world.name)
+
+        if config.get("log_directory") is not None:
+            self.log_dir = config.get("log_directory")
+        else:
+            # Identify the full local path of the brain.py module.
+            # This trick is used to conveniently locate
+            # other Becca resources.
+            module_path = os.path.dirname(os.path.abspath(__file__))
+            # log_dir : str
+            #     Relative path to the log directory.
+            #     This is where backups
+            #     and images of the brain's state and performance are kept.
+            self.log_dir = os.path.normpath(
+                os.path.join(module_path, 'log'))
+
+        # Check whether the directory is already there. If not, create it.
+        if not os.path.isdir(self.log_dir):
+            os.makedirs(self.log_dir)
+        # pickle_filename : str
+        #     Relative path and filename of the backup pickle file.
+        self.pickle_filename = os.path.join(
+            self.log_dir, '{0}.pickle'.format(self.name))
+
+        # One of the few constraints on the world is that it has to have
+        # n_actions and n_sensors members.
+        # n_actions: int
+        #     This is the total number of action outputs that
+        #     the world is expecting.
+        # n_sensors: int
+        #     The number of distinct sensors that the world
+        #     will be passing in to the brain.
+        self.n_actions = world.n_actions
+        self.n_sensors = world.n_sensors
+
+        if config.get("n_features") is not None:
+            self.n_features = config.get("n_features")
+        else:
+            self.n_features = self.n_actions + 4 * self.n_sensors
+
+        if config.get("restore") is not None:
+            restore = config.get("restore")
+        else:
+            restore = defaults.get("restore")
+        if restore:
+            restored_brain = self.restore()
+
+        if restored_brain is not None:
+            self = restored_brain
+
+        if config.get("debug") is not None:
+            self.debug = config.get("debug")
+        else:
+            self.debug = defaults.get("debug")
+
+        if config.get("timestep") is not None:
+            self.timestep = config.get("timestep")
+        else:
+            self.timestep = defaults.get("timestep")
+
+        if config.get("backup_interval") is not None:
+            self.backup_interval = config.get("backup_interval")
+        else:
+            self.backup_interval = defaults.get("backup_interval")
+
+        if config.get("visualize_interval") is not None:
+            self.visualize_interval = config.get("visualize_interval")
+        else:
+            self.visualize_interval = defaults.get("visualize_interval")
+
+        if config.get("full_visualization") is not None:
+            self.full_visualization = config.get("full_visualization")
+        else:
+            self.full_visualization = defaults.get("full_visualization")
 
         self.input_activities = np.zeros(self.n_features)
 
@@ -89,10 +184,7 @@ class Brain(object):
         # Assume all actions are in a continuous space.
         # This means that it can be repeatedly subdivided to
         # generate actions of various magnitudes and increase control.
-        self.preprocessor = Preprocessor(
-            # n_commands=self.n_commands,
-            n_sensors=self.n_sensors,
-        )
+        self.preprocessor = Preprocessor(n_sensors=self.n_sensors)
 
         self.affect = Affect()
         # satisfaction: float
@@ -118,29 +210,7 @@ class Brain(object):
         # The actor takes conditional predictions from the model and
         # uses them to choose new goals.
         self.actor = Actor(self.n_features, self)
-
-        self.timestep = timestep
-        self.backup_interval = backup_interval
-        self.name = brain_name
-
-        if log_directory:
-            self.log_dir = log_directory
-        else:
-            # Identify the full local path of the brain.py module.
-            # This trick is used to conveniently locate other Becca resources.
-            module_path = os.path.dirname(os.path.abspath(__file__))
-            # log_dir : str
-            #     Relative path to the log directory. This is where backups
-            #     and images of the brain's state and performance are kept.
-            self.log_dir = os.path.normpath(os.path.join(module_path, 'log'))
-
-        # Check whether the directory is already there. If not, create it.
-        if not os.path.isdir(self.log_dir):
-            os.makedirs(self.log_dir)
-        # pickle_filename : str
-        #     Relative path and filename of the backup pickle file.
-        self.pickle_filename = os.path.join(
-            self.log_dir, '{0}.pickle'.format(brain_name))
+        return
 
     def sense_act_learn(self, sensors, reward):
         """
@@ -201,6 +271,14 @@ class Brain(object):
         )
         feature_pool_goals = self.model.update_goals(feature_goals, i_goal)
 
+        debug_local = False
+        if debug_local:
+            rep = "Brain"
+            rep += " last action: " + str(self.actions[0]) + ", "
+            rep += " reward of " + str(reward) + ", "
+            rep += " next sensors " + str(sensors)
+            print(rep)
+
         # Pass goals back down.
         input_goals = self.featurizer.defeaturize(feature_pool_goals)
 
@@ -226,6 +304,11 @@ class Brain(object):
         # Periodically back up the brain.
         if (self.timestep % self.backup_interval) == 0:
             self.backup()
+
+        # Create visualization.
+        if self.timestep % self.visualize_interval == 0:
+            viz.visualize(
+                self, full_visualization=self.full_visualization)
 
         return self.actions
 
@@ -304,7 +387,7 @@ class Brain(object):
         -------
         restored_brain : Brain
             If restoration was successful, the saved brain is returned.
-            Otherwise a notification prints and a new brain is returned.
+            Otherwise a notification prints and returns None.
         """
         restored_brain = self
         try:
@@ -328,9 +411,56 @@ class Brain(object):
                     self.pickle_filename))
                 print('of sensors and actions as the world.')
                 print('Creating a new brain from scratch.')
+                return None
         except IOError:
             print('Couldn\'t open {0} for loading'
                   .format(self.pickle_filename))
+            return None
         except pickle.PickleError:
             print('Error unpickling world')
+            return None
         return restored_brain
+
+
+def run(world, config):
+    """
+    Run Becca with a world.
+
+    Connect the brain and the world together and run them for as long
+    as the world dictates.
+
+    Parameters
+    ----------
+    world : World
+        The world that Becca will learn.
+        See the world.py documentation for a full description.
+    config: dict
+        Keys are configurable brain parameters and values are their
+        desired values. See Brain.configure() for a full list.
+
+    Returns
+    -------
+    performance : float
+        The performance of the brain over its lifespan, measured by the
+        average reward it gathered per time step.
+    """
+    brain = Brain(world, config)
+
+    # Start at a resting state.
+    actions = np.zeros(world.n_actions)
+    sensors, reward = world.step(actions)
+
+    # Repeat the loop through the duration of the existence of the world:
+    # sense, act, repeat.
+    while world.is_alive():
+        actions = brain.sense_act_learn(copy.deepcopy(sensors), reward)
+        sensors, reward = world.step(copy.copy(actions))
+
+    # Wrap up the run.
+    try:
+        world.close_world(brain)
+    except AttributeError:
+        print("Closing", world.name)
+
+    performance = brain.report_performance()
+    return performance

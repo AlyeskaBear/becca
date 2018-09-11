@@ -1,6 +1,3 @@
-"""
-The StrCatTreeNode class
-"""
 import operator
 import numpy as np
 
@@ -13,7 +10,6 @@ class StrCatTreeNode(object):
     """
     def __init__(
         self,
-        # catch_all=True,
         depth=0.,
         i_input=0,
         in_crowd=None,
@@ -31,22 +27,19 @@ class StrCatTreeNode(object):
         Only low nodes are selective. Observations that match
         their in_crowd list belong to them.
 
-        # @param catch_all: boolean
-        #     The root and every lower node is a catch-all. It considers
-        #     every node a match. Only upper nodes are selective.
-        @param depth: int
+        depth: int
             The depth of this node in the tree (although height would be
             a more apt metaphor). The root is always at depth 0.
-        @param i_input: int
+        i_input: int
             The index of this feature in the input vector.
-        @param in_crowd: list of strings
+        in_crowd: list of strings
             These are the names that belong to this node.
             If it is a hi_child, then the in_crowd will be empty.
-        @param n_candidates: int
+        n_candidates: int
             The number of candidates to evaluate for each split.
-        @param parent: StrCatTreeNode
+        parent: StrCatTreeNode
             This is the node just higher in the tree.
-        @param position: float
+        position: float
             The position of this node on the number line used for
             sorting them in visualization.
         """
@@ -82,7 +75,9 @@ class StrCatTreeNode(object):
         This method is called when
         print(NumCatTreeNode) is run.
 
-        @return: string
+        Returns
+        -------
+        node_str: str
         """
         n_names = 3
         top_names, _ = self.top_n_names(n_names)
@@ -105,7 +100,9 @@ class StrCatTreeNode(object):
         """
         Calculate a variance-like measure for the set of strings observed.
 
-        @return float
+        Returns
+        -------
+        float
             The variance of observations so far.
         """
         if observations is None:
@@ -116,10 +113,14 @@ class StrCatTreeNode(object):
         """
         Get the most commonly occurring names.
 
-        @param n_names: int
+        Parameters
+        ----------
+        n_names: int
             The number of names to return.
 
-        @return: tuple (list of strings, list of ints)
+        Returns
+        -------
+        tuple (list of strings, list of ints)
             The top n most common names
             and the number of times each has occcurred.
         """
@@ -144,10 +145,14 @@ class StrCatTreeNode(object):
         the lo_child always has to be checked first.
         The hi_child thinks everything belongs to it.
 
-        @param name: string
+        Parameters
+        ----------
+        name: string
             The string to test.
 
-        @return: boolean
+        Returns
+        -------
+        bool
             Is name in this node?
         """
         # if this is a hi_child, a catch-all node,
@@ -163,7 +168,9 @@ class StrCatTreeNode(object):
         """
         Grow a leaf's collection of observed names.
 
-        @param new_name: string
+        Parameters
+        ----------
+        new_name: string
         """
         if new_name in self.observations:
             self.observations[new_name] += count
@@ -175,6 +182,8 @@ class StrCatTreeNode(object):
         """
         Create two new child nodes.
 
+        Parameters
+        ----------
         i_input: int
             The new nodes will be associated with
             this index in the agent's input array, and the next.
@@ -210,8 +219,13 @@ class StrCatTreeNode(object):
         """
         For the proposed split, determine how good it will be.
 
-        @param split_candidate: list of strings
-        @return float
+        Parameters
+        ----------
+        split_candidate: list of strings
+
+        Returns
+        -------
+        float
             The quality of the proposed split.
         """
         in_names = {}
@@ -229,7 +243,9 @@ class StrCatTreeNode(object):
 
         For now, just consider splitting on one name at a time.
 
-        @returns a tuple of (list of strings, float)
+        Returns
+        -------
+        a tuple of (list of strings, float)
             The in group names to split on and
             the change in variance that such a split would give.
         """

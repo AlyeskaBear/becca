@@ -1,13 +1,11 @@
-"""
-The base world on which all the other worlds are based.
-"""
-from __future__ import print_function
 import numpy as np
 
 
 class World(object):
     """
     The base class for creating a new world.
+
+    The base world on which all the other worlds are based.
     """
     def __init__(self, lifespan=None):
         """
@@ -36,17 +34,14 @@ class World(object):
         # name : String
         #     The name of the world.
         self.name = 'abstract_base_world'
-        self.name_long = 'abstract base world'
-        # num_actions, num_sensors : int
-        #     The number of actions and sensors, respectively.
         #     These will likely be overridden in any subclass
-        self.num_sensors = 0
-        self.num_actions = 0
+        self.n_sensors = 0
+        self.n_actions = 0
         # sensors, actions : array of floats
         #     The arrays that represent the full set of sensed observations
         #     and intended actions, updated at each time step.
-        self.sensors = np.zeros(self.num_sensors)
-        self.actions = np.zeros(self.num_actions)
+        self.sensors = np.zeros(self.n_sensors)
+        self.actions = np.zeros(self.n_actions)
         # reward : float
         #     The feedback signal on the goodness of an brain's experience.
         #     0 is neutral.
@@ -72,7 +67,7 @@ class World(object):
             The current reward provided by the world.
         """
         self.timestep += 1
-        self.sensors = np.ones(self.num_sensors) * actions
+        self.sensors = np.ones(self.n_sensors) * actions
         self.reward = 0
         return self.sensors, self.reward
 
