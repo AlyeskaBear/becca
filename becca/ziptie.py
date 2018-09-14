@@ -185,7 +185,9 @@ class Ziptie(object):
             blocked = np.union1d(blocked_a, blocked_b)
             self.agglomeration_mask[i_bundle, blocked] = 0
 
-            if self.debug:
+            # TODO: Add to logger
+            # if self.debug:
+            if False:
                 print(' '.join([
                     '    ', self.name,
                     'bundle', str(i_bundle),
@@ -244,7 +246,9 @@ class Ziptie(object):
             blocked = np.union1d(blocked_cable[0], blocked_bundle[0])
             self.agglomeration_mask[i_new_bundle, blocked] = 0.
 
-            if self.debug:
+            # TODO: Add to logger
+            # if self.debug:
+            if False:
                 print(' '.join(['    ', self.name,
                                 'bundle', str(i_new_bundle),
                                 'added: bundle', str(i_bundle),

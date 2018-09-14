@@ -29,9 +29,11 @@ class Actor(object):
         #     The accumulated recent history of goals. These are maintained
         #     so that goals from recent time steps can be translated into
         #     expected value for predicted features.
+        self.previous_goal_collection = np.zeros(self.n_features)
         self.goal_collection = np.zeros(self.n_features)
 
         self.goal_decay_rate = .2
+        return
 
     def fulfill(self, feature_activities):
         """
@@ -43,6 +45,7 @@ class Actor(object):
         """
         self.goal_collection *= 1 - feature_activities
         self.goal_collection = np.maximum(0, self.goal_collection)
+        return
 
     def reset(self, resets):
         """
@@ -55,9 +58,11 @@ class Actor(object):
         """
         for i_goal in resets:
             self.goal_collection[i_goal] = 0.
+        return
 
     def choose(
         self,
+        feature_activities=None,
         conditional_curiosities=None,
         conditional_predictions=None,
         conditional_rewards=None,
@@ -67,14 +72,17 @@ class Actor(object):
 
         Parameters
         ----------
-        conditional_predictions: 2D array of floats
-            The expected feature activities, given the selection
-            of a goal feature.
+        feature_activities,
         conditional_rewards,
         conditional_curiosities: 1D array of floats
             The expected value or reward and curiosity, given the selection
+        conditional_predictions: 2D array of floats
+            The expected feature activities, given the selection
+            of a goal feature.
             of a goal feature.
         """
+        self.fulfill(feature_activities)
+        self.previous_goal_collection = self.goal_collection.copy()
         self.goal_collection *= 1 - self.goal_decay_rate
         # Choose one goal at each time step, the feature with
         # the largest vote.

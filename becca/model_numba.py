@@ -1,66 +1,10 @@
 """
 Numba functions that support model.py
 """
-
-from __future__ import print_function
 from numba import jit
 import numpy as np
 
 import becca.tools as tools
-
-
-@jit(nopython=True)
-def update_sequences(
-    feature_activities,
-    prefix_activities,
-    prefix_occurrences,
-    sequence_occurrences,
-    sequence_likelihoods,
-):
-    """
-    Update the number of occurrences of each sequence.
-
-    The new sequence activity, n, is
-        n = p * f, where
-    p is the prefix activities from the previous time step and
-    f is the post-feature_activities
-
-    For any given sequence, the probability (sequence_likelihood)
-    it will occur on the next time
-    step, given the associated goal is selected, is
-
-        f * s / (p + 1)
-
-    where
-
-        f: feature activity
-        s: number of sequence occurrences
-        p: number of prefix occurrences
-
-    Adding 1 to p prevents badly behaved fractions.
-    """
-    n_pre_features, n_goals, n_post_features = sequence_occurrences.shape
-    # Iterate over post-features
-    for j_feature in range(n_post_features):
-        if feature_activities[j_feature] > tools.epsilon:
-            # Iterate over goals and pre-features
-            for i_goal in range(n_goals):
-                for i_feature in range(n_pre_features):
-                    # These are still the prefix activities from the
-                    # previous time step. Together with the current
-                    # feature activities, these constitute sequences.
-                    if prefix_activities[i_feature, i_goal] > tools.epsilon:
-                        sequence_occurrences[
-                            i_feature, i_goal, j_feature] += (
-                            prefix_activities[i_feature, i_goal] *
-                            feature_activities[j_feature])
-                        sequence_likelihoods[
-                            i_feature, i_goal, j_feature] = (
-                            sequence_occurrences[
-                                i_feature, i_goal, j_feature] /
-                            prefix_occurrences[
-                                i_feature, i_goal] + 1)
-    return
 
 
 @jit(nopython=True)
@@ -100,6 +44,61 @@ def update_prefixes(
             # Adjust uncertainty accordingly.
             prefix_uncertainties[i_feature, i_goal] = 1 / (
                 1 + prefix_occurrences[i_feature, i_goal])
+    return
+
+
+@jit(nopython=True)
+def update_sequences(
+    feature_activities,
+    prefix_activities,
+    prefix_occurrences,
+    sequence_occurrences,
+    sequence_likelihoods,
+):
+    """
+    Update the number of occurrences of each sequence.
+
+    The new sequence activity, n, is
+        n = p * f, where
+    p is the prefix activities from the previous time step and
+    f is the outcome_activities
+
+    For any given sequence, the probability (sequence_likelihood)
+    it will occur on the next time
+    step, given the associated goal is selected, is
+
+        f * s / (p + 1)
+
+    where
+
+        f: feature activity
+        s: number of sequence occurrences
+        p: number of prefix occurrences
+
+    Adding 1 to p prevents badly behaved fractions.
+    """
+    n_features, n_goals, n_outcomes = sequence_occurrences.shape
+    # Iterate over outcomes
+    for i_outcome in range(n_outcomes):
+        if feature_activities[i_outcome] > tools.epsilon:
+            # Iterate over goals and pre-features
+            for i_goal in range(n_goals):
+                for i_feature in range(n_features):
+                    # These are still the prefix activities from the
+                    # previous time step. Together with the current
+                    # feature activities, these constitute sequences.
+                    if prefix_activities[i_feature, i_goal] > tools.epsilon:
+                        sequence_occurrences[
+                            i_feature, i_goal, i_outcome] += (
+                            prefix_activities[i_feature, i_goal] *
+                            feature_activities[i_outcome])
+                        occurrences = sequence_occurrences[
+                                i_feature, i_goal, i_outcome]
+                        opportunities = prefix_occurrences[
+                                i_feature, i_goal] + 1
+                        sequence_likelihoods[
+                            i_feature, i_goal, i_outcome] = (
+                            occurrences / opportunities)
     return
 
 
@@ -197,24 +196,24 @@ def predict_features(
     conditional_predictions: 2D array of floats
         This is updated to represent the new predictions for this time step.
     """
-    n_features, n_goals, m_features = sequence_likelihoods.shape
-    conditional_predictions = np.zeros((n_goals, m_features))
+    n_features, n_goals, n_outcomes = sequence_likelihoods.shape
+    conditional_predictions = np.zeros((n_goals, n_outcomes))
     for i_feature in range(n_features):
         if feature_activities[i_feature] > tools.epsilon:
             do_nothing_prediction = sequence_likelihoods[i_feature, 1, :]
-            # for j_feature in range(2, m_features):
-            #     if (do_nothing_prediction[j_feature] >
-            #             conditional_predictions[1, j_feature]):
-            #         conditional_predictions[1, j_feature] = (
-            #             do_nothing_prediction[j_feature])
+            # for i_outcome in range(2, n_outcomes):
+            #     if (do_nothing_prediction[i_outcome] >
+            #             conditional_predictions[1, i_outcome]):
+            #         conditional_predictions[1, i_outcome] = (
+            #             do_nothing_prediction[i_outcome])
             for i_goal in range(1, n_goals):
-                for j_feature in range(1, m_features):
+                for i_outcome in range(1, n_outcomes):
                     p_sequence = (sequence_likelihoods[
-                        i_feature, i_goal, j_feature] -
-                        do_nothing_prediction[j_feature])
+                        i_feature, i_goal, i_outcome] -
+                        do_nothing_prediction[i_outcome])
                     if (p_sequence >
-                            conditional_predictions[i_goal, j_feature]):
-                        conditional_predictions[i_goal, j_feature] = (
+                            conditional_predictions[i_goal, i_outcome]):
+                        conditional_predictions[i_goal, i_outcome] = (
                             p_sequence)
     return conditional_predictions
 
@@ -330,20 +329,20 @@ def update_fitness(
     # follow it.
     # Base it on the single most successfully predicted sequence.
     # TODO: debug numba type inference error in this line
-    postfeature_prediction_score = (
+    outcome_prediction_score = (
         np.max(sequence_occurrences, axis=2) /
         (prefix_occurrences + tools.epsilon))
     # Calculate the ability of each prefix to predict reward or punishment.
     reward_prediction_score = np.abs(prefix_rewards)
-    prefix_score = postfeature_prediction_score + reward_prediction_score
+    prefix_score = outcome_prediction_score + reward_prediction_score
     # Scale fitness by confidence (1 - uncertainty)
     prefix_fitness = prefix_score * (1 - prefix_uncertainties)
     # Find the maximum fitness for each feature across all prefixes,
-    # whether as a prefeature or as a goal.
-    prefeature_fitness = np.max(prefix_fitness, axis=1)
+    # whether as a feature or as a goal.
+    feature_fitness = np.max(prefix_fitness, axis=1)
     goal_fitness = np.max(prefix_fitness, axis=0)
     feature_fitness = np.maximum(  # noqa: F841
-        prefeature_fitness, goal_fitness)
+        feature_fitness, goal_fitness)
 
     return
 

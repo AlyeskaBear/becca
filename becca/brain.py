@@ -74,7 +74,7 @@ class Brain(object):
             "name": None,
             "reporting_interval": 1e3,
             "restore": True,
-            "visualize_interval": 1e4,
+            "visualize_interval": 1e3,
         }
         if config is None:
             config = {}
@@ -273,11 +273,13 @@ class Brain(object):
         feature_activities = self.featurizer.featurize(
             np.concatenate((self.postprocessor.consolidated_commands,
                             input_activities)))
-        (conditional_predictions,
+        (model_feature_activities,
+            conditional_predictions,
             conditional_rewards,
             conditional_curiosities) = self.model.step(
             feature_activities, reward)
         feature_goals, i_goal = self.actor.choose(
+            feature_activities=model_feature_activities,
             conditional_predictions=conditional_predictions,
             conditional_rewards=conditional_rewards,
             conditional_curiosities=conditional_curiosities,
@@ -444,7 +446,7 @@ def restore(brain):
     return restored_brain
 
 
-def run(world, config):
+def run(world, config=None):
     """
     Run Becca with a world.
 

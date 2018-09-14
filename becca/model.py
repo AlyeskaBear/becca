@@ -82,16 +82,12 @@ class Model(object):
             debug=self.debug,
         )
 
-        # feature_goals,
-        # previous_feature_goals,
-        # feature_goal_votes : array of floats
+        # goal_activities: array of floats
         #     Goals can be set for features.
         #     They are temporary incentives, used for planning and
         #     goal selection. These can vary between zero and one.
         #     Votes are used to help choose a new goal each time step.
         self.goal_activities = np.zeros(self.n_features)
-        # self.previous_feature_goals = np.zeros(self.n_features)
-        # self.feature_goal_votes = np.zeros(self.n_features)
 
         # prefix_curiosities,
         # prefix_occurrences,
@@ -117,7 +113,7 @@ class Model(object):
         self.conditional_predictions = np.zeros(_2D_size)
         self.prefix_activities = np.zeros(_2D_size)
         self.prefix_credit = np.zeros(_2D_size)
-        self.prefix_occurrences = np.ones(_2D_size)
+        self.prefix_occurrences = np.zeros(_2D_size)
         self.prefix_curiosities = np.zeros(_2D_size)
         self.prefix_rewards = np.zeros(_2D_size)
         self.prefix_uncertainties = np.zeros(_2D_size)
@@ -151,20 +147,13 @@ class Model(object):
         candidate_activities : array of floats
             The current activity levels of each of the feature candidates.
         reward : float
-            The reward reported by the world during the most recent time step.
+            The reward reported by the world during
+            the most recent time step.
         """
         # Update feature_activities and previous_feature_activities
         self.update_activities(candidate_activities)
 
         # Update sequences before prefixes.
-        nb.update_sequences(
-            self.feature_activities,
-            self.prefix_activities,
-            self.prefix_occurrences,
-            self.sequence_occurrences,
-            self.sequence_likelihoods,
-        )
-
         nb.update_prefixes(
             self.prefix_decay_rate,
             self.previous_feature_activities,
@@ -172,6 +161,14 @@ class Model(object):
             self.prefix_activities,
             self.prefix_occurrences,
             self.prefix_uncertainties,
+        )
+
+        nb.update_sequences(
+            self.feature_activities,
+            self.prefix_activities,
+            self.prefix_occurrences,
+            self.sequence_occurrences,
+            self.sequence_likelihoods,
         )
 
         nb.update_rewards(
@@ -207,6 +204,7 @@ class Model(object):
         )
 
         return (
+            self.feature_activities,
             self.conditional_predictions,
             self.conditional_rewards,
             self.conditional_curiosities)
