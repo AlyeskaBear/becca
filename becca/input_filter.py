@@ -45,8 +45,8 @@ class InputFilter(object):
         #     as the number of candidates.
         #     A 1 in position i, j indicates that candidate i maps to
         #     input j.
-        self.mapping = np.zeros((self.n_inputs * 2, self.n_inputs),
-                                dtype=np.int)
+        self.mapping = np.zeros(
+            (self.n_inputs * 2, self.n_inputs), dtype=np.int)
 
         #     Position in this array shows which candidate is being assigned.
         #     The value at that position shows the input index it is
@@ -99,8 +99,8 @@ class InputFilter(object):
         self.n_candidates = self.candidate_activities.size
         capacity = self.mapping.shape[0]
         if self.n_candidates >= capacity:
-            new_mapping = np.zeros((self.n_candidates * 2, self.n_inputs),
-                                   dtype=np.int)
+            new_mapping = np.zeros(
+                (self.n_candidates * 2, self.n_inputs), dtype=np.int)
             new_mapping[:capacity, :] = self.mapping
             self.mapping = new_mapping
 
@@ -130,8 +130,8 @@ class InputFilter(object):
             self.mapping[:self.n_candidates, :], axis=1) == 0)[0]
         self.i_in_use = np.where(self.mapping)[0]
         self.bench_pressure[self.i_benched] += (
-            self.candidate_activities[self.i_benched] /
-            (tools.epsilon
+            self.candidate_activities[self.i_benched] / (
+                tools.epsilon
                 + self.cumulative_activities[self.i_benched]
                 * self.pressure_time))
 
@@ -212,7 +212,9 @@ class InputFilter(object):
 
         resets = []
         candidate_score = (
-            self.candidate_fitness + self.bench_pressure[self.n_candidates])
+            self.candidate_fitness
+            + self.bench_pressure[self.n_candidates]
+        )
         # Find lowest scoring candidates in use.
         i_lowest_scoring_in_use = np.argsort(
             candidate_score[self.i_in_use])[::-1]
@@ -225,8 +227,10 @@ class InputFilter(object):
         # n_inputs_unassigned = self.n_inputs - n_inputs_used
         n_inputs_unassigned = self.n_inputs - self.i_in_use.size
         i_fill = 0
-        while(n_inputs_unassigned > 0 and
-              i_highest_scoring_benched.size > i_fill):
+        while(
+            n_inputs_unassigned > 0
+            and i_highest_scoring_benched.size > i_fill
+        ):
             i_in = self.i_benched[i_highest_scoring_benched[i_fill]]
             self.mapping[i_in, self.n_inputs - n_inputs_unassigned] = 1
             # self.inverse_mapping[self.n_inputs - n_inputs_unassigned] = i_in

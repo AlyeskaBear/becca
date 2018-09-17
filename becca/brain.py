@@ -74,7 +74,7 @@ class Brain(object):
             "name": None,
             "reporting_interval": 1e3,
             "restore": True,
-            "visualize_interval": 1e3,
+            "visualize_interval": 1e4,
         }
         if config is None:
             config = {}
@@ -192,7 +192,6 @@ class Brain(object):
             self.featurizer = Featurizer(
                 debug=self.debug,
                 n_inputs=self.n_features,
-                threshold=1e3,
             )
             # The model builds sequences of features and goals and reward
             # for making predictions about its world.
@@ -273,18 +272,21 @@ class Brain(object):
         feature_activities = self.featurizer.featurize(
             np.concatenate((self.postprocessor.consolidated_commands,
                             input_activities)))
+
         (model_feature_activities,
             conditional_predictions,
             conditional_rewards,
-            conditional_curiosities) = self.model.step(
-            feature_activities, reward)
+            conditional_curiosities
+        ) = self.model.step(feature_activities, reward)
+
         feature_goals, i_goal = self.actor.choose(
             feature_activities=model_feature_activities,
             conditional_predictions=conditional_predictions,
             conditional_rewards=conditional_rewards,
             conditional_curiosities=conditional_curiosities,
         )
-        feature_pool_goals = self.model.update_goals(feature_goals, i_goal)
+        feature_pool_goals = self.model.update_goals(
+            feature_goals, i_goal)
 
         debug_local = False
         if debug_local:
@@ -299,7 +301,7 @@ class Brain(object):
 
         # Isolate the actions from the rest of the goals.
         self.actions = (self.postprocessor.convert_to_actions(
-                        input_goals[:self.n_commands]))
+            input_goals[:self.n_commands]))
 
         # Update the inputs in a pair of top-down/bottom-up passes.
         # Top-down
@@ -391,8 +393,8 @@ class Brain(object):
             print('Pickling error: {0} encountered while saving brain data'.
                   format(perr))
         except Exception as err:
-            print('Unknown error: {0} encountered while saving brain data'.
-                  format(err))
+            print('Unknown error: {0} encountered while saving brain data'
+                  .format(err))
         else:
             success = True
         return success

@@ -31,8 +31,10 @@ def update_prefixes(
         for i_goal in range(n_goals):
             prefix_activities[i_feature, i_goal] *= 1 - prefix_decay_rate
 
-            new_prefix_activity = (previous_feature_activities[i_feature] *
-                                   goal_activities[i_goal])
+            new_prefix_activity = (
+                previous_feature_activities[i_feature] *
+                goal_activities[i_goal]
+            )
             prefix_activities[i_feature, i_goal] += new_prefix_activity
             prefix_activities[i_feature, i_goal] = min(
                 prefix_activities[i_feature, i_goal], 1)

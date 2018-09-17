@@ -31,7 +31,7 @@ class Ziptie(object):
             debug=False,
             n_cables=16,
             name=None,
-            threshold=1e4,
+            threshold=1e3,
     ):
         """
         Initialize the ziptie, pre-allocating data structures.
@@ -82,26 +82,27 @@ class Ziptie(object):
         # mapping: 2D array of ints
         #     The mapping between cables and bundles.
         #     If element i,j is 1, then cable i is a member of bundle j
-        self.mapping = np.zeros((self.n_cables, self.n_cables), dtype=np.int)
+        self.mapping = np.zeros(
+            (self.n_cables, self.n_cables), dtype=np.int)
 
         # agglomeration_energy: 2D array of floats
         #     The accumulated agglomeration energy for each
         #     bundle-cable pair. Bundles are represented in rows,
         #     cables are in columns.
-        self.agglomeration_energy = np.zeros((self.n_cables,
-                                              self.n_cables))
+        self.agglomeration_energy = np.zeros(
+            (self.n_cables, self.n_cables))
         # agglomeration_mask: 2D array of floats
         #     A binary array indicating which cable-bundle
         #     pairs are allowed to accumulate
         #     energy and which are not. Some combinations are
         #     disallowed because they result in redundant bundles.
-        self.agglomeration_mask = np.ones((self.n_cables,
-                                           self.n_cables))
+        self.agglomeration_mask = np.ones(
+            (self.n_cables, self.n_cables))
         # nucleation_energy: 2D array of floats
         #     The accumualted nucleation energy associated
         #     with each cable-cable pair.
-        self.nucleation_energy = np.zeros((self.n_cables,
-                                           self.n_cables))
+        self.nucleation_energy = np.zeros(
+            (self.n_cables, self.n_cables))
         # nucleation_mask: 2D array of floats
         #     A binary array indicating which cable-cable
         #     pairs are allowed to accumulate
@@ -142,10 +143,13 @@ class Ziptie(object):
         If the right conditions have been reached, create a new bundle.
         """
         # Incrementally accumulate nucleation energy.
-        nb.nucleation_energy_gather(self.cable_activities,
-                                    self.nucleation_energy,
-                                    self.nucleation_mask)
-        max_energy, i_cable_a, i_cable_b = nb.max_2d(self.nucleation_energy)
+        nb.nucleation_energy_gather(
+            self.cable_activities,
+            self.nucleation_energy,
+            self.nucleation_mask,
+        )
+        max_energy, i_cable_a, i_cable_b = nb.max_2d(
+            self.nucleation_energy)
 
         # Add a new bundle if appropriate
         if max_energy > self.nucleation_threshold:
@@ -200,12 +204,15 @@ class Ziptie(object):
         Update an estimate of co-activity between all cables.
         """
         # Incrementally accumulate agglomeration energy.
-        nb.agglomeration_energy_gather(self.bundle_activities,
-                                       self.cable_activities,
-                                       self.n_bundles,
-                                       self.agglomeration_energy,
-                                       self.agglomeration_mask)
-        max_energy, i_bundle, i_cable = nb.max_2d(self.agglomeration_energy)
+        nb.agglomeration_energy_gather(
+            self.bundle_activities,
+            self.cable_activities,
+            self.n_bundles,
+            self.agglomeration_energy,
+            self.agglomeration_mask,
+        )
+        max_energy, i_bundle, i_cable = nb.max_2d(
+            self.agglomeration_energy)
 
         # Add a new bundle if appropriate
         if max_energy > self.agglomeration_threshold:

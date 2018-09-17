@@ -136,7 +136,7 @@ class Model(object):
         # curiosity_update_rate : float
         #     One of the factors that determines he rate at which
         #     a prefix increases its curiosity.
-        self.curiosity_update_rate = 3e-3
+        self.curiosity_update_rate = 1e-2
 
     def step(self, candidate_activities, reward):
         """
@@ -223,7 +223,6 @@ class Model(object):
         feature_activities: array of floats
         previous_feature_activities: array of floats
         """
-        # TODO: incorporate _update_activities() into this
         feature_activities = self.filter.update_activities(
             candidate_activities)
 
@@ -249,7 +248,6 @@ class Model(object):
             The fitness of each of the feature candidate inputs to
             the model.
         """
-
         nb.update_fitness(
             self.feature_fitness,
             self.prefix_occurrences,

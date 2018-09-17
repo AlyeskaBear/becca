@@ -14,7 +14,6 @@ class Featurizer(object):
         self,
         debug=False,
         n_inputs=None,
-        threshold=None,
     ):
         """
         Configure the featurizer.
@@ -25,8 +24,6 @@ class Featurizer(object):
         n_inputs : int
             The number of inputs (cables) that each Ziptie will be
             equipped to handle.
-        threshold : float
-            See Ziptie.nucleation_threshold
         """
         self.debug = debug
 
@@ -66,16 +63,19 @@ class Featurizer(object):
         #     features, which sparsity helps keep Becca fast.
         self.ziptie = Ziptie(
             n_cables=self.n_inputs,
-            threshold=threshold,
             debug=self.debug)
 
         # n_features: int
         #     The total number of features that have been colllected so far.
         #     This includes the cable candidate pools from each ziptie.
-        self.n_features = [0, 0]
+        self.n_features_by_level = [0, 0]
 
         # mapping: 2D array of ints
-        #     The transformation from
+        #     The transformation from candidates (List or arrays of values)
+        #     to the feature pool.
+        #     If there is a one at [row_i, col_j] then
+        #     candidate row_i maps to feature index col_j .
+        #         feature_pool = np.matmul(candidates, self.mapping)
         self.mapping = np.zeros((0, 0), dtype=np.int)
 
     def featurize(self, new_candidates):
@@ -168,7 +168,7 @@ class Featurizer(object):
 
         resets = []
         for i_level, level_resets in enumerate(all_resets):
-            i_start = np.sum(np.array(self.n_features[:i_level]))
+            i_start = np.sum(np.array(self.n_features_by_level[:i_level]))
             for i_reset in level_resets:
                 resets.append(np.where(
                     self.mapping[i_start + i_reset, :])[0])
@@ -188,10 +188,9 @@ class Featurizer(object):
         -------
         candidate_values: list of array of floats
         """
-        # feature_pool_values = np.matmul(feature_values, self.mapping.T)
         candidate_values = []
         i_last = 0
-        for n_feat in self.n_features:
+        for n_feat in self.n_features_by_level:
             candidate_values.append(
                 feature_values[i_last: i_last + n_feat])
             i_last += n_feat
@@ -210,51 +209,62 @@ class Featurizer(object):
         -------
         feature_values: array of floats
         """
-        # Check whether the number of candidates has expanded at any level
-        # and adapt.
-        n_candidates_by_level = [values.size for values in candidate_values]
-        total_n_candidates = np.sum(np.array(n_candidates_by_level))
-        total_n_features = np.sum(np.array(self.n_features))
-        if (total_n_features < total_n_candidates):
-            # Update_needed
-            delta = []
-            for i_level, candidate_pool in enumerate(candidate_values):
-                delta.append(candidate_pool.size - self.n_features[i_level])
-            # Create a larger map
-            new_mapping = np.zeros(
-                (total_n_candidates, total_n_candidates), dtype=np.int)
-            new_mapping[:total_n_features, :total_n_features] = self.mapping
-            new_mapping[total_n_features:, total_n_features:] = (
-                np.eye(total_n_candidates - total_n_features))
-
-            # Shift new rows upward to sit with their own levels.
-            last_row = 0
-            for i_level in range(len(candidate_values) - 1):
-                last_row += self.n_features[i_level]
-                start = total_n_features
-                stop = start + delta[i_level]
-                if delta[i_level] > 0:
-                    move_rows = new_mapping[start:stop, :]
-                    new_mapping[
-                        last_row + delta[i_level]:
-                        last_row + delta[i_level]
-                            + self.n_features[i_level + 1], :
-                    ] = new_mapping[
-                        last_row:
-                        last_row
-                            + self.n_features[i_level + 1], :
-                    ]
-                    new_mapping[
-                        last_row: last_row + delta[i_level], :] = move_rows
-                    self.n_features[i_level] += delta[i_level]
-                    start += delta[i_level]
-                    last_row += delta[i_level]
-            self.n_features[-1] += delta[-1]
-            self.mapping = new_mapping
-
+        self.grow_map(candidate_values)
         all_candidate_values = []
         for level_candidate_values in candidate_values:
             all_candidate_values += list(level_candidate_values)
         feature_values = np.matmul(
             np.array(all_candidate_values), self.mapping)
         return feature_values
+
+    def grow_map(self, candidate_values):
+        """
+        Check whether we need to add more candidates to the feature pool.
+
+        New candidates will come in appended to the end of their
+        respective input pools. However, feature indices need to
+        stay consistent throughout the life of each feature.
+        these new candidates need to be given indices at the
+        end of the currently used set of feature pool indices.
+
+        Parameters
+        ----------
+        candidate_values: list of arrays of floats
+        """
+        # Check whether the number of candidates has expanded
+        # at any level and adapt.
+        n_candidates_by_level = [
+            values.size for values in candidate_values]
+        total_n_candidates = np.sum(np.array(n_candidates_by_level))
+        total_n_features = np.sum(np.array(self.n_features_by_level))
+
+        if (total_n_features < total_n_candidates):
+            # Create a larger map
+            new_mapping = []
+            i_last_old = 0  # Track last candidate handled.
+            j_last_new = total_n_features  # Track last feature assigned.
+
+            for i_level in range(len(self.n_features_by_level)):
+                n_cand = n_candidates_by_level[i_level]
+                n_feat = self.n_features_by_level[i_level]
+                delta = n_cand - n_feat
+
+                level_old_map = np.zeros((n_feat, total_n_candidates))
+                level_old_map[:, :total_n_features] = self.mapping[
+                    i_last_old:i_last_old + n_feat, :]
+                new_mapping.append(level_old_map)
+
+                if delta > 0:
+                    level_new_map = np.zeros((delta, total_n_candidates))
+                    level_new_map[
+                        :,
+                        j_last_new: j_last_new + delta
+                    ] = np.eye(delta)
+                    new_mapping.append(level_new_map)
+
+                    j_last_new += delta
+                    self.n_features_by_level[i_level] += delta
+
+                i_last_old += n_feat
+            self.mapping = np.concatenate(new_mapping)
+        return
