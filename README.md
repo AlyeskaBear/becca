@@ -23,11 +23,14 @@ If you want to integrate becca with your robot, simulation, or reinforcement lea
 
 Some [videos](http://youtu.be/4kPoU8eZvio?list=PLF861CC4C40439EEB) show it in action. 
 
+### How do I use becca?
+
+A [Hello-World example](https://youtu.be/UQ0uW2t2TRE) walks you through the process.
+
 ### What can becca do for me?
 
 Becca aspires to be a brain for any robot, doing anything. It's not there yet, but it's getting closer.
-It may be able to drive your robot. Hook it up and see, using the worlds in the `becca_test` repository
-as a model. Feel free to shoot me an email (brohrer@gmail.com) if you'd like to talk it through.
+It may be able to drive your robot. Hook it up and see. Feel free to shoot me an email (brohrer@gmail.com) if you'd like to talk it through.
 
 ### How does becca 10 work?
 
