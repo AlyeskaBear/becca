@@ -5,7 +5,7 @@ Becca is a general learning program for use in any robot or embodied system. Whe
     
 #### Pull down the code from Pypi.
 
-    pip install becca
+    pip3 install becca
 
 `becca_test`, `becca_viz`, and `becca_toolbox` install automatically when you install `becca`. It will also install `numpy`, `numba`, and `matplotlib` if you don't have those in place already.
 
