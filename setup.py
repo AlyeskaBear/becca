@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='becca',
-    version='0.10.0',
+    version='0.10.1',
     description='A general learning algorithm',
     url='http://github.com/brohrer/becca',
     download_url='https://github.com/brohrer/becca/archive/master.zip',
