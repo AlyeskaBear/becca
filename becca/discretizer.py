@@ -6,6 +6,12 @@ import matplotlib.pyplot as plt
 
 from becca.cat_tree import CatTree
 
+import logging
+
+logging.basicConfig(filename='log/log.log', level=logging.DEBUG, 
+                    format='%(asctime)s %(levelname)s %(name)s %(message)s')
+logger=logging.getLogger(os.path.basename(__file__))
+
 
 class Discretizer(object):
     """
@@ -134,8 +140,8 @@ class Discretizer(object):
         """
 
         if len(vals) < 2:
-            print('You need to provide more than one value.')
-            print('Try again.')
+            logger.error('You need to provide more than one value.')
+            logger.error('Try again.')
             sys.exit()
 
         for val in vals:

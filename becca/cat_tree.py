@@ -3,6 +3,13 @@ import numpy as np
 from becca.str_cat_tree_node import StrCatTreeNode
 from becca.num_cat_tree_node import NumCatTreeNode
 
+import os
+import logging
+
+logging.basicConfig(filename='log/log.log', level=logging.DEBUG, 
+                    format='%(asctime)s %(levelname)s %(name)s %(message)s')
+logger=logging.getLogger(os.path.basename(__file__))
+
 
 class CatTree(object):
     """
@@ -43,21 +50,21 @@ class CatTree(object):
         """
         self.verbose = verbose
         if self.verbose:
-            print('\'' + type + '\'' + ' tree requested.')
+            logger.info('\'' + type + '\'' + ' tree requested.')
         if type.lower() in ['string', 'str']:
             self.root = StrCatTreeNode(
                 i_input=i_input,
                 position=base_position)
             self.observation_set = StrCatTreeNode()
             if self.verbose:
-                print('string tree created.')
+                logger.info('string tree created.')
         else:
             self.root = NumCatTreeNode(
                 i_input=i_input,
                 position=base_position)
             self.observation_set = NumCatTreeNode()
             if self.verbose:
-                print('numeric tree created.')
+                logger.info('numeric tree created.')
 
         self.split_period = split_period
         self.split_size = split_size

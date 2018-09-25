@@ -1,4 +1,10 @@
 import numpy as np
+import os
+import logging
+
+logging.basicConfig(filename='log/log.log', level=logging.DEBUG, 
+                    format='%(asctime)s %(levelname)s %(name)s %(message)s')
+logger=logging.getLogger(os.path.basename(__file__))
 
 
 class Postprocessor(object):
@@ -26,7 +32,7 @@ class Postprocessor(object):
         # TODO: Make discretization adaptive in number and magnitude.
         # TODO: Check for valid arguments.
         if not n_actions:
-            print('You have to give a number for n_actions.')
+            logger.error('You have to give a number for n_actions.')
             return
 
         self.n_actions = n_actions

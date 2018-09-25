@@ -11,6 +11,12 @@ from becca.model import Model
 from becca.actor import Actor
 import becca_viz.viz as viz
 
+import logging
+
+logging.basicConfig(filename='log/log.log', level=logging.DEBUG, 
+                    format='%(asctime)s %(levelname)s %(name)s %(message)s')
+logger=logging.getLogger(os.path.basename(__file__))
+
 
 class Brain(object):
     """
@@ -294,7 +300,7 @@ class Brain(object):
             rep += " last action: " + str(self.actions[0]) + ", "
             rep += " reward of " + str(reward) + ", "
             rep += " next sensors " + str(sensors)
-            print(rep)
+            logger.debug(rep)
 
         # Pass goals back down.
         input_goals = self.featurizer.defeaturize(feature_pool_goals)
@@ -387,13 +393,13 @@ class Brain(object):
                           'wb') as brain_data_bak:
                     pickle.dump(self, brain_data_bak)
         except IOError as err:
-            print('File error: {0} encountered while saving brain data'.
+            logger.error('File error: {0} encountered while saving brain data'.
                   format(err))
         except pickle.PickleError as perr:
-            print('Pickling error: {0} encountered while saving brain data'.
+            logger.error('Pickling error: {0} encountered while saving brain data'.
                   format(perr))
         except Exception as err:
-            print('Unknown error: {0} encountered while saving brain data'
+            logger.error('Unknown error: {0} encountered while saving brain data'
                   .format(err))
         else:
             success = True
@@ -431,20 +437,20 @@ def restore(brain):
         # .pickle.bak file. Then you can restore from the backup pickle.
         if ((loaded_brain.n_sensors == brain.n_sensors) and
                 (loaded_brain.n_actions == brain.n_actions)):
-            print('Brain restored at timestep {0} from {1}'.format(
+            logger.info('Brain restored at timestep {0} from {1}'.format(
                 str(loaded_brain.timestep), brain.pickle_filename))
             restored_brain = loaded_brain
 
         else:
-            print('The brain {0} does not have the same number'.format(
+            logger.warn('The brain {0} does not have the same number'.format(
                 brain.pickle_filename))
-            print('of sensors and actions as the world.')
-            print('Creating a new brain from scratch.')
+            logger.warn('of sensors and actions as the world.')
+            logger.warn('Creating a new brain from scratch.')
     except IOError:
-        print('Couldn\'t open {0} for loading'
+        logger.error('Couldn\'t open {0} for loading'
               .format(brain.pickle_filename))
     except pickle.PickleError:
-        print('Error unpickling world')
+        logger.error('Error unpickling world')
     return restored_brain
 
 
@@ -486,7 +492,7 @@ def run(world, config=None):
     try:
         world.close_world(brain)
     except AttributeError:
-        print("Closing", world.name)
+        logger.error("Closing", world.name)
 
     performance = brain.report_performance()
     return performance

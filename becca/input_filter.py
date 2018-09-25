@@ -2,6 +2,13 @@ import numpy as np
 
 import becca.tools as tools
 
+import os
+import logging
+
+logging.basicConfig(filename='log/log.log', level=logging.DEBUG, 
+                    format='%(asctime)s %(levelname)s %(name)s %(message)s')
+logger=logging.getLogger(os.path.basename(__file__))
+
 
 class InputFilter(object):
     """
@@ -25,7 +32,7 @@ class InputFilter(object):
         self.name = name
         # Check for valid arguments.
         if not n_inputs:
-            print('You have to give a number for n_inputs.')
+            logger.error('You have to give a number for n_inputs.')
             return
         else:
             self.n_inputs = n_inputs

@@ -3,6 +3,13 @@ import numpy as np
 from becca.discretizer import Discretizer
 import becca.tools as tools
 
+import os
+import logging
+
+logging.basicConfig(filename='log/log.log', level=logging.DEBUG, 
+                    format='%(asctime)s %(levelname)s %(name)s %(message)s')
+logger=logging.getLogger(os.path.basename(__file__))
+
 
 class Preprocessor(object):
     """
@@ -19,7 +26,7 @@ class Preprocessor(object):
             world to get started.
         """
         if not n_sensors:
-            print('You have to give a number for n_sensors.')
+            logger.error('You have to give a number for n_sensors.')
             return
         else:
             self.n_sensors = n_sensors
