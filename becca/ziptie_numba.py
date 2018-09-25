@@ -122,8 +122,8 @@ def find_bundle_activities(
     while max_vote > threshold:
         # Initialize the loop that greedily looks for the most strongly
         # activated bundle.
-        max_vote = 0.
-        best_val = 0.
+        max_vote = 0
+        best_val = 0
         best_bundle = 0
         # This is the index in i_row and i_col where the
         # current bundle's cable constituents are listed. Cable indices
@@ -139,14 +139,14 @@ def find_bundle_activities(
             # For each bundle, find the minimum cable activity that
             # contribues to it.
             min_val = large
-            n_cables = 0.
+            n_cables = 0
             i_bundle = i
             while i_rows[i] == row and i > -1:
                 col = i_cols[i]
                 val = cables[col]
                 if val < min_val:
                     min_val = val
-                n_cables += 1.
+                n_cables += 1
                 i -= 1
 
             # The strength of the vote for the bundle is the minimum cable
@@ -154,7 +154,7 @@ def find_bundle_activities(
             # bundles with many member cables more highly than bundles
             # with few cables. It is a way to encourage sparsity and to
             # avoid creating more bundles than necessary.
-            vote = min_val * (1. + .1 * (n_cables - 1.)) * (1. + weights[row])
+            vote = min_val * (1 + .1 * (n_cables - 1)) * (1 + weights[row])
 
             # Update the winning bundle if appropriate.
             if vote > max_vote:
@@ -166,7 +166,7 @@ def find_bundle_activities(
             # Move on to the next bundle.
             row -= 1
 
-        if best_val > 0.:
+        if best_val > 0:
             # Set the bundle activity.
             bundles[best_bundle] = best_val
 
@@ -212,10 +212,10 @@ def nucleation_energy_gather(
     Returned indirectly by modifying nucleation_energy.
     """
     for i_cable1, activity1 in enumerate(cable_activities):
-        if activity1 > 0.:
+        if activity1 > 0:
             for i_cable2, _ in enumerate(cable_activities):
                 activity2 = cable_activities[i_cable2]
-                if activity2 > 0.:
+                if activity2 > 0:
                     if nucleation_mask[i_cable1, i_cable2]:
                         nucleation_energy[i_cable1, i_cable2] += (
                             activity1 * activity2)
@@ -258,10 +258,10 @@ def agglomeration_energy_gather(
     Returned indirectly by modifying agglomeration_energy.
     """
     for i_cable, activity in enumerate(cable_activities):
-        if activity > 0.:
+        if activity > 0:
             # Only decay bundles that have been created
             for i_bundle in range(n_bundles):
-                if bundle_activities[i_bundle] > 0.:
+                if bundle_activities[i_bundle] > 0:
                     if agglomeration_mask[i_bundle, i_cable]:
                         coactivity = activity * bundle_activities[i_bundle]
                         agglomeration_energy[i_bundle, i_cable] += coactivity

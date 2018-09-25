@@ -8,11 +8,11 @@ class NumCatTreeNode(object):
     def __init__(
         self,
         bounds=None,
-        depth=0.,
+        depth=0,
         i_input=0,
         n_candidates=10,
         parent=None,
-        position=0.,
+        position=0,
     ):
         """
         Create a new node.
@@ -137,7 +137,7 @@ class NumCatTreeNode(object):
         split_value: float
             Where to subdivide the node to create children.
         """
-        delta = 2. ** (-1. * float(self.depth + 3))
+        delta = 2 ** (-1 * float(self.depth + 3))
         lo_bounds = (self.lo_bound, split_value)
         hi_bounds = (split_value, self.hi_bound)
 
@@ -181,11 +181,11 @@ class NumCatTreeNode(object):
         if lo_vals.size > 0:
             lo_spread = np.sum((lo_vals - np.mean(lo_vals))**2)
         else:
-            lo_spread = 0.
+            lo_spread = 0
         if hi_vals.size > 0:
             hi_spread = np.sum((hi_vals - np.mean(hi_vals))**2)
         else:
-            hi_spread = 0.
+            hi_spread = 0
         return lo_spread + hi_spread
 
     def find_best_split(self):
@@ -208,7 +208,7 @@ class NumCatTreeNode(object):
             hi_split_bound - lo_split_bound) * (
                 np.random.random_sample(size=self.n_candidates))
 
-        biggest_change = 0.
+        biggest_change = 0
         best_candidate = lo_split_bound
         for candidate in split_candidates:
             new_spread = self.evaluate(candidate)

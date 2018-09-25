@@ -171,7 +171,7 @@ class Brain(object):
             #     The level of contentment experienced by the brain.
             #     Higher contentment dampens curiosity and
             #     the drive to explore.
-            self.satisfaction = 0.
+            self.satisfaction = 0
 
             # n_commands: array of floats
             #     commands are discretized actions, suitable
@@ -347,7 +347,7 @@ class Brain(object):
         threshold = .1 / float(self.n_actions)
         action_strength = np.random.random_sample(self.n_actions)
         actions = np.zeros(self.n_actions)
-        actions[np.where(action_strength < threshold)] = 1.
+        actions[np.where(action_strength < threshold)] = 1
         return actions
 
     def report_performance(self):

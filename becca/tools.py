@@ -14,7 +14,7 @@ big = 10 ** 20
 max_int16 = np.iinfo(np.int16).max
 
 
-def pad(arr, shape, val=0., dtype=float):
+def pad(arr, shape, val=0, dtype=float):
     """
     Pad a numpy array to the specified shape.
 
@@ -133,14 +133,14 @@ def timestr(timestep, s_per_step=.25, precise=True):
     """
     # Start by calculating the total number of seconds.
     total_sec = timestep * s_per_step
-    sec = int(np.mod(total_sec, 60.))
+    sec = int(np.mod(total_sec, 60))
     time_str = ' '.join([str(sec), 'sec'])
 
     # If necessary, calculate the total number of minutes.
     total_min = int(total_sec / 60)
     if total_min == 0:
         return time_str
-    min_ = int(np.mod(total_min, 60.))
+    min_ = int(np.mod(total_min, 60))
     if precise:
         time_str = ' '.join([str(min_), 'min', time_str])
     else:
@@ -150,7 +150,7 @@ def timestr(timestep, s_per_step=.25, precise=True):
     total_hr = int(total_min / 60)
     if total_hr == 0:
         return time_str
-    hr_ = int(np.mod(total_hr, 24.))
+    hr_ = int(np.mod(total_hr, 24))
     if precise:
         time_str = ' '.join([str(hr_), 'hr', time_str])
     else:
@@ -160,7 +160,7 @@ def timestr(timestep, s_per_step=.25, precise=True):
     total_day = int(total_hr / 24)
     if total_day == 0:
         return time_str
-    day = int(np.mod(total_day, 30.))
+    day = int(np.mod(total_day, 30))
     if precise:
         time_str = ' '.join([str(day), 'dy', time_str])
     else:
@@ -170,7 +170,7 @@ def timestr(timestep, s_per_step=.25, precise=True):
     total_mon = int(total_day / 30)
     if total_mon == 0:
         return time_str
-    mon = int(np.mod(total_mon, 12.))
+    mon = int(np.mod(total_mon, 12))
     if precise:
         time_str = ' '.join([str(mon), 'mo', time_str])
     else:
@@ -206,7 +206,7 @@ def fatigue(raw_activities, energies, fatigue_rate=3e-4, recharge_rate=1e-4):
     """
 
     energies -= fatigue_rate * raw_activities * energies
-    energies += recharge_rate * (1. - raw_activities) * (1. - energies)
+    energies += recharge_rate * (1 - raw_activities) * (1 - energies)
     activities = raw_activities * energies
     return activities
 

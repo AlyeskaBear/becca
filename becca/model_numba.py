@@ -136,7 +136,7 @@ def update_rewards(
                 if reward > prefix_rewards[i_feature, i_goal]:
                     update_scale = .5
                 else:
-                    update_scale = 1.
+                    update_scale = 1
                 prefix_rewards[i_feature, i_goal] += (
                     delta * credit * reward_update_rate * update_scale)
     return

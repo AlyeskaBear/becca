@@ -10,7 +10,7 @@ class CatTree(object):
     """
     def __init__(
         self,
-        base_position=0.,
+        base_position=0,
         i_input=0,
         split_period=1e2,
         split_size=1e-2,
@@ -231,11 +231,11 @@ class CatTree(object):
         -------
         No explicit returns, but input activities is modified to show
             Category membership for value.
-            Membership varies from 0. (non-member)
-            to 1. (full member).
+            Membership varies from 0 (non-member)
+            to 1 (full member).
         """
         lineage = self.get_lineage(value)
-        cumulative_discount = 1.
+        cumulative_discount = 1
         for node in lineage[::-1]:
             input_activities[node.i_input] = cumulative_discount
             cumulative_discount *= generational_discount
@@ -269,9 +269,9 @@ class CatTree(object):
         ):
             leaves = self.get_list(leaves_only=True)
             # Test splits on each leaf. Find the best.
-            best_candidate = 0.
+            best_candidate = 0
             best_leaf = None
-            biggest_change = 0.
+            biggest_change = 0
             for leaf in leaves:
                 (candidate_split, change) = leaf.find_best_split()
                 if change > biggest_change:

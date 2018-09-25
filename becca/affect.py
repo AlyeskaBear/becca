@@ -22,14 +22,14 @@ class Affect(object):
         self.satisfaction_time_constant = 1e3
         # satisfaction : float
         #     A filtered average of the reward.
-        self.satisfaction = 0.
+        self.satisfaction = 0
         # cumulative_reward : float
         #     The total reward amassed since the last visualization.
-        self.cumulative_reward = 0.
+        self.cumulative_reward = 0
         # time_since_reward_log : int
         #     Number of time steps since reward was last logged. It gets
         #     logged every time Affect is visualized.
-        self.time_since_reward_log = 0.
+        self.time_since_reward_log = 0
         # reward_history : list of floats
         #     A time series of reward accumulated during the periods between
         #     each time Affect is visualized.
@@ -53,12 +53,12 @@ class Affect(object):
         self.satisfaction : float
         """
         # Clip the reward so that it falls between -1 and 1.
-        reward = np.maximum(np.minimum(reward, 1.), -1.)
+        reward = np.maximum(np.minimum(reward, 1), -1)
 
         # Update the satisfaction, a filtered version of the reward.
-        rate = 1. / self.satisfaction_time_constant
+        rate = 1 / self.satisfaction_time_constant
         # This filter is also known as a leaky integrator.
-        self.satisfaction = self.satisfaction * (1. - rate) + reward * rate
+        self.satisfaction = self.satisfaction * (1 - rate) + reward * rate
 
         # Log the reward.
         self.cumulative_reward += reward

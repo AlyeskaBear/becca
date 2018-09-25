@@ -10,12 +10,12 @@ class StrCatTreeNode(object):
     """
     def __init__(
         self,
-        depth=0.,
+        depth=0,
         i_input=0,
         in_crowd=None,
         n_candidates=10,
         parent=None,
-        position=0.,
+        position=0,
     ):
         """
         Create a new node.
@@ -192,7 +192,7 @@ class StrCatTreeNode(object):
             Names in split_names the list belong to the hi_child,
             all others belong to the lo_child.
         """
-        delta = 2. ** (-1. * float(self.depth + 3))
+        delta = 2 ** (-1 * float(self.depth + 3))
 
         self.lo_child = StrCatTreeNode(
             depth=self.depth + 1,
@@ -249,7 +249,7 @@ class StrCatTreeNode(object):
             The in group names to split on and
             the change in variance that such a split would give.
         """
-        biggest_change = 0.
+        biggest_change = 0
         best_candidate = []
         if len(self.observations.keys()) > 1:
             original_variance = self.variance()
