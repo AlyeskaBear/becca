@@ -7,3 +7,9 @@
 *.gz
 *.png
 *.avi
+
+# tox
+.tox/
+
+# log files
+becca/log
