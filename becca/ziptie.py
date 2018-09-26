@@ -2,6 +2,13 @@ import numpy as np
 
 import becca.ziptie_numba as nb
 
+import os
+import logging
+
+logging.basicConfig(filename='log/log.log', level=logging.DEBUG, 
+                    format='%(asctime)s %(levelname)s %(name)s %(message)s')
+logger=logging.getLogger(os.path.basename(__file__))
+
 
 class Ziptie(object):
     """
@@ -189,10 +196,9 @@ class Ziptie(object):
             blocked = np.union1d(blocked_a, blocked_b)
             self.agglomeration_mask[i_bundle, blocked] = 0
 
-            # TODO: Add to logger
             # if self.debug:
             if False:
-                print(' '.join([
+                logger.debug(' '.join([
                     '    ', self.name,
                     'bundle', str(i_bundle),
                     'added with cables', str(i_cable_a),
@@ -253,10 +259,9 @@ class Ziptie(object):
             blocked = np.union1d(blocked_cable[0], blocked_bundle[0])
             self.agglomeration_mask[i_new_bundle, blocked] = 0
 
-            # TODO: Add to logger
             # if self.debug:
             if False:
-                print(' '.join(['    ', self.name,
+                logger.debug(' '.join(['    ', self.name,
                                 'bundle', str(i_new_bundle),
                                 'added: bundle', str(i_bundle),
                                 'and cable', str(i_cable)]))

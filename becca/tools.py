@@ -8,6 +8,12 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 
+import logging
+
+logging.basicConfig(filename='log/log.log', level=logging.DEBUG, 
+                    format='%(asctime)s %(levelname)s %(name)s %(message)s')
+logger=logging.getLogger(os.path.basename(__file__))
+
 # Shared constants
 epsilon = sys.float_info.epsilon
 big = 10 ** 20
@@ -46,7 +52,7 @@ def pad(arr, shape, val=0, dtype=float):
         else:
             rows = shape
             if rows < arr.size:
-                print(' '.join(['arr.size is', str(arr.size),
+                logger.warn(' '.join(['arr.size is', str(arr.size),
                                 ' but trying to pad to ',
                                 str(rows), 'rows.']))
                 return arr
@@ -59,7 +65,7 @@ def pad(arr, shape, val=0, dtype=float):
     new_shape = shape
     n_dim = len(shape)
     if n_dim > 4:
-        print(''.join([str(n_dim), ' dimensions? Now you\'re getting greedy']))
+        logger.info(''.join([str(n_dim), ' dimensions? Now you\'re getting greedy']))
         return arr
 
     for dim, _ in enumerate(shape):
@@ -67,11 +73,11 @@ def pad(arr, shape, val=0, dtype=float):
             new_shape[dim] = arr.shape[dim] - shape[dim]
         else:
             if new_shape[dim] < arr.shape[dim]:
-                print(''.join(['The variable shape in dimension ',
+                logger.warn(''.join(['The variable shape in dimension ',
                                str(dim), ' is ', str(arr.shape[dim]),
                                ' but you are trying to pad to ',
                                str(new_shape[dim]), '.']))
-                print('You aren\'t allowed to make it smaller.')
+                logger.warn('You aren\'t allowed to make it smaller.')
                 return arr
 
     padded = np.ones(new_shape, dtype=dtype) * val
@@ -224,12 +230,12 @@ def format_decimals(array):
         for j in range(array.shape[1]):
             formatted = (' '.join(['{0},{1}:{2:.3}'.format(i, j, array[i, j])
                                    for i in range(array.shape[0])]))
-            print(formatted)
+            logger.info(formatted)
     else:
         array = array.copy().ravel()
         formatted = (' '.join(['{0}:{1:.3}'.format(i, array[i])
                                for i in range(array.size)]))
-        print(formatted)
+        logger.info(formatted)
 
 
 def get_files_with_suffix(dir_name, suffixes):
