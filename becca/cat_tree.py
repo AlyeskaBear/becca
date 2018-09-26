@@ -6,9 +6,9 @@ from becca.num_cat_tree_node import NumCatTreeNode
 import os
 import logging
 
-logging.basicConfig(filename='log/log.log', level=logging.DEBUG, 
+logging.basicConfig(filename='log/log.log', level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s %(name)s %(message)s')
-logger=logging.getLogger(os.path.basename(__file__))
+logger = logging.getLogger(os.path.basename(__file__))
 
 
 class CatTree(object):

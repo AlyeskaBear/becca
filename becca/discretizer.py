@@ -8,9 +8,9 @@ from becca.cat_tree import CatTree
 
 import logging
 
-logging.basicConfig(filename='log/log.log', level=logging.DEBUG, 
+logging.basicConfig(filename='log/log.log', level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s %(name)s %(message)s')
-logger=logging.getLogger(os.path.basename(__file__))
+logger = logging.getLogger(os.path.basename(__file__))
 
 
 class Discretizer(object):
