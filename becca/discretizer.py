@@ -66,7 +66,7 @@ class Discretizer(object):
         self,
         input_activities=None,
         n_inputs=0,
-        raw_val=0.,
+        raw_val=0,
     ):
         """
         Incrementally build the set of categories.

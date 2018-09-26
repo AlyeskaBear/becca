@@ -57,7 +57,7 @@ class Actor(object):
             Indices of the goals to reset.
         """
         for i_goal in resets:
-            self.goal_collection[i_goal] = 0.
+            self.goal_collection[i_goal] = 0
         return
 
     def choose(

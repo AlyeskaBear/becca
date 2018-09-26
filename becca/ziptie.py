@@ -233,12 +233,12 @@ class Ziptie(object):
 
             # Reset the accumulated nucleation and agglomeration energy
             # for the two cables involved.
-            self.nucleation_energy[i_cable, :] = 0.
-            self.nucleation_energy[i_cable, :] = 0.
-            self.nucleation_energy[:, i_cable] = 0.
-            self.nucleation_energy[:, i_cable] = 0.
-            self.agglomeration_energy[:, i_cable] = 0.
-            self.agglomeration_energy[i_bundle, :] = 0.
+            self.nucleation_energy[i_cable, :] = 0
+            self.nucleation_energy[i_cable, :] = 0
+            self.nucleation_energy[:, i_cable] = 0
+            self.nucleation_energy[:, i_cable] = 0
+            self.agglomeration_energy[:, i_cable] = 0
+            self.agglomeration_energy[i_bundle, :] = 0
 
             # Update agglomeration_mask to account for the new bundle.
             # The new bundle should not accumulate agglomeration energy with
@@ -247,11 +247,11 @@ class Ziptie(object):
             # 2) the cables that its constituent bundle
             #    are blocked from agglomerating with.
             blocked_cable = np.where(
-                self.nucleation_mask[i_cable, :] == 0.)
+                self.nucleation_mask[i_cable, :] == 0)
             blocked_bundle = np.where(
-                self.agglomeration_mask[i_bundle, :] == 0.)
+                self.agglomeration_mask[i_bundle, :] == 0)
             blocked = np.union1d(blocked_cable[0], blocked_bundle[0])
-            self.agglomeration_mask[i_new_bundle, blocked] = 0.
+            self.agglomeration_mask[i_new_bundle, blocked] = 0
 
             # TODO: Add to logger
             # if self.debug:

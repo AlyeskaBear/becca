@@ -232,9 +232,9 @@ class Model(object):
         self.previous_feature_activities = self.feature_activities
         self.feature_activities = np.concatenate((
             np.zeros(2), feature_activities))
-        self.feature_activities[0] = 1.
+        self.feature_activities[0] = 1
         total_activity = np.sum(self.feature_activities[2:])
-        inactivity = max(1. - total_activity, 0.)
+        inactivity = max(1 - total_activity, 0)
         self.feature_activities[1] = inactivity
         return
 
@@ -280,28 +280,28 @@ class Model(object):
         # Reset features throughout the model.
         # It's like they never existed.
         for i in model_resets:
-            self.previous_feature_activities[i] = 0.
-            self.feature_activities[i] = 0.
-            self.feature_fitness[i] = 0.
-            self.goal_activities[i] = 0.
-            self.prefix_activities[i, :] = 0.
-            self.prefix_activities[:, i] = 0.
-            self.prefix_credit[i, :] = 0.
-            self.prefix_credit[:, i] = 0.
-            self.prefix_occurrences[i, :] = 0.
-            self.prefix_occurrences[:, i] = 0.
-            self.prefix_curiosities[i, :] = 0.
-            self.prefix_curiosities[:, i] = 0.
-            self.prefix_rewards[i, :] = 0.
-            self.prefix_rewards[:, i] = 0.
-            self.prefix_uncertainties[i, :] = 0.
-            self.prefix_uncertainties[:, i] = 0.
-            self.sequence_occurrences[i, :, :] = 0.
-            self.sequence_occurrences[:, i, :] = 0.
-            self.sequence_occurrences[:, :, i] = 0.
-            self.sequence_likelihoods[i, :, :] = 0.
-            self.sequence_likelihoods[:, i, :] = 0.
-            self.sequence_likelihoods[:, :, i] = 0.
+            self.previous_feature_activities[i] = 0
+            self.feature_activities[i] = 0
+            self.feature_fitness[i] = 0
+            self.goal_activities[i] = 0
+            self.prefix_activities[i, :] = 0
+            self.prefix_activities[:, i] = 0
+            self.prefix_credit[i, :] = 0
+            self.prefix_credit[:, i] = 0
+            self.prefix_occurrences[i, :] = 0
+            self.prefix_occurrences[:, i] = 0
+            self.prefix_curiosities[i, :] = 0
+            self.prefix_curiosities[:, i] = 0
+            self.prefix_rewards[i, :] = 0
+            self.prefix_rewards[:, i] = 0
+            self.prefix_uncertainties[i, :] = 0
+            self.prefix_uncertainties[:, i] = 0
+            self.sequence_occurrences[i, :, :] = 0
+            self.sequence_occurrences[:, i, :] = 0
+            self.sequence_occurrences[:, :, i] = 0
+            self.sequence_likelihoods[i, :, :] = 0
+            self.sequence_likelihoods[:, i, :] = 0
+            self.sequence_likelihoods[:, :, i] = 0
 
         return resets
 

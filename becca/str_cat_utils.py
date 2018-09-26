@@ -19,10 +19,10 @@ def variance(names):
     """
     # In case there is only one name or no names.
     if len(names.keys()) < 2:
-        return 0.
+        return 0
 
-    total_distance = 0.
-    sum_counts = 0.
+    total_distance = 0
+    sum_counts = 0
     for name_a, count_a in names.items():
         sum_counts += count_a
         for name_b, count_b in names.items():
@@ -32,6 +32,6 @@ def variance(names):
                 # In it's current form it is
                 #     0 if the strings are identical
                 #     1 if the strings aren't identical
-                distance_a_b = 1.
+                distance_a_b = 1
                 total_distance += distance_a_b * count_a * count_b
     return total_distance / sum_counts

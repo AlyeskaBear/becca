@@ -206,9 +206,9 @@ class InputFilter(object):
             upstream_resets = []
         # Before doing anything else, handle upstream resets.
         for i_reset in upstream_resets:
-            self.candidate_fitness[i_reset] = 0.
-            self.bench_pressure[i_reset] = 0.
-            self.cumulative_activities[i_reset] = 0.
+            self.candidate_fitness[i_reset] = 0
+            self.bench_pressure[i_reset] = 0
+            self.cumulative_activities[i_reset] = 0
 
         resets = []
         candidate_score = (
