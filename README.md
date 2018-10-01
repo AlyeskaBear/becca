@@ -1,3 +1,4 @@
+![](https://api.travis-ci.org/brohrer/becca.svg?branch=master)   
 Becca is a general learning program for use in any robot or embodied system. When using Becca, a robot learns to do whatever it is rewarded to do, and continues learning throughout its lifetime.
 
 ### How do I take a quick look at becca?
